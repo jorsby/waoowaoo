@@ -6,7 +6,7 @@ import HomePage from '@/app/[locale]/home/page'
 import {
   HOME_QUICK_START_MIN_ROWS,
   resolveTextareaTargetHeight,
-} from '@/lib/home/quick-start-textarea'
+} from '@/lib/ui/textarea-height'
 
 vi.mock('next-auth/react', () => ({
   useSession: () => ({
@@ -23,15 +23,28 @@ vi.mock('@/components/Navbar', () => ({
   default: () => createElement('nav', null, 'Navbar'),
 }))
 
+vi.mock('@/components/story-input/StoryInputComposer', () => ({
+  default: ({
+    minRows,
+    primaryAction,
+    secondaryActions,
+  }: {
+    minRows: number
+    primaryAction: React.ReactNode
+    secondaryActions?: React.ReactNode
+  }) => createElement(
+    'section',
+    { 'data-min-rows': String(minRows) },
+    secondaryActions,
+    primaryAction,
+    'StoryInputComposer',
+  ),
+}))
+
 vi.mock('@/components/ui/icons', () => ({
   AppIcon: ({ name, ...props }: { name: string } & Record<string, unknown>) =>
     createElement('span', { ...props, 'data-icon': name }),
   IconGradientDefs: (props: Record<string, unknown>) => createElement('span', props),
-}))
-
-vi.mock('@/components/selectors/RatioStyleSelectors', () => ({
-  RatioSelector: (props: Record<string, unknown>) => createElement('div', props, 'RatioSelector'),
-  StyleSelector: (props: Record<string, unknown>) => createElement('div', props, 'StyleSelector'),
 }))
 
 vi.mock('@/i18n/navigation', () => ({
@@ -88,6 +101,7 @@ describe('HomePage quick-start input', () => {
     const html = renderToStaticMarkup(createElement(HomePage))
 
     expect(HOME_QUICK_START_MIN_ROWS).toBe(3)
-    expect(html).toContain('rows="3"')
+    expect(html).toContain('StoryInputComposer')
+    expect(html).toContain('data-min-rows="3"')
   })
 })

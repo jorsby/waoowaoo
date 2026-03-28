@@ -4,21 +4,20 @@
  * 首页 - 创作中心
  * 用户登录后的主入口页面：快速创作 + 最近项目
  */
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSession } from 'next-auth/react'
 import { useTranslations } from 'next-intl'
 import Navbar from '@/components/Navbar'
 import { AppIcon, IconGradientDefs } from '@/components/ui/icons'
-import { RatioSelector, StyleSelector } from '@/components/selectors/RatioStyleSelectors'
+import StoryInputComposer from '@/components/story-input/StoryInputComposer'
+import TypewriterHero from '@/components/home/TypewriterHero'
 import { ART_STYLES, VIDEO_RATIOS } from '@/lib/constants'
+import { DEFAULT_STYLE_PRESET_VALUE, STYLE_PRESETS } from '@/lib/style-presets'
 import { Link, useRouter } from '@/i18n/navigation'
 import { apiFetch } from '@/lib/api-fetch'
 import { expandHomeStory } from '@/lib/home/ai-story-expand'
 import { createHomeProjectLaunch } from '@/lib/home/create-project-launch'
-import {
-  HOME_QUICK_START_MIN_ROWS,
-  resolveTextareaTargetHeight,
-} from '@/lib/home/quick-start-textarea'
+import { HOME_QUICK_START_MIN_ROWS } from '@/lib/ui/textarea-height'
 import AiWriteModal from '@/components/home/AiWriteModal'
 
 interface ProjectStats {
@@ -51,48 +50,10 @@ export default function HomePage() {
   const [inputValue, setInputValue] = useState('')
   const [videoRatio, setVideoRatio] = useState('9:16')
   const [artStyle, setArtStyle] = useState('american-comic')
+  const [stylePresetValue, setStylePresetValue] = useState<string>(DEFAULT_STYLE_PRESET_VALUE)
   const [createLoading, setCreateLoading] = useState(false)
   const [aiWriteOpen, setAiWriteOpen] = useState(false)
   const [aiWriteLoading, setAiWriteLoading] = useState(false)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const textareaMinHeightRef = useRef<number | null>(null)
-
-  // textarea 自适应高度（rAF 分帧动画）
-  const autoResizeTextarea = useCallback(() => {
-    const el = textareaRef.current
-    if (!el) return
-    const maxH = window.innerHeight * 0.5
-    const oldH = el.offsetHeight
-    const oldScrollTop = el.scrollTop
-    if (textareaMinHeightRef.current === null && oldH > 0) {
-      textareaMinHeightRef.current = oldH
-    }
-    const minH = textareaMinHeightRef.current ?? oldH
-
-    // 同步：测量真实高度（不改 overflow，避免 scrollTop 被重置）
-    el.style.transition = 'none'
-    el.style.height = 'auto'
-    const scrollH = el.scrollHeight
-    const targetH = resolveTextareaTargetHeight({
-      minHeight: minH,
-      maxHeight: maxH,
-      scrollHeight: scrollH,
-    })
-    el.style.height = `${oldH}px`
-    el.scrollTop = oldScrollTop
-
-    // 下一帧：开启 transition → 动画到目标高度
-    requestAnimationFrame(() => {
-      el.scrollTop = oldScrollTop
-      el.style.transition = 'height 200ms ease-out'
-      el.style.height = `${targetH}px`
-      el.style.overflowY = scrollH > maxH ? 'auto' : 'hidden'
-    })
-  }, [])
-
-  useEffect(() => {
-    autoResizeTextarea()
-  }, [inputValue, autoResizeTextarea])
 
   // 鉴权
   useEffect(() => {
@@ -183,7 +144,6 @@ export default function HomePage() {
     () => ART_STYLES.map((s) => ({ ...s, recommended: s.value === 'realistic' })),
     []
   )
-
   // 时间格式化
   const formatTimeAgo = (dateString: string): string => {
     const diffMs = Date.now() - new Date(dateString).getTime()
@@ -228,97 +188,105 @@ export default function HomePage() {
           45% { transform: translate(-15px, -20px) scale(1.15); opacity: 0.7; }
           70% { transform: translate(10px, -10px) scale(1); opacity: 0.35; }
         }
+        @keyframes bracket-breathe {
+          0%, 70%, 100% { opacity: 0.2; }
+          75%, 90% { opacity: 0.6; }
+        }
       `}</style>
 
-      <main className="flex flex-col items-center pt-[16vh] pb-12 px-4 max-w-3xl mx-auto w-full">
-        <div className="mb-6 text-center">
-          <h1 className="text-3xl font-bold text-[var(--glass-text-primary)] mb-2">
-            ✨ {t('title')}
-          </h1>
-          <p className="text-sm text-[var(--glass-text-tertiary)]">{t('subtitle')}</p>
-        </div>
+      <main className="flex flex-col items-center pt-[13vh] pb-12 px-4 max-w-5xl mx-auto w-full">
 
-        {/* 呼吸光晕 + 输入区域 */}
-        <div className="w-full relative group">
-          <div
-            className="absolute -inset-10 rounded-[48px] pointer-events-none"
-            style={{
-              background: 'radial-gradient(ellipse 80% 60% at 30% 40%, rgba(6, 182, 212, 0.4), transparent 70%)',
-              animation: 'breathe-drift-1 8s ease-in-out infinite',
-              filter: 'blur(30px)',
-            }}
-          />
-          <div
-            className="absolute -inset-10 rounded-[48px] pointer-events-none"
-            style={{
-              background: 'radial-gradient(ellipse 70% 80% at 70% 60%, rgba(139, 92, 246, 0.35), transparent 70%)',
-              animation: 'breathe-drift-2 10s ease-in-out infinite',
-              filter: 'blur(35px)',
-            }}
-          />
-          <div
-            className="absolute -inset-12 rounded-[56px] pointer-events-none"
-            style={{
-              background: 'radial-gradient(ellipse 60% 50% at 50% 50%, rgba(59, 130, 246, 0.3), transparent 70%)',
-              animation: 'breathe-drift-3 12s ease-in-out infinite',
-              filter: 'blur(40px)',
-            }}
-          />
+        {/* ─── 取景器整体包裹：标题 + 输入框 ─── */}
+        <div className="w-full relative p-5">
+          {/* 四角校准线 */}
+          <span className="absolute top-0 left-0 w-5 h-5 border-t border-l border-[var(--glass-text-primary)] pointer-events-none z-10" style={{ animation: 'bracket-breathe 8s ease-in-out infinite' }} />
+          <span className="absolute top-0 right-0 w-5 h-5 border-t border-r border-[var(--glass-text-primary)] pointer-events-none z-10" style={{ animation: 'bracket-breathe 8s ease-in-out infinite' }} />
+          <span className="absolute bottom-0 left-0 w-5 h-5 border-b border-l border-[var(--glass-text-primary)] pointer-events-none z-10" style={{ animation: 'bracket-breathe 8s ease-in-out infinite' }} />
+          <span className="absolute bottom-0 right-0 w-5 h-5 border-b border-r border-[var(--glass-text-primary)] pointer-events-none z-10" style={{ animation: 'bracket-breathe 8s ease-in-out infinite' }} />
 
-          <div className="relative w-full glass-surface-elevated rounded-2xl">
-            <textarea
-              ref={textareaRef}
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              placeholder={t('inputPlaceholder')}
-              rows={HOME_QUICK_START_MIN_ROWS}
-              className="w-full bg-transparent border-none outline-none text-[var(--glass-text-primary)] placeholder:text-[var(--glass-text-tertiary)] text-base resize-none p-5 pb-3 custom-scrollbar"
+          {/* REC 录制指示灯 */}
+          <span
+            className="absolute top-2 right-7 flex items-center gap-1 z-10"
+            style={{ animation: 'bracket-breathe 2s ease-in-out infinite' }}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_4px_rgba(239,68,68,0.7)]" />
+            <span className="text-[8px] font-mono font-bold tracking-widest text-red-500/70">REC</span>
+          </span>
+
+          {/* 标题区 */}
+          <TypewriterHero title={t('title')} subtitle={t('subtitle')} />
+
+          {/* 呼吸光晕 + 输入区域 */}
+          <div className="w-full relative group">
+            <div
+              className="absolute -inset-10 rounded-[48px] pointer-events-none"
+              style={{
+                background: 'radial-gradient(ellipse 80% 60% at 30% 40%, rgba(6, 182, 212, 0.4), transparent 70%)',
+                animation: 'breathe-drift-1 8s ease-in-out infinite',
+                filter: 'blur(30px)',
+              }}
+            />
+            <div
+              className="absolute -inset-10 rounded-[48px] pointer-events-none"
+              style={{
+                background: 'radial-gradient(ellipse 70% 80% at 70% 60%, rgba(139, 92, 246, 0.35), transparent 70%)',
+                animation: 'breathe-drift-2 10s ease-in-out infinite',
+                filter: 'blur(35px)',
+              }}
+            />
+            <div
+              className="absolute -inset-12 rounded-[56px] pointer-events-none"
+              style={{
+                background: 'radial-gradient(ellipse 60% 50% at 50% 50%, rgba(59, 130, 246, 0.3), transparent 70%)',
+                animation: 'breathe-drift-3 12s ease-in-out infinite',
+                filter: 'blur(40px)',
+              }}
             />
 
-            {/* 底部工具栏：比例 + 风格 + AI帮我写 + 创建按钮 */}
-            <div className="flex items-end gap-3 px-5 pb-4">
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                <div className="w-[160px] flex-shrink-0">
-                  <RatioSelector
-                    value={videoRatio}
-                    onChange={setVideoRatio}
-                    options={ratioOptions}
-                  />
-                </div>
-                <div className="w-[160px] flex-shrink-0">
-                  <StyleSelector
-                    value={artStyle}
-                    onChange={setArtStyle}
-                    options={styleOptions}
-                  />
-                </div>
-              </div>
-              <button
-                onClick={() => setAiWriteOpen(true)}
-                disabled={createLoading}
-                className="glass-btn-base px-4 py-2.5 text-sm flex-shrink-0 border border-[var(--glass-stroke-strong)] hover:border-[var(--glass-tone-info-fg)]/40 transition-all flex items-center gap-1.5"
-              >
-                <AppIcon name="sparkles" className="w-4 h-4 text-[#7c3aed]" />
-                <span
-                  className="font-medium"
-                  style={{
-                    background: 'linear-gradient(135deg, #3b82f6, #7c3aed)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                  }}
+            <StoryInputComposer
+              value={inputValue}
+              onValueChange={setInputValue}
+              placeholder={t('inputPlaceholder')}
+              minRows={HOME_QUICK_START_MIN_ROWS}
+              videoRatio={videoRatio}
+              onVideoRatioChange={setVideoRatio}
+              ratioOptions={ratioOptions}
+              artStyle={artStyle}
+              onArtStyleChange={setArtStyle}
+              styleOptions={styleOptions}
+              stylePresetValue={stylePresetValue}
+              onStylePresetChange={setStylePresetValue}
+              stylePresetOptions={STYLE_PRESETS}
+              primaryAction={(
+                <button
+                  onClick={() => void handleCreate()}
+                  disabled={!inputValue.trim() || createLoading}
+                  className="glass-btn-base glass-btn-primary h-10 flex-shrink-0 px-5 text-sm disabled:opacity-50"
                 >
-                  {t('aiWrite.trigger')}
-                </span>
-              </button>
-              <button
-                onClick={() => void handleCreate()}
-                disabled={!inputValue.trim() || createLoading}
-                className="glass-btn-base glass-btn-primary px-5 py-2.5 text-sm flex-shrink-0 disabled:opacity-50"
-              >
-                {createLoading ? tc('loading') : t('startCreation')}
-                <AppIcon name="arrowRight" className="w-4 h-4" />
-              </button>
-            </div>
+                  {createLoading ? tc('loading') : t('startCreation')}
+                  <AppIcon name="arrowRight" className="w-4 h-4" />
+                </button>
+              )}
+              secondaryActions={(
+                <button
+                  onClick={() => setAiWriteOpen(true)}
+                  disabled={createLoading}
+                  className="glass-btn-base flex h-10 flex-shrink-0 items-center gap-1.5 border border-[var(--glass-stroke-strong)] px-3 text-sm transition-all hover:border-[var(--glass-tone-info-fg)]/40"
+                >
+                  <AppIcon name="sparkles" className="w-4 h-4 text-[#7c3aed]" />
+                  <span
+                    className="font-medium"
+                    style={{
+                      background: 'linear-gradient(135deg, #3b82f6, #7c3aed)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                    }}
+                  >
+                    {t('aiWrite.trigger')}
+                  </span>
+                </button>
+              )}
+            />
           </div>
         </div>
         {/* AI 帮我写模态框 */}
