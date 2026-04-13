@@ -7,6 +7,8 @@ function buildStep(overrides: Partial<RunStepState> = {}): RunStepState {
     id: 'step-1',
     attempt: 1,
     title: 'step',
+    skillId: 'analyze_characters',
+    scopeRef: 'episode:episode-1',
     stepIndex: 1,
     stepTotal: 1,
     status: 'running',

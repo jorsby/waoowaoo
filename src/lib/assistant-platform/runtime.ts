@@ -18,9 +18,15 @@ function normalizeAssistantContext(raw: unknown): AssistantContext {
   const record = raw as Record<string, unknown>
   const providerId = typeof record.providerId === 'string' ? record.providerId.trim() : ''
   const locale = typeof record.locale === 'string' ? record.locale.trim() : ''
+  const projectId = typeof record.projectId === 'string' ? record.projectId.trim() : ''
+  const episodeId = typeof record.episodeId === 'string' ? record.episodeId.trim() : ''
+  const currentStage = typeof record.currentStage === 'string' ? record.currentStage.trim() : ''
   return {
     ...(providerId ? { providerId } : {}),
     ...(locale ? { locale } : {}),
+    ...(projectId ? { projectId } : {}),
+    ...(episodeId ? { episodeId } : {}),
+    ...(currentStage ? { currentStage } : {}),
   }
 }
 

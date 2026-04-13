@@ -245,7 +245,6 @@ model NovelPromotionProject {
   videoModel      String? // 用户配置的视频模型
   audioModel      String? // 用户配置的语音模型
   videoRatio      String                    @default("9:16")
-  ttsRate         String                    @default("+50%")
   globalAssetText String?
   artStyle        String                    @default("american-comic")
   artStylePrompt  String?
@@ -438,7 +437,6 @@ model UserPreference {
   videoRatio      String   @default("9:16")
   videoResolution String   @default("720p")
   artStyle        String   @default("american-comic")
-  ttsRate         String   @default("+50%")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @default(now()) @updatedAt
   imageResolution String   @default("2K")

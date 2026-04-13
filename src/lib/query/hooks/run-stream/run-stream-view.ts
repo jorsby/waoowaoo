@@ -48,6 +48,8 @@ export function deriveRunStreamView(args: {
     id: step.id,
     title: step.title,
     subtitle: (() => {
+      const skillText = step.skillId ? `技能: ${step.skillId}` : ''
+      const scopeText = step.scopeRef ? `范围: ${step.scopeRef}` : ''
       const relationText =
         step.status === 'blocked' && step.blockedBy.length > 0
           ? `等待: ${step.blockedBy.join(', ')}`
@@ -57,7 +59,7 @@ export function deriveRunStreamView(args: {
       const parallelText = step.groupId && step.parallelKey
         ? `并行组: ${step.groupId}/${step.parallelKey}`
         : ''
-      const parts = [relationText, parallelText, step.message || ''].filter(Boolean)
+      const parts = [skillText, scopeText, relationText, parallelText, step.message || ''].filter(Boolean)
       return parts.length > 0 ? parts.join(' | ') : undefined
     })(),
     status: toStageViewStatus(step.status),

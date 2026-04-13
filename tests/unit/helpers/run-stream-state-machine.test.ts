@@ -56,6 +56,8 @@ describe('run stream state-machine', () => {
       id: 'step-failed',
       attempt: 1,
       title: 'failed',
+      skillId: 'analyze_characters',
+      scopeRef: 'episode:episode-1',
       stepIndex: 1,
       stepTotal: 1,
       status: 'failed',
@@ -275,6 +277,28 @@ describe('run stream state-machine', () => {
     ])
 
     expect(state?.activeStepId).toBe('step-2')
+  })
+
+  it('stores skillId and scopeRef on step events', () => {
+    const runId = 'run-6'
+    const state = applySequence([
+      { runId, event: 'run.start', ts: '2026-02-26T23:00:00.000Z', status: 'running' },
+      {
+        runId,
+        event: 'step.start',
+        ts: '2026-02-26T23:00:01.000Z',
+        status: 'running',
+        stepId: 'screenplay_clip-1',
+        stepTitle: 'screenplay',
+        skillId: 'generate_screenplay',
+        scopeRef: 'clip:clip-1',
+        stepIndex: 1,
+        stepTotal: 1,
+      },
+    ])
+
+    expect(state?.stepsById['screenplay_clip-1']?.skillId).toBe('generate_screenplay')
+    expect(state?.stepsById['screenplay_clip-1']?.scopeRef).toBe('clip:clip-1')
   })
 
   it('marks step as blocked when blockedBy is present', () => {

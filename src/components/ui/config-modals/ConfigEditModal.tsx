@@ -53,7 +53,6 @@ interface SettingsModalProps {
     audioModel?: string
     videoRatio?: string
     capabilityOverrides?: CapabilitySelections
-    ttsRate?: string
     onArtStyleChange?: (value: string) => void
     onAnalysisModelChange?: (value: string) => void
     onCharacterModelChange?: (value: string) => void
@@ -65,7 +64,6 @@ interface SettingsModalProps {
     onAudioModelChange?: (value: string) => void
     onVideoRatioChange?: (value: string) => void
     onCapabilityOverridesChange?: (value: CapabilitySelections) => void
-    onTTSRateChange?: (value: string) => void
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -137,7 +135,6 @@ export function SettingsModal({
     audioModel,
     videoRatio = '9:16',
     capabilityOverrides,
-    ttsRate,
     onArtStyleChange,
     onAnalysisModelChange,
     onCharacterModelChange,
@@ -148,7 +145,6 @@ export function SettingsModal({
     onAudioModelChange,
     onVideoRatioChange,
     onCapabilityOverridesChange,
-    onTTSRateChange,
 }: SettingsModalProps) {
     const t = useTranslations('configModal')
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saved'>('idle')
@@ -303,9 +299,6 @@ export function SettingsModal({
             onCapabilityOverridesChange(nextOverrides)
         }
     }
-
-    void ttsRate
-    void onTTSRateChange
 
     useEffect(() => {
         if (!isOpen) return

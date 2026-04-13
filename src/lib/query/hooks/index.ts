@@ -227,6 +227,18 @@ export {
 } from './useProjectData'
 
 export {
+    useProjectCommands,
+    useProjectContext,
+    useApproveProjectPlan,
+    useRejectProjectPlan,
+} from './useProjectCommandCenter'
+
+export {
+    useProjectAssistantThread,
+    useProjectAssistantThreadSync,
+} from './useProjectAssistantThread'
+
+export {
     useUserModels,
     type UserModelOption as QueryUserModelOption,
     type UserModelsPayload as QueryUserModelsPayload,

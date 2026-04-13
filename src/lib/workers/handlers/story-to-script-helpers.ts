@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { removeLocationPromptSuffix } from '@/lib/constants'
-import type { StoryToScriptClipCandidate } from '@/lib/novel-promotion/story-to-script/orchestrator'
+import type { StoryToScriptClipCandidate } from '@/lib/skill-system/executors/story-to-script/types'
 import { seedProjectLocationBackedImageSlots } from '@/lib/assets/services/location-backed-assets'
 import { normalizeLocationAvailableSlots } from '@/lib/location-available-slots'
 import { resolvePropVisualDescription } from '@/lib/assets/prop-description'

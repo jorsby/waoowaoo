@@ -22,9 +22,15 @@ export interface AssistantSavedEvent {
 
 export interface UseAssistantChatParams {
   assistantId: AssistantChatId
+  chatId?: string
+  api?: string
+  persistenceKey?: string
   context: {
     providerId?: string
     locale?: string
+    projectId?: string
+    episodeId?: string
+    currentStage?: string
   }
   enabled: boolean
   onSaved?: (event: AssistantSavedEvent) => void
@@ -122,7 +128,35 @@ export interface UseAssistantChatResult {
   error: Error | undefined
   setInput: (value: string) => void
   send: (content?: string) => Promise<void>
+  replaceMessages: (messages: UIMessage[]) => void
+  appendMessages: (messages: UIMessage[]) => void
   clear: () => void
+}
+
+export function readAssistantStoredMessages(storageKey: string): UIMessage[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = window.localStorage.getItem(storageKey)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) return []
+    return parsed as UIMessage[]
+  } catch {
+    return []
+  }
+}
+
+export function writeAssistantStoredMessages(storageKey: string, messages: UIMessage[]) {
+  if (typeof window === 'undefined') return
+  try {
+    if (messages.length === 0) {
+      window.localStorage.removeItem(storageKey)
+      return
+    }
+    window.localStorage.setItem(storageKey, JSON.stringify(messages))
+  } catch {
+    // ignore storage failures
+  }
 }
 
 export function useAssistantChat(params: UseAssistantChatParams): UseAssistantChatResult {
@@ -131,21 +165,32 @@ export function useAssistantChat(params: UseAssistantChatParams): UseAssistantCh
   const handledSavedKeysRef = useRef(new Set<string>())
   const frameIdRef = useRef<number | null>(null)
   const latestMessagesRef = useRef<UIMessage[]>([])
+  const restoredPersistenceKeyRef = useRef<string | null>(null)
   const onSaved = params.onSaved
   const contextPayload = useMemo(() => ({
     providerId: params.context.providerId,
     locale: params.context.locale,
-  }), [params.context.locale, params.context.providerId])
+    projectId: params.context.projectId,
+    episodeId: params.context.episodeId,
+    currentStage: params.context.currentStage,
+  }), [
+    params.context.currentStage,
+    params.context.episodeId,
+    params.context.locale,
+    params.context.projectId,
+    params.context.providerId,
+  ])
 
   const transport = useMemo(() => new DefaultChatTransport({
-    api: '/api/user/assistant/chat',
+    api: params.api || '/api/user/assistant/chat',
     body: {
       assistantId: params.assistantId,
       context: contextPayload,
     },
-  }), [contextPayload, params.assistantId])
+  }), [contextPayload, params.api, params.assistantId])
 
   const chat = useChat({
+    id: params.chatId,
     transport,
   })
 
@@ -167,6 +212,22 @@ export function useAssistantChat(params: UseAssistantChatParams): UseAssistantCh
       setRenderedMessages(latestMessagesRef.current)
     })
   }, [chat.messages, pending])
+
+  useEffect(() => {
+    if (!params.persistenceKey) return
+    if (restoredPersistenceKeyRef.current === params.persistenceKey) return
+    restoredPersistenceKeyRef.current = params.persistenceKey
+    const restoredMessages = readAssistantStoredMessages(params.persistenceKey)
+    chat.setMessages(restoredMessages)
+    setRenderedMessages(restoredMessages)
+    latestMessagesRef.current = restoredMessages
+    handledSavedKeysRef.current.clear()
+  }, [chat, params.persistenceKey])
+
+  useEffect(() => {
+    if (!params.persistenceKey) return
+    writeAssistantStoredMessages(params.persistenceKey, chat.messages)
+  }, [chat.messages, params.persistenceKey])
 
   useEffect(() => {
     return () => {
@@ -207,6 +268,24 @@ export function useAssistantChat(params: UseAssistantChatParams): UseAssistantCh
       frameIdRef.current = null
     }
     handledSavedKeysRef.current.clear()
+    if (params.persistenceKey && typeof window !== 'undefined') {
+      try {
+        window.localStorage.removeItem(params.persistenceKey)
+      } catch {
+        // ignore storage failures
+      }
+    }
+  }, [chat, params.persistenceKey])
+
+  const replaceMessages = useCallback((messages: UIMessage[]) => {
+    chat.setMessages(messages)
+    setRenderedMessages(messages)
+    latestMessagesRef.current = messages
+  }, [chat])
+
+  const appendMessages = useCallback((messages: UIMessage[]) => {
+    if (messages.length === 0) return
+    chat.setMessages((current) => [...current, ...messages])
   }, [chat])
 
   return {
@@ -217,6 +296,8 @@ export function useAssistantChat(params: UseAssistantChatParams): UseAssistantCh
     error: chat.error,
     setInput,
     send,
+    replaceMessages,
+    appendMessages,
     clear,
   }
 }

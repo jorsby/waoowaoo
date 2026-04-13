@@ -8,27 +8,23 @@ import {
 import { withInternalLLMStreamCallbacks } from '@/lib/llm-observe/internal-stream-context'
 import { logAIAnalysis } from '@/lib/logging/semantic'
 import { onProjectNameAvailable } from '@/lib/logging/file-writer'
-import { buildCharactersIntroduction } from '@/lib/constants'
 import { TaskTerminatedError } from '@/lib/task/errors'
 import { reportTaskProgress } from '@/lib/workers/shared'
 import {
-  JsonParseError,
-  runScriptToStoryboardOrchestrator,
   type ScriptToStoryboardStepMeta,
   type ScriptToStoryboardStepOutput,
-  type ScriptToStoryboardOrchestratorResult,
-} from '@/lib/novel-promotion/script-to-storyboard/orchestrator'
+  type ScriptToStoryboardWorkflowResult,
+} from '@/lib/skill-system/executors/script-to-storyboard/types'
+import { runScriptToStoryboardSkillWorkflow } from '@/lib/skill-system/executors/script-to-storyboard/preset'
+import { SkillJsonParseError } from '@/lib/skill-system/executors/script-to-storyboard/shared'
 import { createWorkerLLMStreamCallbacks, createWorkerLLMStreamContext } from './llm-stream'
 import type { TaskJobData } from '@/lib/task/types'
 import {
-  buildStoryboardJsonFromClipPanels,
   parseEffort,
   parseTemperature,
-  parseVoiceLinesJson,
   persistStoryboardOutputs,
-  type JsonRecord,
 } from './script-to-storyboard-helpers'
-import { buildPrompt, getPromptTemplate, PROMPT_IDS } from '@/lib/prompt-i18n'
+import type { SkillLocale } from '@skills/novel-promotion/_shared/prompt-runtime'
 import { resolveAnalysisModel } from './resolve-analysis-model'
 import { createArtifact } from '@/lib/run-runtime/service'
 import { assertWorkflowRunActive, withWorkflowRunLease } from '@/lib/run-runtime/workflow-lease'
@@ -38,7 +34,6 @@ import {
 } from './script-to-storyboard-atomic-retry'
 
 type AnyObj = Record<string, unknown>
-const MAX_VOICE_ANALYZE_ATTEMPTS = 2
 
 function buildWorkflowWorkerId(job: Job<TaskJobData>, label: string) {
   return `${label}:${job.queueName}:${job.data.taskId}`
@@ -55,6 +50,24 @@ function readNullableText(value: Record<string, unknown>, key: string): string |
 
 function isReasoningEffort(value: unknown): value is 'minimal' | 'low' | 'medium' | 'high' {
   return value === 'minimal' || value === 'low' || value === 'medium' || value === 'high'
+}
+
+function resolveStoryboardStepSkillId(stepId: string): string {
+  if (stepId === 'voice_analyze') return 'generate-voice-lines'
+  if (stepId.endsWith('_phase1')) return 'plan-storyboard-phase1'
+  if (stepId.endsWith('_phase2_cinematography')) return 'refine-cinematography'
+  if (stepId.endsWith('_phase2_acting')) return 'refine-acting'
+  if (stepId.endsWith('_phase3_detail')) return 'refine-storyboard-detail'
+  return stepId
+}
+
+function resolveStoryboardStepScopeRef(stepId: string, episodeId: string): string {
+  if (stepId === 'voice_analyze') return `episode:${episodeId}`
+  const matched = /^clip_(.+)_(phase1|phase2_cinematography|phase2_acting|phase3_detail)$/.exec(stepId)
+  if (matched?.[1]) {
+    return `clip:${matched[1]}`
+  }
+  return `episode:${episodeId}`
 }
 
 export async function handleScriptToStoryboardTask(job: Job<TaskJobData>) {
@@ -143,11 +156,7 @@ export async function handleScriptToStoryboardTask(job: Job<TaskJobData>) {
   const capabilityReasoningEffort = llmCapabilityOptions.reasoningEffort
   const reasoningEffort = requestedReasoningEffort
     || (isReasoningEffort(capabilityReasoningEffort) ? capabilityReasoningEffort : 'high')
-
-  const phase1PlanTemplate = getPromptTemplate(PROMPT_IDS.NP_AGENT_STORYBOARD_PLAN, job.data.locale)
-  const phase2CinematographyTemplate = getPromptTemplate(PROMPT_IDS.NP_AGENT_CINEMATOGRAPHER, job.data.locale)
-  const phase2ActingTemplate = getPromptTemplate(PROMPT_IDS.NP_AGENT_ACTING_DIRECTION, job.data.locale)
-  const phase3DetailTemplate = getPromptTemplate(PROMPT_IDS.NP_AGENT_STORYBOARD_DETAIL, job.data.locale)
+  const locale: SkillLocale = job.data.locale === 'en' ? 'en' : 'zh'
   const payloadMeta = typeof payload.meta === 'object' && payload.meta !== null
     ? (payload.meta as AnyObj)
     : {}
@@ -192,6 +201,8 @@ export async function handleScriptToStoryboardTask(job: Job<TaskJobData>) {
     void _maxOutputTokens
     const stepAttempt = meta.stepAttempt
       || (retryStepKey && meta.stepId === retryStepKey ? retryStepAttempt : 1)
+    const skillId = resolveStoryboardStepSkillId(meta.stepId)
+    const scopeRef = resolveStoryboardStepScopeRef(meta.stepId, episodeId)
     await assertRunActive(`script_to_storyboard_step:${meta.stepId}`)
     const progress = 15 + Math.min(70, Math.floor((meta.stepIndex / Math.max(1, meta.stepTotal)) * 70))
     await reportTaskProgress(job, progress, {
@@ -202,6 +213,8 @@ export async function handleScriptToStoryboardTask(job: Job<TaskJobData>) {
       stepId: meta.stepId,
       stepAttempt,
       stepTitle: meta.stepTitle,
+      skillId,
+      scopeRef,
       stepIndex: meta.stepIndex,
       stepTotal: meta.stepTotal,
       dependsOn: Array.isArray(meta.dependsOn) ? meta.dependsOn : [],
@@ -262,7 +275,7 @@ export async function handleScriptToStoryboardTask(job: Job<TaskJobData>) {
         displayMode: 'detail',
       })
 
-      const orchestratorResult: ScriptToStoryboardOrchestratorResult = await (async () => {
+      const orchestratorResult: ScriptToStoryboardWorkflowResult = await (async () => {
         try {
           return await withInternalLLMStreamCallbacks(
             callbacks,
@@ -277,7 +290,7 @@ export async function handleScriptToStoryboardTask(job: Job<TaskJobData>) {
                   runId,
                   retryTarget,
                   retryStepAttempt,
-                  locale: job.data.locale,
+                  locale,
                   clip: {
                     id: clip.id,
                     content: clip.content,
@@ -295,12 +308,6 @@ export async function handleScriptToStoryboardTask(job: Job<TaskJobData>) {
                       .filter((item) => readAssetKind(item as unknown as Record<string, unknown>) === 'prop')
                       .map((item) => ({ name: item.name, summary: item.summary })),
                   },
-                  promptTemplates: {
-                    phase1PlanTemplate,
-                    phase2CinematographyTemplate,
-                    phase2ActingTemplate,
-                    phase3DetailTemplate,
-                  },
                   runStep,
                 })
                 return {
@@ -309,6 +316,7 @@ export async function handleScriptToStoryboardTask(job: Job<TaskJobData>) {
                   phase2CinematographyByClipId: atomicResult.phase2CinematographyByClipId,
                   phase2ActingByClipId: atomicResult.phase2ActingByClipId,
                   phase3PanelsByClipId: atomicResult.phase3PanelsByClipId,
+                  voiceLineRows: [],
                   summary: {
                     clipCount: selectedClips.length,
                     totalPanelCount: atomicResult.totalPanelCount,
@@ -318,9 +326,9 @@ export async function handleScriptToStoryboardTask(job: Job<TaskJobData>) {
               }
 
               try {
-                return await runScriptToStoryboardOrchestrator({
+                return await runScriptToStoryboardSkillWorkflow({
                   concurrency: workflowConcurrency.analysis,
-                  locale: job.data.locale,
+                  locale,
                   clips: selectedClips.map((clip) => ({
                     id: clip.id,
                     content: clip.content,
@@ -336,16 +344,11 @@ export async function handleScriptToStoryboardTask(job: Job<TaskJobData>) {
                       .filter((item) => readAssetKind(item as unknown as Record<string, unknown>) === 'prop')
                       .map((item) => ({ name: item.name, summary: item.summary })),
                   },
-                  promptTemplates: {
-                    phase1PlanTemplate,
-                    phase2CinematographyTemplate,
-                    phase2ActingTemplate,
-                    phase3DetailTemplate,
-                  },
+                  novelText: episode.novelText || '',
                   runStep,
                 })
               } catch (error) {
-                if (error instanceof JsonParseError) {
+                if (error instanceof SkillJsonParseError) {
                   logAIAnalysis(job.data.userId, 'worker', projectId, project.name, {
                     action: 'SCRIPT_TO_STORYBOARD_PARSE_ERROR',
                     error: {
@@ -454,79 +457,13 @@ export async function handleScriptToStoryboardTask(job: Job<TaskJobData>) {
         }
       }
 
-      if (!episode.novelText || !episode.novelText.trim()) {
-        throw new Error('No novel text to analyze')
-      }
-
-      const voicePrompt = buildPrompt({
-        promptId: PROMPT_IDS.NP_VOICE_ANALYSIS,
-        locale: job.data.locale,
-        variables: {
-          input: episode.novelText,
-          characters_lib_name: (novelData.characters || []).length > 0
-            ? (novelData.characters || []).map((item) => item.name).join('、')
-            : '无',
-          characters_introduction: buildCharactersIntroduction(novelData.characters || []),
-          storyboard_json: buildStoryboardJsonFromClipPanels(orchestratorResult.clipPanels),
-        },
-      })
-
-      let voiceLineRows: JsonRecord[] | null = null
-      let voiceLastError: Error | null = null
-      const voiceStepMeta: ScriptToStoryboardStepMeta = {
-        stepId: 'voice_analyze',
-        stepTitle: 'progress.streamStep.voiceAnalyze',
-        stepIndex: orchestratorResult.summary.totalStepCount,
-        stepTotal: orchestratorResult.summary.totalStepCount,
-        retryable: true,
-      }
-      try {
-        for (let voiceAttempt = 1; voiceAttempt <= MAX_VOICE_ANALYZE_ATTEMPTS; voiceAttempt++) {
-          const meta: ScriptToStoryboardStepMeta = {
-            ...voiceStepMeta,
-            stepAttempt: voiceAttempt,
-          }
-          try {
-            const voiceOutput = await withInternalLLMStreamCallbacks(
-              callbacks,
-              async () => await runStep(meta, voicePrompt, 'voice_analyze', 2600),
-            )
-            voiceLineRows = parseVoiceLinesJson(voiceOutput.text)
-            break
-          } catch (error) {
-            if (error instanceof TaskTerminatedError) {
-              throw error
-            }
-            voiceLastError = error instanceof Error ? error : new Error(String(error))
-            if (voiceAttempt < MAX_VOICE_ANALYZE_ATTEMPTS) {
-              await reportTaskProgress(job, 84, {
-                stage: 'script_to_storyboard_step',
-                stageLabel: 'progress.stage.scriptToStoryboardStep',
-                displayMode: 'detail',
-                message: `台词分析失败，准备重试 (${voiceAttempt + 1}/${MAX_VOICE_ANALYZE_ATTEMPTS})`,
-                stepId: voiceStepMeta.stepId,
-                stepAttempt: voiceAttempt + 1,
-                stepTitle: voiceStepMeta.stepTitle,
-                stepIndex: voiceStepMeta.stepIndex,
-                stepTotal: voiceStepMeta.stepTotal,
-              })
-            }
-          }
-        }
-      } finally {
-        await callbacks.flush()
-      }
-      if (!voiceLineRows) {
-        throw voiceLastError!
-      }
-
       await createArtifact({
         runId,
         stepKey: 'voice_analyze',
         artifactType: 'voice.lines',
         refId: episodeId,
         payload: {
-          lines: voiceLineRows,
+          lines: orchestratorResult.voiceLineRows,
         },
       })
 
@@ -534,7 +471,7 @@ export async function handleScriptToStoryboardTask(job: Job<TaskJobData>) {
       const persisted = await persistStoryboardOutputs({
         episodeId,
         clipPanels: orchestratorResult.clipPanels,
-        voiceLineRows,
+        voiceLineRows: orchestratorResult.voiceLineRows,
       })
 
       await reportTaskProgress(job, 96, {

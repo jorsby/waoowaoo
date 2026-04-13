@@ -11,11 +11,11 @@ import { onProjectNameAvailable } from '@/lib/logging/file-writer'
 import { TaskTerminatedError } from '@/lib/task/errors'
 import { reportTaskProgress } from '@/lib/workers/shared'
 import {
-  runStoryToScriptOrchestrator,
   type StoryToScriptStepMeta,
   type StoryToScriptStepOutput,
-  type StoryToScriptOrchestratorResult,
-} from '@/lib/novel-promotion/story-to-script/orchestrator'
+  type StoryToScriptWorkflowResult,
+} from '@/lib/skill-system/executors/story-to-script/types'
+import { runStoryToScriptSkillWorkflow } from '@/lib/skill-system/executors/story-to-script/preset'
 import { createWorkerLLMStreamCallbacks, createWorkerLLMStreamContext } from './llm-stream'
 import type { TaskJobData } from '@/lib/task/types'
 import {
@@ -29,7 +29,7 @@ import {
   persistClips,
   resolveClipRecordId,
 } from './story-to-script-helpers'
-import { getPromptTemplate, PROMPT_IDS } from '@/lib/prompt-i18n'
+import { composeSkillPrompt, type SkillLocale } from '@skills/novel-promotion/_shared/prompt-runtime'
 import { resolveAnalysisModel } from './resolve-analysis-model'
 import { createArtifact, listArtifacts } from '@/lib/run-runtime/service'
 import { assertWorkflowRunActive, withWorkflowRunLease } from '@/lib/run-runtime/workflow-lease'
@@ -47,6 +47,23 @@ function resolveRetryClipId(retryStepKey: string): string | null {
   if (!retryStepKey.startsWith('screenplay_')) return null
   const clipId = retryStepKey.slice('screenplay_'.length).trim()
   return clipId || null
+}
+
+function resolveStoryToScriptSkillId(stepId: string): string {
+  if (stepId.startsWith('screenplay_')) return 'generate-screenplay'
+  if (stepId === 'analyze_characters') return 'analyze-characters'
+  if (stepId === 'analyze_locations') return 'analyze-locations'
+  if (stepId === 'analyze_props') return 'analyze-props'
+  if (stepId === 'split_clips') return 'split-clips'
+  return stepId
+}
+
+function resolveStoryToScriptScopeRef(stepId: string, episodeId: string): string {
+  const clipId = resolveRetryClipId(stepId)
+  if (clipId) {
+    return `clip:${clipId}`
+  }
+  return `episode:${episodeId}`
 }
 
 function buildWorkflowWorkerId(job: Job<TaskJobData>, label: string) {
@@ -131,11 +148,7 @@ export async function handleStoryToScriptTask(job: Job<TaskJobData>) {
   if (!mergedContent.trim()) {
     throw new Error('content is required')
   }
-  const characterPromptTemplate = getPromptTemplate(PROMPT_IDS.NP_AGENT_CHARACTER_PROFILE, job.data.locale)
-  const locationPromptTemplate = getPromptTemplate(PROMPT_IDS.NP_SELECT_LOCATION, job.data.locale)
-  const propPromptTemplate = getPromptTemplate(PROMPT_IDS.NP_SELECT_PROP, job.data.locale)
-  const clipPromptTemplate = getPromptTemplate(PROMPT_IDS.NP_AGENT_CLIP, job.data.locale)
-  const screenplayPromptTemplate = getPromptTemplate(PROMPT_IDS.NP_SCREENPLAY_CONVERSION, job.data.locale)
+  const locale: SkillLocale = job.data.locale === 'en' ? 'en' : 'zh'
   const maxLength = 30000
   const content = mergedContent.length > maxLength ? mergedContent.slice(0, maxLength) : mergedContent
   const payloadMeta = typeof payload.meta === 'object' && payload.meta !== null
@@ -186,6 +199,8 @@ export async function handleStoryToScriptTask(job: Job<TaskJobData>) {
     void _maxOutputTokens
     const stepAttempt = meta.stepAttempt
       || (retryStepKey && meta.stepId === retryStepKey ? retryStepAttempt : 1)
+    const skillId = resolveStoryToScriptSkillId(meta.stepId)
+    const scopeRef = resolveStoryToScriptScopeRef(meta.stepId, episodeId)
     await assertRunActive(`story_to_script_step:${meta.stepId}`)
     const progress = 15 + Math.min(55, Math.floor((meta.stepIndex / Math.max(1, meta.stepTotal)) * 55))
     await reportTaskProgress(job, progress, {
@@ -196,6 +211,8 @@ export async function handleStoryToScriptTask(job: Job<TaskJobData>) {
       stepId: meta.stepId,
       stepAttempt,
       stepTitle: meta.stepTitle,
+      skillId,
+      scopeRef,
       stepIndex: meta.stepIndex,
       stepTotal: meta.stepTotal,
       dependsOn: Array.isArray(meta.dependsOn) ? meta.dependsOn : [],
@@ -284,13 +301,18 @@ export async function handleStoryToScriptTask(job: Job<TaskJobData>) {
           throw new Error(`retry clip content is empty: ${retryClipId}`)
         }
 
-        const screenplayPrompt = screenplayPromptTemplate
-          .replace('{clip_content}', clipContent)
-          .replace('{locations_lib_name}', asString(splitPayload.locationsLibName) || '无')
-          .replace('{characters_lib_name}', asString(splitPayload.charactersLibName) || '无')
-          .replace('{props_lib_name}', asString(splitPayload.propsLibName) || '无')
-          .replace('{characters_introduction}', asString(splitPayload.charactersIntroduction) || '暂无角色介绍')
-          .replace('{clip_id}', retryClipId)
+        const screenplayPrompt = composeSkillPrompt({
+          skillId: 'generate-screenplay',
+          locale,
+          replacements: {
+            clip_content: clipContent,
+            locations_lib_name: asString(splitPayload.locationsLibName) || '无',
+            characters_lib_name: asString(splitPayload.charactersLibName) || '无',
+            props_lib_name: asString(splitPayload.propsLibName) || '无',
+            characters_introduction: asString(splitPayload.charactersIntroduction) || '暂无角色介绍',
+            clip_id: retryClipId,
+          },
+        })
 
         const stepMeta: StoryToScriptStepMeta = {
           stepId: retryStepKey,
@@ -387,6 +409,8 @@ export async function handleStoryToScriptTask(job: Job<TaskJobData>) {
           stepId: retryStepKey,
           stepAttempt: retryStepAttempt,
           stepTitle: 'progress.streamStep.screenplayConversion',
+          skillId: 'generate-screenplay',
+          scopeRef: `clip:${retryClipId}`,
           stepIndex: 1,
           stepTotal: 1,
         })
@@ -403,12 +427,13 @@ export async function handleStoryToScriptTask(job: Job<TaskJobData>) {
         }
       }
 
-      const result: StoryToScriptOrchestratorResult = await (async () => {
+      const result: StoryToScriptWorkflowResult = await (async () => {
         try {
           return await withInternalLLMStreamCallbacks(
             callbacks,
-            async () => await runStoryToScriptOrchestrator({
+            async () => await runStoryToScriptSkillWorkflow({
               concurrency: workflowConcurrency.analysis,
+              locale,
               content,
               baseCharacters: (novelData.characters || []).map((item) => item.name),
               baseLocations: (novelData.locations || [])
@@ -421,13 +446,6 @@ export async function handleStoryToScriptTask(job: Job<TaskJobData>) {
                 name: item.name,
                 introduction: item.introduction || '',
               })),
-              promptTemplates: {
-                characterPromptTemplate,
-                locationPromptTemplate,
-                propPromptTemplate,
-                clipPromptTemplate,
-                screenplayPromptTemplate,
-              },
               runStep,
             }),
           )

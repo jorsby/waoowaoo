@@ -23,7 +23,7 @@ type UseScriptToStoryboardRunStreamOptions = {
 export function useScriptToStoryboardRunStream({ projectId, episodeId }: UseScriptToStoryboardRunStreamOptions) {
   return useRunStreamState<ScriptToStoryboardRunParams>({
     projectId,
-    endpoint: (pid) => `/api/novel-promotion/${pid}/script-to-storyboard-stream`,
+    endpoint: (pid) => `/api/projects/${pid}/commands`,
     storageKeyPrefix: 'novel-promotion:script-to-storyboard-run',
     storageScopeKey: episodeId || undefined,
     resolveActiveRunId: async ({ projectId: pid, storageScopeKey }) => {
@@ -74,13 +74,16 @@ export function useScriptToStoryboardRunStream({ projectId, episodeId }: UseScri
       }
     },
     buildRequestBody: (params) => ({
+      commandType: 'run_workflow_package',
+      source: 'gui',
+      workflowId: 'script-to-storyboard',
       episodeId: params.episodeId,
-      model: params.model || undefined,
-      temperature: params.temperature,
-      reasoning: params.reasoning,
-      reasoningEffort: params.reasoningEffort,
-      async: true,
-      displayMode: 'detail',
+      input: {
+        model: params.model || undefined,
+        temperature: params.temperature,
+        reasoning: params.reasoning,
+        reasoningEffort: params.reasoningEffort,
+      },
     }),
   })
 }

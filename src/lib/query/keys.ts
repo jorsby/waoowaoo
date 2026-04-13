@@ -97,6 +97,12 @@ export const queryKeys = {
         detail: (projectId: string) => ['project', projectId] as const,
         episodes: (projectId: string) => ['project', projectId, 'episodes'] as const,
         data: (projectId: string) => ['project', projectId, 'data'] as const,
+        context: (projectId: string, episodeId?: string | null, currentStage?: string | null) =>
+            ['project', projectId, 'context', episodeId ?? '', currentStage ?? ''] as const,
+        commands: (projectId: string, episodeId?: string | null) =>
+            ['project', projectId, 'commands', episodeId ?? ''] as const,
+        assistantThread: (projectId: string, episodeId?: string | null) =>
+            ['project', projectId, 'assistant-thread', episodeId ?? ''] as const,
     },
 
     // ============ 顶层便捷函数 ============

@@ -105,6 +105,7 @@ describe('script-to-storyboard atomic retry', () => {
         phase: 'phase3_detail',
       },
       retryStepAttempt: 4,
+      locale: 'zh',
       clip: {
         id: 'clip-1',
         content: 'clip content',
@@ -117,12 +118,6 @@ describe('script-to-storyboard atomic retry', () => {
       novelPromotionData: {
         characters: [{ name: 'Narrator', appearances: [] }],
         locations: [{ name: 'Office', images: [{ description: 'room desc' }] }],
-      },
-      promptTemplates: {
-        phase1PlanTemplate: '{clip_content}',
-        phase2CinematographyTemplate: '{panels_json} {panel_count} {locations_description} {characters_info}',
-        phase2ActingTemplate: '{panels_json} {panel_count} {characters_info}',
-        phase3DetailTemplate: '{panels_json} {characters_age_gender} {locations_description}',
       },
       runStep,
     })
@@ -200,6 +195,7 @@ describe('script-to-storyboard atomic retry', () => {
         phase: 'phase2_cinematography',
       },
       retryStepAttempt: 2,
+      locale: 'zh',
       clip: {
         id: 'clip-1',
         content: 'clip content',
@@ -212,12 +208,6 @@ describe('script-to-storyboard atomic retry', () => {
       novelPromotionData: {
         characters: [{ name: 'Narrator', appearances: [] }],
         locations: [{ name: 'Office', images: [{ description: 'room desc' }] }],
-      },
-      promptTemplates: {
-        phase1PlanTemplate: '{clip_content}',
-        phase2CinematographyTemplate: '{panels_json} {panel_count} {locations_description} {characters_info}',
-        phase2ActingTemplate: '{panels_json} {panel_count} {characters_info}',
-        phase3DetailTemplate: '{panels_json} {characters_age_gender} {locations_description}',
       },
       runStep,
     })).rejects.toThrow('missing dependency artifact: storyboard.clip.phase3')

@@ -2,6 +2,7 @@
 
 import type { DynamicToolUIPart, ToolUIPart } from "ai";
 import type { HTMLAttributes } from "react";
+import React from "react";
 import { createContext, useContext, useMemo, useState } from "react";
 
 export type ToolPart = ToolUIPart | DynamicToolUIPart;

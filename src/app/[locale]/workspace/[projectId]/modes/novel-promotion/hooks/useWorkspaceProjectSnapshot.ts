@@ -44,7 +44,6 @@ export function useWorkspaceProjectSnapshot({
       audioModel: projectData?.audioModel,
       videoRatio: projectData?.videoRatio,
       capabilityOverrides,
-      ttsRate: projectData?.ttsRate,
       artStyle: projectData?.artStyle,
     }
   }, [episode?.novelText, episode?.storyboards, project.novelPromotionData, urlStage])

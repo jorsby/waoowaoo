@@ -18,7 +18,6 @@
     "audioModel": "Speech Synthesis Model",
     "videoResolution": "Video Resolution",
     "ttsVoice": "TTS Voice",
-    "ttsRate": "Speech Rate",
     "fetchModelsFailed": "Failed to fetch user model list",
     "placeholder": "Please enter...",
     "description": "Description",

@@ -129,6 +129,8 @@ export function mapTaskSSEEventToRunEvents(event: SSEEvent): RunStreamEvent[] {
       : undefined)
   const stepAttempt = readStepField(payload, 'stepAttempt')
   const stepTitle = rawStepTitle || flowStageTitle || undefined
+  const skillId = readTextField(payload, 'skillId')
+  const scopeRef = readTextField(payload, 'scopeRef')
   const stepIndex = readStepField(payload, 'stepIndex') ?? flowStageIndex
   const stepTotal = readStepField(payload, 'stepTotal') ?? flowStageTotal
   const stage = readTextField(payload, 'stage')
@@ -164,6 +166,8 @@ export function mapTaskSSEEventToRunEvents(event: SSEEvent): RunStreamEvent[] {
       stepId,
       stepAttempt: stepAttempt ?? streamStepAttempt,
       stepTitle,
+      skillId,
+      scopeRef,
       stepIndex,
       stepTotal,
       dependsOn: dependsOn.length > 0 ? dependsOn : undefined,
@@ -205,6 +209,8 @@ export function mapTaskSSEEventToRunEvents(event: SSEEvent): RunStreamEvent[] {
         stepId,
         stepAttempt,
         stepTitle,
+        skillId,
+        scopeRef,
         stepIndex,
         stepTotal,
         dependsOn: dependsOn.length > 0 ? dependsOn : undefined,
@@ -223,6 +229,8 @@ export function mapTaskSSEEventToRunEvents(event: SSEEvent): RunStreamEvent[] {
           stepId,
           stepAttempt,
           stepTitle,
+          skillId,
+          scopeRef,
           stepIndex,
           stepTotal,
           dependsOn: dependsOn.length > 0 ? dependsOn : undefined,
@@ -243,6 +251,8 @@ export function mapTaskSSEEventToRunEvents(event: SSEEvent): RunStreamEvent[] {
           stepId,
           stepAttempt,
           stepTitle,
+          skillId,
+          scopeRef,
           stepIndex,
           stepTotal,
           dependsOn: dependsOn.length > 0 ? dependsOn : undefined,
@@ -267,6 +277,8 @@ export function mapTaskSSEEventToRunEvents(event: SSEEvent): RunStreamEvent[] {
         stepId,
         stepAttempt,
         stepTitle,
+        skillId,
+        scopeRef,
         stepIndex,
         stepTotal,
         dependsOn: dependsOn.length > 0 ? dependsOn : undefined,
@@ -301,6 +313,8 @@ export function mapTaskSSEEventToRunEvents(event: SSEEvent): RunStreamEvent[] {
         stepId,
         stepAttempt,
         stepTitle,
+        skillId,
+        scopeRef,
         stepIndex,
         stepTotal,
         dependsOn: dependsOn.length > 0 ? dependsOn : undefined,

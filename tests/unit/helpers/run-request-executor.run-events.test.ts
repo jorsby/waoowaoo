@@ -38,6 +38,8 @@ describe('run-request-executor run events path', () => {
             attempt: 1,
             payload: {
               stepTitle: 'Step A',
+              skillId: 'generate_screenplay',
+              scopeRef: 'clip:clip-a',
               stepIndex: 1,
               stepTotal: 1,
             },
@@ -98,6 +100,8 @@ describe('run-request-executor run events path', () => {
       expect(result.status).toBe('completed')
       expect(result.runId).toBe('run_1')
       expect(captured.some((event) => event.event === 'step.chunk' && event.textDelta === 'hello')).toBe(true)
+      expect(captured.find((event) => event.event === 'step.start')?.skillId).toBe('generate_screenplay')
+      expect(captured.find((event) => event.event === 'step.start')?.scopeRef).toBe('clip:clip-a')
       expect(fetchMock.mock.calls[1]?.[0]).toBe('/api/runs/run_1/events?afterSeq=0&limit=500')
     } finally {
       globalThis.fetch = originalFetch

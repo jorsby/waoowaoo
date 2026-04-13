@@ -55,13 +55,9 @@ vi.mock('@/lib/ai-runtime', async () => {
   }
 })
 
-vi.mock('@/lib/novel-promotion/script-to-storyboard/orchestrator', async () => {
-  const actual = await vi.importActual<typeof import('@/lib/novel-promotion/script-to-storyboard/orchestrator')>(
-    '@/lib/novel-promotion/script-to-storyboard/orchestrator',
-  )
+vi.mock('@/lib/skill-system/executors/script-to-storyboard/preset', () => {
   return {
-    ...actual,
-    runScriptToStoryboardOrchestrator: vi.fn(async () => ({
+    runScriptToStoryboardSkillWorkflow: vi.fn(async () => ({
       clipPanels: [
         {
           clipId: textState.orchestratorClipId,
@@ -79,10 +75,15 @@ vi.mock('@/lib/novel-promotion/script-to-storyboard/orchestrator', async () => {
           ],
         },
       ],
+      phase1PanelsByClipId: {},
+      phase2CinematographyByClipId: {},
+      phase2ActingByClipId: {},
+      phase3PanelsByClipId: {},
       summary: {
         totalPanelCount: 1,
         totalStepCount: 4,
       },
+      voiceLineRows: textState.voiceLineResults,
     })),
   }
 })

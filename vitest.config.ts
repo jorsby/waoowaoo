@@ -10,6 +10,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
+      '@skills': resolve(__dirname, 'skills'),
     },
   },
   test: {
@@ -24,7 +25,7 @@ export default defineConfig({
     },
     setupFiles: ['./tests/setup/env.ts'],
     globalSetup: ['./tests/setup/global-setup.ts'],
-    include: ['**/*.test.ts'],
+    include: ['**/*.test.ts', '**/*.test.tsx'],
     testTimeout: 30_000,
     hookTimeout: 60_000,
     coverage: {

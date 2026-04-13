@@ -20,6 +20,8 @@ export type RunStreamEvent = {
   stepId?: string
   stepAttempt?: number
   stepTitle?: string
+  skillId?: string
+  scopeRef?: string
   stepIndex?: number
   stepTotal?: number
   lane?: RunStreamLane

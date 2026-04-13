@@ -6,6 +6,9 @@ export type AssistantId = 'api-config-template' | 'tutorial'
 export interface AssistantContext {
   providerId?: string
   locale?: string
+  projectId?: string
+  episodeId?: string
+  currentStage?: string
 }
 
 export interface AssistantResolvedModel {

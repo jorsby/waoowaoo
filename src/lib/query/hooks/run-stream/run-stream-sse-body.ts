@@ -16,6 +16,8 @@ function toStreamEvent(data: Record<string, unknown>, parsedEvent: string): RunS
     stepId: typeof data.stepId === 'string' ? data.stepId : undefined,
     stepAttempt: typeof data.stepAttempt === 'number' ? Math.max(1, Math.floor(data.stepAttempt)) : undefined,
     stepTitle: typeof data.stepTitle === 'string' ? data.stepTitle : undefined,
+    skillId: typeof data.skillId === 'string' ? data.skillId : undefined,
+    scopeRef: typeof data.scopeRef === 'string' ? data.scopeRef : undefined,
     stepIndex: typeof data.stepIndex === 'number' ? data.stepIndex : undefined,
     stepTotal: typeof data.stepTotal === 'number' ? data.stepTotal : undefined,
     lane: data.lane === 'reasoning' ? 'reasoning' : data.lane === 'text' ? 'text' : undefined,

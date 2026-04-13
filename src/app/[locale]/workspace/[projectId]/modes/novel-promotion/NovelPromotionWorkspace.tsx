@@ -5,9 +5,9 @@ import ConfirmDialog from '@/components/ConfirmDialog'
 import { AnimatedBackground } from '@/components/ui/SharedComponents'
 import { useTranslations } from 'next-intl'
 import { WorkspaceProvider } from './WorkspaceProvider'
-import WorkspaceRunStreamConsoles from './components/WorkspaceRunStreamConsoles'
 import WorkspaceStageContent from './components/WorkspaceStageContent'
 import WorkspaceAssetLibraryModal from './components/WorkspaceAssetLibraryModal'
+import WorkspaceAssistantPanel from './components/WorkspaceAssistantPanel'
 import WorkspaceHeaderShell from './components/WorkspaceHeaderShell'
 import { WorkspaceStageRuntimeProvider } from './WorkspaceStageRuntimeContext'
 import { useNovelPromotionWorkspaceController } from './hooks/useNovelPromotionWorkspaceController'
@@ -93,7 +93,6 @@ function NovelPromotionWorkspaceContent(props: NovelPromotionWorkspaceProps) {
         audioModel={vm.project.audioModel}
         capabilityOverrides={vm.project.capabilityOverrides}
         videoRatio={vm.project.videoRatio}
-        ttsRate={vm.project.ttsRate !== undefined && vm.project.ttsRate !== null ? String(vm.project.ttsRate) : undefined}
         onUpdateConfig={vm.actions.handleUpdateConfig}
         globalAssetText={vm.project.globalAssetText}
         projectName={project.name}
@@ -117,9 +116,21 @@ function NovelPromotionWorkspaceContent(props: NovelPromotionWorkspaceProps) {
       />
 
       <div className="pt-24">
-        <WorkspaceStageRuntimeProvider value={vm.runtime.stageRuntime}>
-          <WorkspaceStageContent currentStage={vm.stageNav.currentStage} />
-        </WorkspaceStageRuntimeProvider>
+        <div className="flex items-start gap-6 pl-0 pr-6 pb-6">
+          <WorkspaceAssistantPanel
+            projectId={projectId}
+            episodeId={episodeId}
+            currentStage={vm.stageNav.currentStage}
+            storyToScriptStream={vm.execution.storyToScriptStream}
+            scriptToStoryboardStream={vm.execution.scriptToStoryboardStream}
+          />
+
+          <div className="min-w-0 flex-1">
+            <WorkspaceStageRuntimeProvider value={vm.runtime.stageRuntime}>
+              <WorkspaceStageContent currentStage={vm.stageNav.currentStage} />
+            </WorkspaceStageRuntimeProvider>
+          </div>
+        </div>
 
         <WorkspaceAssetLibraryModal
           isOpen={vm.ui.isAssetLibraryOpen}
@@ -154,16 +165,6 @@ function NovelPromotionWorkspaceContent(props: NovelPromotionWorkspaceProps) {
           cancelText={vm.i18n.t('rebuildConfirm.cancel')}
           onConfirm={vm.rebuild.handleAcceptRebuildConfirm}
           onCancel={vm.rebuild.handleCancelRebuildConfirm}
-        />
-
-        <WorkspaceRunStreamConsoles
-          storyToScriptStream={vm.execution.storyToScriptStream}
-          scriptToStoryboardStream={vm.execution.scriptToStoryboardStream}
-          storyToScriptConsoleMinimized={vm.execution.storyToScriptConsoleMinimized}
-          scriptToStoryboardConsoleMinimized={vm.execution.scriptToStoryboardConsoleMinimized}
-          onStoryToScriptMinimizedChange={vm.execution.setStoryToScriptConsoleMinimized}
-          onScriptToStoryboardMinimizedChange={vm.execution.setScriptToStoryboardConsoleMinimized}
-          hideMinimizedBadges={vm.execution.showCreatingToast}
         />
       </div>
     </div>

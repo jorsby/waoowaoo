@@ -2,10 +2,9 @@ import { safeParseJsonArray } from '@/lib/json-repair'
 import { buildCharactersIntroduction } from '@/lib/constants'
 import { normalizeAnyError } from '@/lib/errors/normalize'
 import type {
-  ScriptToStoryboardPromptTemplates,
   ScriptToStoryboardStepMeta,
   ScriptToStoryboardStepOutput,
-} from '@/lib/novel-promotion/script-to-storyboard/orchestrator'
+} from '@/lib/skill-system/executors/script-to-storyboard/types'
 import { listArtifacts } from '@/lib/run-runtime/service'
 import {
   type ActingDirection,
@@ -25,6 +24,7 @@ import {
   buildPromptAssetContext,
   compileAssetPromptFragments,
 } from '@/lib/assets/services/asset-prompt-context'
+import { composeSkillPrompt, type SkillLocale } from '@skills/novel-promotion/_shared/prompt-runtime'
 
 type StoryboardClipInput = {
   id: string
@@ -161,7 +161,7 @@ function getStepNumbers(params: {
   totalClipCount: number
 }) {
   const zeroBasedClipIndex = params.clipIndex
-  const totalStepCount = params.totalClipCount * 4 + 2
+  const totalStepCount = params.totalClipCount * 4 + 1
   if (params.phase === 'phase1') {
     return { stepIndex: zeroBasedClipIndex + 1, stepTotal: totalStepCount }
   }
@@ -334,7 +334,7 @@ export async function runScriptToStoryboardAtomicRetry(params: {
   runId: string
   retryTarget: StoryboardRetryTarget
   retryStepAttempt: number
-  locale?: 'zh' | 'en'
+  locale?: SkillLocale
   clip: StoryboardClipInput
   clipIndex: number
   totalClipCount: number
@@ -343,7 +343,6 @@ export async function runScriptToStoryboardAtomicRetry(params: {
     locations: LocationAsset[]
     props?: PropAsset[]
   }
-  promptTemplates: ScriptToStoryboardPromptTemplates
   runStep: StepRunner
 }): Promise<ScriptToStoryboardAtomicRetryResult> {
   const clipCharacters = parseClipCharacters(params.clip.characters)
@@ -420,20 +419,25 @@ export async function runScriptToStoryboardAtomicRetry(params: {
       null,
       2,
     )
-    let phase1Prompt = params.promptTemplates.phase1PlanTemplate
-      .replace('{characters_lib_name}', charactersLibName)
-      .replace('{locations_lib_name}', locationsLibName)
-      .replace('{characters_introduction}', charactersIntroduction)
-      .replace('{characters_appearance_list}', filteredAppearanceList)
-      .replace('{characters_full_description}', filteredFullDescription)
-      .replace('{props_description}', filteredPropsDescription)
-      .replace('{clip_json}', clipJson)
+    let clipContentForPrompt = clipContent
     const screenplay = parseScreenplay(params.clip.screenplay)
     if (screenplay) {
-      phase1Prompt = phase1Prompt.replace('{clip_content}', `【剧本格式】\n${JSON.stringify(screenplay, null, 2)}`)
-    } else {
-      phase1Prompt = phase1Prompt.replace('{clip_content}', clipContent)
+      clipContentForPrompt = `【剧本格式】\n${JSON.stringify(screenplay, null, 2)}`
     }
+    const phase1Prompt = composeSkillPrompt({
+      skillId: 'plan-storyboard-phase1',
+      locale: params.locale ?? 'zh',
+      replacements: {
+        characters_lib_name: charactersLibName,
+        locations_lib_name: locationsLibName,
+        characters_introduction: charactersIntroduction,
+        characters_appearance_list: filteredAppearanceList,
+        characters_full_description: filteredFullDescription,
+        props_description: filteredPropsDescription,
+        clip_json: clipJson,
+        clip_content: clipContentForPrompt,
+      },
+    })
     phase1Panels = await runStepWithRetry({
       runStep: params.runStep,
       baseMeta,
@@ -452,12 +456,17 @@ export async function runScriptToStoryboardAtomicRetry(params: {
     phase1PanelsByClipId[params.clip.id] = phase1Panels
   } else if (params.retryTarget.phase === 'phase2_cinematography') {
     const planPanels = requireRows(phase1Panels, 'storyboard.clip.phase1')
-    const phase2Prompt = params.promptTemplates.phase2CinematographyTemplate
-      .replace('{panels_json}', JSON.stringify(planPanels, null, 2))
-      .replace(/\{panel_count\}/g, String(planPanels.length))
-      .replace('{locations_description}', filteredLocationsDescription)
-      .replace('{characters_info}', filteredFullDescription)
-      .replace('{props_description}', filteredPropsDescription)
+    const phase2Prompt = composeSkillPrompt({
+      skillId: 'refine-cinematography',
+      locale: params.locale ?? 'zh',
+      replacements: {
+        panels_json: JSON.stringify(planPanels, null, 2),
+        panel_count: String(planPanels.length),
+        locations_description: filteredLocationsDescription,
+        characters_info: filteredFullDescription,
+        props_description: filteredPropsDescription,
+      },
+    })
     phase2Cinematography = await runStepWithRetry({
       runStep: params.runStep,
       baseMeta,
@@ -470,10 +479,15 @@ export async function runScriptToStoryboardAtomicRetry(params: {
     phase2CinematographyByClipId[params.clip.id] = phase2Cinematography
   } else if (params.retryTarget.phase === 'phase2_acting') {
     const planPanels = requireRows(phase1Panels, 'storyboard.clip.phase1')
-    const phase2ActingPrompt = params.promptTemplates.phase2ActingTemplate
-      .replace('{panels_json}', JSON.stringify(planPanels, null, 2))
-      .replace(/\{panel_count\}/g, String(planPanels.length))
-      .replace('{characters_info}', filteredFullDescription)
+    const phase2ActingPrompt = composeSkillPrompt({
+      skillId: 'refine-acting',
+      locale: params.locale ?? 'zh',
+      replacements: {
+        panels_json: JSON.stringify(planPanels, null, 2),
+        panel_count: String(planPanels.length),
+        characters_info: filteredFullDescription,
+      },
+    })
     phase2Acting = await runStepWithRetry({
       runStep: params.runStep,
       baseMeta,
@@ -486,11 +500,16 @@ export async function runScriptToStoryboardAtomicRetry(params: {
     phase2ActingByClipId[params.clip.id] = phase2Acting
   } else {
     const planPanels = requireRows(phase1Panels, 'storyboard.clip.phase1')
-    const phase3Prompt = params.promptTemplates.phase3DetailTemplate
-      .replace('{panels_json}', JSON.stringify(planPanels, null, 2))
-      .replace('{characters_age_gender}', filteredFullDescription)
-      .replace('{locations_description}', filteredLocationsDescription)
-      .replace('{props_description}', filteredPropsDescription)
+    const phase3Prompt = composeSkillPrompt({
+      skillId: 'refine-storyboard-detail',
+      locale: params.locale ?? 'zh',
+      replacements: {
+        panels_json: JSON.stringify(planPanels, null, 2),
+        characters_age_gender: filteredFullDescription,
+        locations_description: filteredLocationsDescription,
+        props_description: filteredPropsDescription,
+      },
+    })
     phase3Panels = await runStepWithRetry({
       runStep: params.runStep,
       baseMeta,
@@ -533,6 +552,6 @@ export async function runScriptToStoryboardAtomicRetry(params: {
     phase2ActingByClipId,
     phase3PanelsByClipId,
     totalPanelCount,
-    totalStepCount: params.totalClipCount * 4 + 2,
+    totalStepCount: params.totalClipCount * 4 + 1,
   }
 }

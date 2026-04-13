@@ -1,8 +1,36 @@
 import type { UIMessage } from 'ai'
-import { describe, expect, it } from 'vitest'
-import { collectSavedEvents } from '@/components/assistant/useAssistantChat'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  collectSavedEvents,
+  readAssistantStoredMessages,
+  writeAssistantStoredMessages,
+} from '@/components/assistant/useAssistantChat'
 
 describe('assistant chat saved events parser', () => {
+  let storage = new Map<string, string>()
+
+  beforeEach(() => {
+    storage = new Map<string, string>()
+    vi.stubGlobal('window', {
+      localStorage: {
+        getItem: (key: string) => storage.get(key) ?? null,
+        setItem: (key: string, value: string) => {
+          storage.set(key, value)
+        },
+        removeItem: (key: string) => {
+          storage.delete(key)
+        },
+        clear: () => {
+          storage.clear()
+        },
+      },
+    })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
   it('parses single save tool output event', () => {
     const messages = [{
       id: 'm1',
@@ -96,5 +124,26 @@ describe('assistant chat saved events parser', () => {
       'openai-compatible:oa-1::veo3.1-fast',
     ])
     expect(events[1]?.draftModel?.name).toBe('Veo 3.1 Fast')
+  })
+
+  it('persists and restores assistant messages from localStorage', () => {
+    const storageKey = 'assistant:test'
+    const messages = [{
+      id: 'm3',
+      role: 'assistant',
+      parts: [
+        { type: 'text', text: 'hello' },
+      ],
+    }] as unknown as UIMessage[]
+
+    writeAssistantStoredMessages(storageKey, messages)
+
+    expect(readAssistantStoredMessages(storageKey)).toEqual(messages)
+  })
+
+  it('returns empty messages when localStorage payload is invalid', () => {
+    storage.set('assistant:broken', '{broken-json')
+
+    expect(readAssistantStoredMessages('assistant:broken')).toEqual([])
   })
 })

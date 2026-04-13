@@ -24,7 +24,7 @@ type UseStoryToScriptRunStreamOptions = {
 export function useStoryToScriptRunStream({ projectId, episodeId }: UseStoryToScriptRunStreamOptions) {
   return useRunStreamState<StoryToScriptRunParams>({
     projectId,
-    endpoint: (pid) => `/api/novel-promotion/${pid}/story-to-script-stream`,
+    endpoint: (pid) => `/api/projects/${pid}/commands`,
     storageKeyPrefix: 'novel-promotion:story-to-script-run',
     storageScopeKey: episodeId || undefined,
     resolveActiveRunId: async ({ projectId: pid, storageScopeKey }) => {
@@ -78,14 +78,17 @@ export function useStoryToScriptRunStream({ projectId, episodeId }: UseStoryToSc
       }
     },
     buildRequestBody: (params) => ({
+      commandType: 'run_workflow_package',
+      source: 'gui',
+      workflowId: 'story-to-script',
       episodeId: params.episodeId,
-      content: params.content,
-      model: params.model || undefined,
-      temperature: params.temperature,
-      reasoning: params.reasoning,
-      reasoningEffort: params.reasoningEffort,
-      async: true,
-      displayMode: 'detail',
+      input: {
+        content: params.content,
+        model: params.model || undefined,
+        temperature: params.temperature,
+        reasoning: params.reasoning,
+        reasoningEffort: params.reasoningEffort,
+      },
     }),
   })
 }

@@ -20,7 +20,6 @@ const prismaMock = vi.hoisted(() => ({
       audioModel: 'audio::tts',
       videoRatio: '9:16',
       artStyle: 'realistic',
-      ttsRate: '+0%',
     })),
   },
   project: {

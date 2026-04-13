@@ -18,7 +18,6 @@
     "audioModel": "语音合成模型",
     "videoResolution": "视频分辨率",
     "ttsVoice": "旁白音色",
-    "ttsRate": "语速",
     "fetchModelsFailed": "获取用户模型列表失败",
     "placeholder": "请输入...",
     "description": "描述",

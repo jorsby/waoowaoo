@@ -88,6 +88,8 @@ export function toRunStreamEventFromRunApi(params: {
       ? Math.max(1, Math.floor(params.event.attempt))
       : undefined
   const stepTitle = readText(payload.stepTitle) || undefined
+  const skillId = readText(payload.skillId) || undefined
+  const scopeRef = readText(payload.scopeRef) || undefined
   const stepIndex =
     typeof payload.stepIndex === 'number' && Number.isFinite(payload.stepIndex)
       ? Math.max(1, Math.floor(payload.stepIndex))
@@ -159,6 +161,8 @@ export function toRunStreamEventFromRunApi(params: {
       stepId,
       stepAttempt,
       stepTitle,
+      skillId,
+      scopeRef,
       stepIndex,
       stepTotal,
       dependsOn: dependsOn.length > 0 ? dependsOn : undefined,
@@ -192,6 +196,8 @@ export function toRunStreamEventFromRunApi(params: {
       stepId,
       stepAttempt,
       stepTitle,
+      skillId,
+      scopeRef,
       stepIndex,
       stepTotal,
       dependsOn: dependsOn.length > 0 ? dependsOn : undefined,
@@ -218,6 +224,8 @@ export function toRunStreamEventFromRunApi(params: {
       stepId,
       stepAttempt,
       stepTitle,
+      skillId,
+      scopeRef,
       stepIndex,
       stepTotal,
       status: stale ? 'stale' : 'completed',
@@ -242,6 +250,8 @@ export function toRunStreamEventFromRunApi(params: {
       stepId,
       stepAttempt,
       stepTitle,
+      skillId,
+      scopeRef,
       stepIndex,
       stepTotal,
       dependsOn: dependsOn.length > 0 ? dependsOn : undefined,

@@ -7,6 +7,7 @@ import {
   useScriptToStoryboardRunStream,
   useStoryToScriptRunStream,
 } from '@/lib/query/hooks'
+import { emitWorkspaceAssistantWorkflowEvent } from '../components/workspace-assistant/workspace-assistant-events'
 
 interface UseWorkspaceExecutionParams {
   projectId: string
@@ -108,6 +109,10 @@ export function useWorkspaceExecution({
       })
     }
 
+    emitWorkspaceAssistantWorkflowEvent({
+      status: 'completed',
+      workflowId: 'story-to-script',
+    })
     setStoryToScriptConsoleMinimized(true)
     onStageChange('script')
     onOpenAssetLibrary()
@@ -129,6 +134,10 @@ export function useWorkspaceExecution({
       })
     }
 
+    emitWorkspaceAssistantWorkflowEvent({
+      status: 'completed',
+      workflowId: 'script-to-storyboard',
+    })
     setScriptToStoryboardConsoleMinimized(true)
     onStageChange('storyboard')
     scriptToStoryboardStream.reset()
@@ -191,6 +200,10 @@ export function useWorkspaceExecution({
     try {
       setIsTransitioning(true)
       setStoryToScriptConsoleMinimized(false)
+      emitWorkspaceAssistantWorkflowEvent({
+        status: 'started',
+        workflowId: 'story-to-script',
+      })
 
       await onUpdateConfig('workflowMode', 'agent')
       setTransitionProgress({ message: t('execution.storyToScriptRunning'), step: 'streaming' })
@@ -214,6 +227,11 @@ export function useWorkspaceExecution({
       const friendlyMessage = isRunStreamTimeoutMessage(rawMessage)
         ? t('execution.taskStreamTimeout')
         : rawMessage
+      emitWorkspaceAssistantWorkflowEvent({
+        status: 'failed',
+        workflowId: 'story-to-script',
+        errorMessage: friendlyMessage,
+      })
       alert(`${t('execution.prepareFailed')}: ${friendlyMessage}`)
     } finally {
       setIsTransitioning(false)
@@ -230,6 +248,10 @@ export function useWorkspaceExecution({
     try {
       setScriptToStoryboardConsoleMinimized(false)
       setIsConfirmingAssets(true)
+      emitWorkspaceAssistantWorkflowEvent({
+        status: 'started',
+        workflowId: 'script-to-storyboard',
+      })
       setTransitionProgress({ message: t('execution.scriptToStoryboardRunning'), step: 'streaming' })
       const runResult = await scriptToStoryboardStream.run({
         episodeId,
@@ -247,7 +269,15 @@ export function useWorkspaceExecution({
         return
       }
       const rawMessage = getErrorMessage(err)
-      alert(`${t('execution.generationFailed')}: ${isRunStreamTimeoutMessage(rawMessage) ? t('execution.taskStreamTimeout') : rawMessage}`)
+      const friendlyMessage = isRunStreamTimeoutMessage(rawMessage)
+        ? t('execution.taskStreamTimeout')
+        : rawMessage
+      emitWorkspaceAssistantWorkflowEvent({
+        status: 'failed',
+        workflowId: 'script-to-storyboard',
+        errorMessage: friendlyMessage,
+      })
+      alert(`${t('execution.generationFailed')}: ${friendlyMessage}`)
     } finally {
       setIsConfirmingAssets(false)
       setTransitionProgress({ message: '', step: '' })

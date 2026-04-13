@@ -4,6 +4,8 @@ export type RunStepState = {
   id: string
   attempt: number
   title: string
+  skillId: string | null
+  scopeRef: string | null
   stepIndex: number
   stepTotal: number
   status: RunStepStatus

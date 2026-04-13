@@ -25,8 +25,8 @@ const configMock = vi.hoisted(() => ({
   })),
 }))
 
-const orchestratorMock = vi.hoisted(() => ({
-  runStoryToScriptOrchestrator: vi.fn(),
+const workflowMock = vi.hoisted(() => ({
+  runStoryToScriptSkillWorkflow: vi.fn(),
 }))
 const helperMock = vi.hoisted(() => ({
   persistAnalyzedCharacters: vi.fn(async () => [{ id: 'character-new-1' }]),
@@ -56,7 +56,11 @@ vi.mock('@/lib/logging/semantic', () => ({ logAIAnalysis: vi.fn() }))
 vi.mock('@/lib/logging/file-writer', () => ({ onProjectNameAvailable: vi.fn() }))
 vi.mock('@/lib/workers/shared', () => ({ reportTaskProgress: workerMock.reportTaskProgress }))
 vi.mock('@/lib/workers/utils', () => ({ assertTaskActive: workerMock.assertTaskActive }))
-vi.mock('@/lib/novel-promotion/story-to-script/orchestrator', () => orchestratorMock)
+vi.mock('@/lib/skill-system/executors/story-to-script/preset', () => workflowMock)
+vi.mock('@/lib/run-runtime/service', () => ({
+  createArtifact: vi.fn(async () => undefined),
+  listArtifacts: vi.fn(async () => []),
+}))
 vi.mock('@/lib/workers/handlers/llm-stream', () => ({
   createWorkerLLMStreamContext: vi.fn(() => ({ streamRunId: 'run-1', nextSeqByStepLane: {} })),
   createWorkerLLMStreamCallbacks: vi.fn(() => ({
@@ -142,11 +146,21 @@ describe('worker story-to-script behavior', () => {
       novelText: 'episode text',
     })
 
-    orchestratorMock.runStoryToScriptOrchestrator.mockResolvedValue({
+    workflowMock.runStoryToScriptSkillWorkflow.mockResolvedValue({
+      characterStep: { text: '{}', reasoning: '' },
+      locationStep: { text: '{}', reasoning: '' },
+      propStep: { text: '{}', reasoning: '' },
+      splitStep: { text: '[]', reasoning: '' },
+      charactersObject: { characters: [{ name: 'New Hero' }] },
+      locationsObject: { locations: [{ name: 'Market' }] },
       analyzedCharacters: [{ name: 'New Hero' }],
       analyzedLocations: [{ name: 'Market' }],
       analyzedProps: [{ name: 'Knife', summary: 'bronze dagger' }],
       propsObject: { props: [{ name: 'Knife', summary: 'bronze dagger' }] },
+      charactersLibName: 'New Hero、Hero',
+      locationsLibName: 'Market',
+      propsLibName: 'Knife',
+      charactersIntroduction: 'intro',
       clipList: [{ clipId: 'clip-1', content: 'clip content', props: ['Knife'] }],
       screenplayResults: [
         {
@@ -198,11 +212,21 @@ describe('worker story-to-script behavior', () => {
   })
 
   it('orchestrator partial failure summary -> throws explicit error', async () => {
-    orchestratorMock.runStoryToScriptOrchestrator.mockResolvedValueOnce({
+    workflowMock.runStoryToScriptSkillWorkflow.mockResolvedValueOnce({
+      characterStep: { text: '{}', reasoning: '' },
+      locationStep: { text: '{}', reasoning: '' },
+      propStep: { text: '{}', reasoning: '' },
+      splitStep: { text: '[]', reasoning: '' },
+      charactersObject: { characters: [] },
+      locationsObject: { locations: [] },
       analyzedCharacters: [],
       analyzedLocations: [],
       analyzedProps: [],
       propsObject: { props: [] },
+      charactersLibName: '无',
+      locationsLibName: '无',
+      propsLibName: '无',
+      charactersIntroduction: '无',
       clipList: [],
       screenplayResults: [
         {

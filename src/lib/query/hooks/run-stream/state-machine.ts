@@ -190,6 +190,8 @@ function buildDefaultStep(event: RunStreamEvent, now: number): RunStepState {
     id: stepId,
     attempt: stepAttempt,
     title: stepTitle,
+    skillId: typeof event.skillId === 'string' && event.skillId.trim() ? event.skillId.trim() : null,
+    scopeRef: typeof event.scopeRef === 'string' && event.scopeRef.trim() ? event.scopeRef.trim() : null,
     stepIndex,
     stepTotal,
     status: 'pending',
@@ -372,6 +374,12 @@ export function applyRunStreamEvent(prev: RunState | null, event: RunStreamEvent
   step.updatedAt = now
   if (typeof event.stepTitle === 'string' && event.stepTitle.trim()) {
     step.title = event.stepTitle.trim()
+  }
+  if (typeof event.skillId === 'string' && event.skillId.trim()) {
+    step.skillId = event.skillId.trim()
+  }
+  if (typeof event.scopeRef === 'string' && event.scopeRef.trim()) {
+    step.scopeRef = event.scopeRef.trim()
   }
   if (typeof event.stepIndex === 'number' && Number.isFinite(event.stepIndex)) {
     step.stepIndex = Math.max(1, Math.floor(event.stepIndex))

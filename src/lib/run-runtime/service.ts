@@ -49,6 +49,8 @@ type GraphStepRow = {
   runId: string
   stepKey: string
   stepTitle: string
+  skillId: string | null
+  scopeRef: string | null
   status: string
   currentAttempt: number
   stepIndex: number
@@ -270,6 +272,8 @@ function mapStepRow(step: GraphStepRow) {
     runId: step.runId,
     stepKey: step.stepKey,
     stepTitle: step.stepTitle,
+    skillId: step.skillId,
+    scopeRef: step.scopeRef,
     status: step.status as
       | typeof RUN_STEP_STATUS.PENDING
       | typeof RUN_STEP_STATUS.RUNNING
@@ -408,12 +412,16 @@ function buildStepProjection(input: RunEventInput) {
   const stepKey = input.stepKey || readString(payload, 'stepKey') || readString(payload, 'stepId')
   if (!stepKey) return null
   const stepTitle = readString(payload, 'stepTitle') || stepKey
+  const skillId = readString(payload, 'skillId')
+  const scopeRef = readString(payload, 'scopeRef')
   const stepIndex = readInt(payload, 'stepIndex') || 1
   const stepTotal = Math.max(stepIndex, readInt(payload, 'stepTotal') || stepIndex)
   const attempt = input.attempt && input.attempt > 0 ? input.attempt : (readInt(payload, 'stepAttempt') || 1)
   return {
     stepKey,
     stepTitle,
+    skillId,
+    scopeRef,
     stepIndex,
     stepTotal,
     attempt,
@@ -595,6 +603,8 @@ async function applyRunProjection(tx: GraphRuntimeTx, input: RunEventInput) {
       runId: input.runId,
       stepKey: stepProjection.stepKey,
       stepTitle: stepProjection.stepTitle,
+      skillId: stepProjection.skillId || null,
+      scopeRef: stepProjection.scopeRef || null,
       status: nextStatus,
       currentAttempt: stepProjection.attempt,
       stepIndex: stepProjection.stepIndex,
@@ -608,6 +618,8 @@ async function applyRunProjection(tx: GraphRuntimeTx, input: RunEventInput) {
     },
     update: {
       stepTitle: stepProjection.stepTitle,
+      ...(stepProjection.skillId ? { skillId: stepProjection.skillId } : {}),
+      ...(stepProjection.scopeRef ? { scopeRef: stepProjection.scopeRef } : {}),
       status: nextStatus,
       currentAttempt: stepProjection.attempt,
       stepIndex: stepProjection.stepIndex,

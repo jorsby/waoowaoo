@@ -61,7 +61,6 @@ export const PATCH = apiHandler(async (request: NextRequest) => {
     'lipSyncModel',
     'videoRatio',
     'artStyle',
-    'ttsRate'
   ]
 
   const updateData: Record<string, unknown> = {}

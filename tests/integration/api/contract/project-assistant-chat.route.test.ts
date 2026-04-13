@@ -1,0 +1,195 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { buildMockRequest } from '../../../helpers/request'
+
+const authState = vi.hoisted(() => ({
+  authenticated: true,
+}))
+
+const projectAgentMock = vi.hoisted(() => ({
+  createProjectAgentChatResponse: vi.fn(async () => new Response('ok', { status: 200 })),
+}))
+
+const persistenceMock = vi.hoisted(() => ({
+  loadProjectAssistantThread: vi.fn(async (): Promise<unknown> => null),
+  saveProjectAssistantThread: vi.fn(async (): Promise<unknown> => ({
+    id: 'thread-1',
+    assistantId: 'workspace-command',
+    projectId: 'project-1',
+    episodeId: 'episode-1',
+    scopeRef: 'episode:episode-1',
+    messages: [],
+    createdAt: '2026-04-13T00:00:00.000Z',
+    updatedAt: '2026-04-13T00:00:00.000Z',
+  })),
+  clearProjectAssistantThread: vi.fn(async (): Promise<void> => undefined),
+}))
+
+vi.mock('@/lib/api-auth', () => {
+  const unauthorized = () => new Response(
+    JSON.stringify({ error: { code: 'UNAUTHORIZED' } }),
+    { status: 401, headers: { 'content-type': 'application/json' } },
+  )
+
+  return {
+    isErrorResponse: (value: unknown) => value instanceof Response,
+    requireProjectAuth: async (projectId: string) => {
+      if (!authState.authenticated) return unauthorized()
+      return {
+        session: { user: { id: 'user-1' } },
+        project: { id: projectId, userId: 'user-1' },
+      }
+    },
+  }
+})
+
+vi.mock('@/lib/project-agent', () => projectAgentMock)
+vi.mock('@/lib/project-agent/persistence', () => persistenceMock)
+
+import {
+  DELETE as chatDelete,
+  GET as chatGet,
+  POST as chatPost,
+  PUT as chatPut,
+} from '@/app/api/projects/[projectId]/assistant/chat/route'
+
+describe('project assistant chat route', () => {
+  beforeEach(() => {
+    authState.authenticated = true
+    vi.clearAllMocks()
+  })
+
+  it('POST /api/projects/[projectId]/assistant/chat -> forwards request to project agent runtime', async () => {
+    const response = await chatPost(
+      buildMockRequest({
+        path: '/api/projects/project-1/assistant/chat',
+        method: 'POST',
+        body: {
+          messages: [
+            {
+              id: 'u1',
+              role: 'user',
+              parts: [{ type: 'text', text: '运行故事到剧本' }],
+            },
+          ],
+          context: {
+            episodeId: 'episode-1',
+            currentStage: 'config',
+          },
+        },
+      }),
+      { params: Promise.resolve({ projectId: 'project-1' }) },
+    )
+
+    expect(response.status).toBe(200)
+    expect(projectAgentMock.createProjectAgentChatResponse).toHaveBeenCalledTimes(1)
+    expect(projectAgentMock.createProjectAgentChatResponse).toHaveBeenCalledWith(expect.objectContaining({
+      projectId: 'project-1',
+      userId: 'user-1',
+      context: {
+        episodeId: 'episode-1',
+        currentStage: 'config',
+      },
+    }))
+  })
+
+  it('GET /api/projects/[projectId]/assistant/chat -> loads persisted workspace thread from database service', async () => {
+    persistenceMock.loadProjectAssistantThread.mockResolvedValueOnce({
+      id: 'thread-1',
+      assistantId: 'workspace-command',
+      projectId: 'project-1',
+      episodeId: 'episode-1',
+      scopeRef: 'episode:episode-1',
+      messages: [
+        {
+          id: 'assistant-1',
+          role: 'assistant',
+          parts: [{ type: 'text', text: 'persisted' }],
+        },
+      ],
+      createdAt: '2026-04-13T00:00:00.000Z',
+      updatedAt: '2026-04-13T00:00:00.000Z',
+    })
+
+    const response = await chatGet(
+      buildMockRequest({
+        path: '/api/projects/project-1/assistant/chat',
+        method: 'GET',
+        query: {
+          episodeId: 'episode-1',
+        },
+      }),
+      { params: Promise.resolve({ projectId: 'project-1' }) },
+    )
+
+    expect(response.status).toBe(200)
+    expect(persistenceMock.loadProjectAssistantThread).toHaveBeenCalledWith({
+      projectId: 'project-1',
+      userId: 'user-1',
+      episodeId: 'episode-1',
+      assistantId: 'workspace-command',
+    })
+
+    await expect(response.json()).resolves.toEqual({
+      thread: expect.objectContaining({
+        id: 'thread-1',
+        scopeRef: 'episode:episode-1',
+      }),
+    })
+  })
+
+  it('PUT /api/projects/[projectId]/assistant/chat -> saves workspace thread to database service', async () => {
+    const response = await chatPut(
+      buildMockRequest({
+        path: '/api/projects/project-1/assistant/chat',
+        method: 'PUT',
+        body: {
+          episodeId: 'episode-1',
+          messages: [
+            {
+              id: 'user-1',
+              role: 'user',
+              parts: [{ type: 'text', text: '现在到什么进度了' }],
+            },
+          ],
+        },
+      }),
+      { params: Promise.resolve({ projectId: 'project-1' }) },
+    )
+
+    expect(response.status).toBe(200)
+    expect(persistenceMock.saveProjectAssistantThread).toHaveBeenCalledWith({
+      projectId: 'project-1',
+      userId: 'user-1',
+      episodeId: 'episode-1',
+      assistantId: 'workspace-command',
+      messages: [
+        {
+          id: 'user-1',
+          role: 'user',
+          parts: [{ type: 'text', text: '现在到什么进度了' }],
+        },
+      ],
+    })
+  })
+
+  it('DELETE /api/projects/[projectId]/assistant/chat -> clears workspace thread from database service', async () => {
+    const response = await chatDelete(
+      buildMockRequest({
+        path: '/api/projects/project-1/assistant/chat',
+        method: 'DELETE',
+        query: {
+          episodeId: 'episode-1',
+        },
+      }),
+      { params: Promise.resolve({ projectId: 'project-1' }) },
+    )
+
+    expect(response.status).toBe(200)
+    expect(persistenceMock.clearProjectAssistantThread).toHaveBeenCalledWith({
+      projectId: 'project-1',
+      userId: 'user-1',
+      episodeId: 'episode-1',
+      assistantId: 'workspace-command',
+    })
+  })
+})
