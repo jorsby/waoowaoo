@@ -50,7 +50,8 @@ describe('story-to-script skill workflow', () => {
 
     expect(result.summary.clipCount).toBe(1)
     expect(actionCalls.get('analyze_characters')).toBe(3)
-    expect(runStep.mock.calls[0]?.[1]).toContain('# Analyze Characters')
+    expect(runStep.mock.calls[0]?.[1]).toContain('你是专业的"选角指导"。')
+    expect(runStep.mock.calls[0]?.[1]).not.toContain('[Skill Instructions]')
     expect(characterMetas).toEqual([
       { stepId: 'analyze_characters', stepAttempt: undefined },
       { stepId: 'analyze_characters', stepAttempt: 2 },

@@ -19,7 +19,34 @@ function createLocalMessage(role: UIMessage['role'], parts: UIMessage['parts']):
   }
 }
 
-export { createLocalMessage }
+function createAssistantMessage(parts: UIMessage['parts']): UIMessage {
+  return createLocalMessage('assistant', parts)
+}
+
+function createSystemWorkflowMessage(parts: UIMessage['parts']): UIMessage {
+  return createLocalMessage('assistant', parts)
+}
+
+export { createAssistantMessage, createLocalMessage, createSystemWorkflowMessage }
+
+function isWorkflowStatusPart(
+  part: UIMessage['parts'][number],
+  workflowId: WorkspaceAssistantWorkflowId,
+): boolean {
+  return part.type === 'data-workflow-status'
+    && typeof part.data === 'object'
+    && part.data !== null
+    && 'workflowId' in part.data
+    && part.data.workflowId === workflowId
+}
+
+export function removeWorkflowStatusParts(messages: UIMessage[], workflowId: WorkspaceAssistantWorkflowId): UIMessage[] {
+  return messages.flatMap((message) => {
+    const nextParts = message.parts.filter((part) => !isWorkflowStatusPart(part, workflowId))
+    if (nextParts.length === 0) return []
+    return [{ ...message, parts: nextParts }]
+  })
+}
 
 function resolveStatusCanonicalEvent(detail: {
   workflowId: WorkspaceAssistantWorkflowId
@@ -38,16 +65,10 @@ export function buildWorkflowTimelineMessages(workflowId: WorkspaceAssistantWork
   const workflowMachine = getProjectWorkflowMachine(workflowId)
   const workflowLabel = getWorkflowDisplayLabel(workflowId)
   return [
-    createLocalMessage('user', [
+    createSystemWorkflowMessage([
       {
         type: 'text',
-        text: `开始执行 ${workflowLabel}`,
-      },
-    ]),
-    createLocalMessage('assistant', [
-      {
-        type: 'text',
-        text: `已从工作区触发 ${workflowLabel}。接下来会在这里持续显示 workflow 和 skill 进度。`,
+        text: `系统已开始执行 ${workflowLabel}。接下来会在这里持续显示 workflow 和 skill 进度。`,
       },
       {
         type: 'data-workflow-plan',
@@ -85,7 +106,7 @@ export function buildWorkflowTimelineMessages(workflowId: WorkspaceAssistantWork
 
 export function buildWorkflowErrorMessage(detail: WorkspaceAssistantWorkflowEventDetail): UIMessage {
   const workflowLabel = getWorkflowDisplayLabel(detail.workflowId)
-  return createLocalMessage('assistant', [
+  return createSystemWorkflowMessage([
     {
       type: 'text',
       text: `${workflowLabel} 启动失败：${detail.errorMessage || '未知错误'}`,
@@ -110,7 +131,7 @@ export function buildWorkflowErrorMessage(detail: WorkspaceAssistantWorkflowEven
 
 export function buildWorkflowCompletedMessage(workflowId: WorkspaceAssistantWorkflowId, runId?: string): UIMessage {
   const workflowLabel = getWorkflowDisplayLabel(workflowId)
-  return createLocalMessage('assistant', [
+  return createSystemWorkflowMessage([
     {
       type: 'text',
       text: `${workflowLabel} 已执行完成。`,

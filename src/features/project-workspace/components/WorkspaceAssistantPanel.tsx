@@ -18,7 +18,7 @@ import {
   WorkspaceAssistantThreadMessage,
 } from './workspace-assistant/WorkspaceAssistantRenderers'
 import { collectPendingApprovalActions, removeApprovalRequestFromMessages } from './workspace-assistant/approval-state'
-import { createLocalMessage } from './workspace-assistant/workflow-timeline'
+import { createAssistantMessage } from './workspace-assistant/workflow-timeline'
 import { useWorkspaceAssistantRuntime } from './workspace-assistant/useWorkspaceAssistantRuntime'
 import { getWorkflowDisplayLabel } from '@/lib/skill-system/project-workflow-machine'
 
@@ -63,48 +63,28 @@ export default function WorkspaceAssistantPanel({
   })
   const handleApprovePlan = async (planId: string) => {
     const pendingApproval = pendingApprovalActions.find((item) => item.planId === planId) || null
-    const result = await approvePlan.mutateAsync(planId)
+    await approvePlan.mutateAsync(planId)
     const nextMessages = removeApprovalRequestFromMessages(assistantRuntime.messages, planId)
     assistantRuntime.replaceMessages([
       ...nextMessages,
-      createLocalMessage('assistant', [
+      createAssistantMessage([
         {
           type: 'text',
           text: `已批准 ${pendingApproval ? workflowLabels[pendingApproval.data.workflowId] : '当前'} 计划，正在开始执行。`,
-        },
-        {
-          type: 'data-workflow-status',
-          data: {
-            workflowId: pendingApproval?.data.workflowId || 'story-to-script',
-            commandId: result.commandId,
-            planId: result.planId,
-            runId: result.runId,
-            status: result.status,
-          },
         },
       ]),
     ])
   }
   const handleRejectPlan = async (params: { planId: string; note?: string }) => {
     const pendingApproval = pendingApprovalActions.find((item) => item.planId === params.planId) || null
-    const result = await rejectPlan.mutateAsync(params)
+    await rejectPlan.mutateAsync(params)
     const nextMessages = removeApprovalRequestFromMessages(assistantRuntime.messages, params.planId)
     assistantRuntime.replaceMessages([
       ...nextMessages,
-      createLocalMessage('assistant', [
+      createAssistantMessage([
         {
           type: 'text',
           text: `已拒绝 ${pendingApproval ? workflowLabels[pendingApproval.data.workflowId] : '当前'} 计划。${params.note?.trim() ? ` 原因：${params.note.trim()}` : ''}`,
-        },
-        {
-          type: 'data-workflow-status',
-          data: {
-            workflowId: pendingApproval?.data.workflowId || 'story-to-script',
-            commandId: result.commandId,
-            planId: result.planId,
-            runId: result.runId,
-            status: result.status,
-          },
         },
       ]),
     ])

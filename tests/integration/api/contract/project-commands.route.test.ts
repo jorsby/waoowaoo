@@ -152,6 +152,61 @@ describe('project commands routes', () => {
     expect(executorMock.executeProjectCommand).toHaveBeenCalledTimes(1)
   })
 
+  it('POST /api/projects/[projectId]/commands -> returns approval payload for assistant-panel workflow plans', async () => {
+    executorMock.executeProjectCommand.mockResolvedValueOnce({
+      commandId: 'command-2',
+      planId: 'plan-2',
+      requiresApproval: true,
+      status: 'awaiting_approval',
+      linkedTaskId: '',
+      linkedRunId: '',
+      summary: 'Story To Script',
+      steps: [
+        {
+          stepKey: 'analyze_characters',
+          skillId: 'analyze_characters',
+          title: 'Analyze Characters',
+          orderIndex: 0,
+          inputArtifacts: ['story.raw'],
+          outputArtifacts: ['analysis.characters'],
+          invalidates: ['clip.split'],
+          mutationKind: 'generate',
+          riskLevel: 'low',
+          requiresApproval: false,
+          dependsOn: [],
+        },
+      ],
+    })
+
+    const response = await commandsPost(
+      buildMockRequest({
+        path: '/api/projects/project-1/commands',
+        method: 'POST',
+        body: {
+          commandType: 'run_workflow_package',
+          source: 'assistant-panel',
+          workflowId: 'story-to-script',
+          episodeId: 'episode-1',
+          input: { content: 'story text' },
+        },
+      }),
+      { params: Promise.resolve({ projectId: 'project-1' }) },
+    )
+
+    expect(response.status).toBe(200)
+    const payload = await response.json()
+    expect(payload).toMatchObject({
+      success: true,
+      commandId: 'command-2',
+      planId: 'plan-2',
+      status: 'awaiting_approval',
+      requiresApproval: true,
+    })
+    expect(payload.async).toBeUndefined()
+    expect(payload.taskId).toBeUndefined()
+    expect(payload.runId).toBeUndefined()
+  })
+
   it('GET /api/projects/[projectId]/commands -> returns command list', async () => {
     const response = await commandsGet(
       buildMockRequest({

@@ -14,13 +14,6 @@ function readCachedFile(filePath: string): string {
   return content
 }
 
-function stripFrontmatter(markdown: string): string {
-  if (!markdown.startsWith('---\n')) return markdown.trim()
-  const closingIndex = markdown.indexOf('\n---\n', 4)
-  if (closingIndex < 0) return markdown.trim()
-  return markdown.slice(closingIndex + 5).trim()
-}
-
 function resolveSkillRoot(skillId: WorkflowSkillId): string {
   return path.resolve(process.cwd(), 'skills', 'project-workflow', skillId)
 }
@@ -31,11 +24,6 @@ export function applyTemplate(template: string, replacements: Record<string, str
     next = next.replace(new RegExp(`\\{${key}\\}`, 'g'), value)
   }
   return next
-}
-
-export function readSkillInstructions(skillId: WorkflowSkillId): string {
-  const skillPath = path.join(resolveSkillRoot(skillId), 'SKILL.md')
-  return stripFrontmatter(readCachedFile(skillPath))
 }
 
 export function readSkillPromptTemplate(skillId: WorkflowSkillId, locale: SkillLocale): string {
@@ -51,15 +39,8 @@ export function composeSkillPrompt(params: {
   locale: SkillLocale
   replacements: Record<string, string>
 }): string {
-  const instructions = readSkillInstructions(params.skillId)
-  const renderedTemplate = applyTemplate(
+  return applyTemplate(
     readSkillPromptTemplate(params.skillId, params.locale),
     params.replacements,
   )
-  return [
-    '[Skill Instructions]',
-    instructions,
-    '[Execution Template]',
-    renderedTemplate,
-  ].join('\n\n')
 }

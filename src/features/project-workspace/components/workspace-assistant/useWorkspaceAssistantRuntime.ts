@@ -17,6 +17,7 @@ import {
   buildWorkflowCompletedMessage,
   buildWorkflowErrorMessage,
   buildWorkflowTimelineMessages,
+  removeWorkflowStatusParts,
 } from './workflow-timeline'
 
 interface UseWorkspaceAssistantRuntimeParams {
@@ -128,20 +129,24 @@ export function useWorkspaceAssistantRuntime({
       const detail = customEvent.detail
       if (!detail) return
 
-      appendMessages(
-        detail.status === 'started'
+      chat.setMessages((current) => {
+        const nextMessages = detail.status === 'started'
           ? buildWorkflowTimelineMessages(detail.workflowId, detail.runId)
           : detail.status === 'completed'
             ? [buildWorkflowCompletedMessage(detail.workflowId, detail.runId)]
-            : [buildWorkflowErrorMessage(detail)],
-      )
+            : [buildWorkflowErrorMessage(detail)]
+        return [
+          ...removeWorkflowStatusParts(current, detail.workflowId),
+          ...nextMessages,
+        ]
+      })
     }
 
     window.addEventListener(WORKSPACE_ASSISTANT_WORKFLOW_EVENT, onWorkflowEvent)
     return () => {
       window.removeEventListener(WORKSPACE_ASSISTANT_WORKFLOW_EVENT, onWorkflowEvent)
     }
-  }, [appendMessages])
+  }, [chat])
 
   useEffect(() => {
     return () => {

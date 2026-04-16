@@ -10,7 +10,7 @@ import { assembleProjectContext } from '@/lib/project-context/assembler'
 import { resolvePolicy } from '@/lib/policy-system/resolver'
 import { buildExecutionPlanDraft } from './plan-builder'
 import { normalizeCommandEnvelope } from './normalize'
-import { requiresExplicitApproval } from './approval'
+import { resolvePlanApprovalRequirement } from './approval'
 import type {
   CommandEnvelope,
   CommandExecutionResult,
@@ -275,7 +275,7 @@ async function createPersistentCommand(params: {
     projectPolicy: context.policy,
     commandPolicy: params.command.policyOverrides || null,
   })
-  const requiresApproval = requiresExplicitApproval(params.plan)
+  const requiresApproval = resolvePlanApprovalRequirement(params.command, params.plan)
   const commandRow = await commandCenterClient.projectCommand.create({
     data: {
       projectId: params.command.projectId,
@@ -431,7 +431,7 @@ export async function executeProjectCommand(params: {
     request: params.request,
   })
 
-  if (requiresExplicitApproval(planDraft)) {
+  if (resolvePlanApprovalRequirement(command, planDraft)) {
     return {
       commandId: persisted.command.id,
       planId: persisted.plan.id,

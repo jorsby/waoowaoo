@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import {
   ApprovalCard,
+  HiddenApprovalRequestDataCard,
   ScriptPreviewDataCard,
   StoryboardPreviewDataCard,
   WorkflowPlanDataCard,
@@ -159,5 +160,24 @@ describe('workspace assistant renderers', () => {
     expect(html).toContain('get_project_context (complete)')
     expect(html).not.toContain('Parameters')
     expect(html).not.toContain('projectName')
+  })
+
+  it('does not render inline approval request data cards', () => {
+    const html = renderToStaticMarkup(
+      <HiddenApprovalRequestDataCard
+        data={{
+          workflowId: 'story-to-script',
+          commandId: 'command-1',
+          planId: 'plan-1',
+          summary: 'Needs approval',
+          reasons: ['invalidate screenplay'],
+        }}
+        type="data"
+        name="approval-request"
+        status={{ type: 'complete' }}
+      />,
+    )
+
+    expect(html).toBe('')
   })
 })

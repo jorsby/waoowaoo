@@ -89,6 +89,8 @@ export function useWorkspaceExecution({
   const scriptToStoryboardStream = useScriptToStoryboardRunStream({ projectId, episodeId })
   const handledStoryToScriptRunIdsRef = useRef<Set<string>>(new Set())
   const handledScriptToStoryboardRunIdsRef = useRef<Set<string>>(new Set())
+  const announcedStoryToScriptRunIdsRef = useRef<Set<string>>(new Set())
+  const announcedScriptToStoryboardRunIdsRef = useRef<Set<string>>(new Set())
   const storyToScriptWasActiveRef = useRef(false)
   const scriptToStoryboardWasActiveRef = useRef(false)
 
@@ -200,11 +202,6 @@ export function useWorkspaceExecution({
     try {
       setIsTransitioning(true)
       setStoryToScriptConsoleMinimized(false)
-      emitWorkspaceAssistantWorkflowEvent({
-        status: 'started',
-        workflowId: 'story-to-script',
-      })
-
       setTransitionProgress({ message: t('execution.storyToScriptRunning'), step: 'streaming' })
       const runResult = await storyToScriptStream.run({
         episodeId,
@@ -247,10 +244,6 @@ export function useWorkspaceExecution({
     try {
       setScriptToStoryboardConsoleMinimized(false)
       setIsConfirmingAssets(true)
-      emitWorkspaceAssistantWorkflowEvent({
-        status: 'started',
-        workflowId: 'script-to-storyboard',
-      })
       setTransitionProgress({ message: t('execution.scriptToStoryboardRunning'), step: 'streaming' })
       const runResult = await scriptToStoryboardStream.run({
         episodeId,
@@ -290,6 +283,15 @@ export function useWorkspaceExecution({
       storyToScriptStream.status === 'running'
     )
     if (active) {
+      const runId = storyToScriptStream.runId.trim()
+      if (runId && !announcedStoryToScriptRunIdsRef.current.has(runId)) {
+        announcedStoryToScriptRunIdsRef.current.add(runId)
+        emitWorkspaceAssistantWorkflowEvent({
+          status: 'started',
+          workflowId: 'story-to-script',
+          runId,
+        })
+      }
       storyToScriptWasActiveRef.current = true
       return
     }
@@ -310,9 +312,9 @@ export function useWorkspaceExecution({
   }, [
     currentStage,
     finalizeStoryToScriptSuccess,
+    storyToScriptStream.runId,
     storyToScriptStream.isRecoveredRunning,
     storyToScriptStream.isRunning,
-    storyToScriptStream.runId,
     storyToScriptStream.status,
   ])
 
@@ -323,6 +325,15 @@ export function useWorkspaceExecution({
       scriptToStoryboardStream.status === 'running'
     )
     if (active) {
+      const runId = scriptToStoryboardStream.runId.trim()
+      if (runId && !announcedScriptToStoryboardRunIdsRef.current.has(runId)) {
+        announcedScriptToStoryboardRunIdsRef.current.add(runId)
+        emitWorkspaceAssistantWorkflowEvent({
+          status: 'started',
+          workflowId: 'script-to-storyboard',
+          runId,
+        })
+      }
       scriptToStoryboardWasActiveRef.current = true
       return
     }
@@ -343,9 +354,9 @@ export function useWorkspaceExecution({
   }, [
     currentStage,
     finalizeScriptToStoryboardSuccess,
+    scriptToStoryboardStream.runId,
     scriptToStoryboardStream.isRecoveredRunning,
     scriptToStoryboardStream.isRunning,
-    scriptToStoryboardStream.runId,
     scriptToStoryboardStream.status,
   ])
 

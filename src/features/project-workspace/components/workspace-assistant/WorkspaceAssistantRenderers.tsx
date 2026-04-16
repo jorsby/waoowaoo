@@ -10,6 +10,7 @@ import type { ComponentProps } from 'react'
 import { useMemo, useState } from 'react'
 import { Tool, ToolContent, ToolHeader, ToolInput, ToolOutput } from '@/components/ai-elements/tool'
 import type {
+  ApprovalRequestPartData,
   ProjectContextPartData,
   ScriptPreviewPartData,
   StoryboardPreviewPartData,
@@ -142,6 +143,10 @@ export function ApprovalCard(props: {
   )
 }
 
+export function HiddenApprovalRequestDataCard(_: DataMessagePartProps<ApprovalRequestPartData>) {
+  return null
+}
+
 export function WorkflowPlanDataCard({ data }: DataMessagePartProps<WorkflowPlanPartData>) {
   return (
     <div className="rounded-2xl border border-[var(--glass-stroke-base)] bg-[var(--glass-bg-surface)]/70 p-3">
@@ -271,6 +276,7 @@ export function useWorkspaceAssistantMessagePartComponents({
     data: {
       by_name: {
         'workflow-plan': WorkflowPlanDataCard,
+        'approval-request': HiddenApprovalRequestDataCard,
         'workflow-status': (props) => (
           <WorkflowStatusDataCard
             {...props}

@@ -70,6 +70,12 @@ vi.mock('@/features/project-workspace/components/workspace-assistant/workspace-a
 }))
 
 import { useWorkspaceAutoRun } from '@/features/project-workspace/hooks/useWorkspaceAutoRun'
+import {
+  buildWorkflowCompletedMessage,
+  buildWorkflowErrorMessage,
+  buildWorkflowTimelineMessages,
+  removeWorkflowStatusParts,
+} from '@/features/project-workspace/components/workspace-assistant/workflow-timeline'
 import { useWorkspaceExecution } from '@/features/project-workspace/hooks/useWorkspaceExecution'
 
 describe('immediate video submission lock', () => {
@@ -231,8 +237,45 @@ describe('useWorkspaceExecution', () => {
       temperature: 0.7,
       reasoning: true,
     })
+    expect(emitWorkspaceAssistantWorkflowEventMock).toHaveBeenCalledTimes(1)
+    expect(emitWorkspaceAssistantWorkflowEventMock).toHaveBeenCalledWith({
+      status: 'completed',
+      workflowId: 'story-to-script',
+      runId: 'run-story-1',
+    })
     expect(onRefresh).toHaveBeenCalledTimes(1)
     expect(onStageChange).toHaveBeenCalledWith('script')
     expect(onOpenAssetLibrary).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('workspace assistant workflow timeline messages', () => {
+  it('renders gui workflow progress with explicit system wording while staying assistant-compatible', () => {
+    const startedMessages = buildWorkflowTimelineMessages('story-to-script', 'run-1')
+    const completedMessage = buildWorkflowCompletedMessage('story-to-script', 'run-1')
+    const failedMessage = buildWorkflowErrorMessage({
+      status: 'failed',
+      workflowId: 'story-to-script',
+      runId: 'run-1',
+      errorMessage: '启动失败',
+    })
+
+    expect(startedMessages).toHaveLength(1)
+    expect(startedMessages[0]?.role).toBe('assistant')
+    expect(completedMessage.role).toBe('assistant')
+    expect(failedMessage.role).toBe('assistant')
+    expect(startedMessages[0]?.parts[0]).toMatchObject({
+      type: 'text',
+      text: expect.stringContaining('系统已开始执行'),
+    })
+  })
+
+  it('removes stale workflow status parts before appending the latest workflow state', () => {
+    const startedMessages = buildWorkflowTimelineMessages('script-to-storyboard', 'run-1')
+    const sanitizedMessages = removeWorkflowStatusParts(startedMessages, 'script-to-storyboard')
+
+    expect(startedMessages[0]?.parts.some((part) => part.type === 'data-workflow-status')).toBe(true)
+    expect(sanitizedMessages[0]?.parts.some((part) => part.type === 'data-workflow-status')).toBe(false)
+    expect(sanitizedMessages[0]?.parts.some((part) => part.type === 'data-workflow-plan')).toBe(true)
   })
 })

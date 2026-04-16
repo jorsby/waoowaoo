@@ -78,7 +78,8 @@ describe('script-to-storyboard skill workflow', () => {
     expect(result.summary.clipCount).toBe(1)
     expect(result.voiceLineRows).toHaveLength(1)
     expect(attemptsByAction.get('storyboard_phase1_plan')).toBe(3)
-    expect(runStep.mock.calls[0]?.[1]).toContain('# Plan Storyboard Phase 1')
+    expect(runStep.mock.calls[0]?.[1]).toContain('你是专业的分镜规划师。')
+    expect(runStep.mock.calls[0]?.[1]).not.toContain('[Execution Template]')
     expect(phase1Metas).toEqual([
       { stepId: 'clip_clip-1_phase1', stepAttempt: undefined },
       { stepId: 'clip_clip-1_phase1', stepAttempt: 2 },
