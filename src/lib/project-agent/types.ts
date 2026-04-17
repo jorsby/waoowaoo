@@ -83,6 +83,14 @@ export interface ConfirmationRequestPartData {
   argsHint?: Record<string, unknown> | null
 }
 
+export interface TaskSubmittedPartData {
+  operationId: string
+  taskId: string
+  status: string
+  runId?: string | null
+  deduped?: boolean
+}
+
 export interface ProjectAssistantContextSnapshot {
   projectId: string
   projectName: string
@@ -114,6 +122,7 @@ export interface ProjectAssistantThreadSnapshot {
 export type WorkspaceAssistantPartType =
   | 'data-project-phase'
   | 'data-confirmation-request'
+  | 'data-task-submitted'
   | 'data-workflow-plan'
   | 'data-approval-request'
   | 'data-workflow-status'

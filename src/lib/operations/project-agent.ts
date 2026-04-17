@@ -1,10 +1,12 @@
 import { z } from 'zod'
+import { prisma } from '@/lib/prisma'
 import { queryTaskTargetStates } from '@/lib/task/state-service'
 import { assembleProjectContext } from '@/lib/project-context/assembler'
 import { executeProjectCommand, approveProjectPlan, listProjectCommands, rejectProjectPlan } from '@/lib/command-center/executor'
 import { listSkillCatalogEntries, listWorkflowPackages } from '@/lib/skill-system/catalog'
 import { loadScriptPreview, loadStoryboardPreview } from '@/lib/project-agent/preview'
 import { resolveProjectPhase } from '@/lib/project-agent/project-phase'
+import { submitAssetGenerateTask } from '@/lib/assets/services/asset-actions'
 import {
   buildAssistantProjectContextSnapshot,
   buildWorkflowApprovalReasons,
@@ -22,6 +24,7 @@ import type {
   ProjectPhasePartData,
   ScriptPreviewPartData,
   StoryboardPreviewPartData,
+  TaskSubmittedPartData,
   WorkflowPlanPartData,
   WorkflowStatusPartData,
 } from '@/lib/project-agent/types'
@@ -33,6 +36,15 @@ const taskTargetSchema = z.object({
   targetId: z.string().min(1),
   types: z.array(z.string().min(1)).optional(),
 })
+
+function normalizeString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function resolveLocaleFromContext(locale?: unknown): string {
+  const normalized = normalizeString(locale)
+  return normalized || 'zh'
+}
 
 export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegistry {
   return {
@@ -243,6 +255,110 @@ export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegi
           targets: input.targets,
         }),
       }),
+    },
+    generate_character_image: {
+      description: 'Generate character appearance images for a project character.',
+      sideEffects: {
+        mode: 'act',
+        risk: 'medium',
+        billable: true,
+        requiresConfirmation: true,
+        confirmationSummary: '将为角色生成形象图片（可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
+      inputSchema: z.object({
+        confirmed: z.boolean().optional(),
+        characterId: z.string().min(1).optional(),
+        characterName: z.string().min(1).optional(),
+        appearanceId: z.string().min(1).optional(),
+        appearanceIndex: z.number().int().min(0).max(20).optional(),
+        count: z.number().int().positive().max(4).optional(),
+        imageIndex: z.number().int().min(0).max(20).optional(),
+        artStyle: z.string().optional(),
+      }).refine((value) => Boolean(value.characterId || value.characterName), {
+        message: 'characterId or characterName is required',
+        path: ['characterId'],
+      }),
+      execute: async (ctx, input) => {
+        const locale = resolveLocaleFromContext(ctx.context.locale)
+
+        let characterId = normalizeString(input.characterId)
+        const characterName = normalizeString(input.characterName)
+        if (!characterId) {
+          const exact = await prisma.projectCharacter.findFirst({
+            where: {
+              projectId: ctx.projectId,
+              name: characterName,
+            },
+            select: { id: true },
+          })
+          if (exact) {
+            characterId = exact.id
+          } else {
+            const fuzzy = await prisma.projectCharacter.findFirst({
+              where: {
+                projectId: ctx.projectId,
+                name: {
+                  contains: characterName,
+                },
+              },
+              select: { id: true },
+            })
+            if (fuzzy) {
+              characterId = fuzzy.id
+            }
+          }
+        }
+        if (!characterId) {
+          throw new Error('PROJECT_AGENT_CHARACTER_NOT_FOUND')
+        }
+
+        let appearanceId = normalizeString(input.appearanceId)
+        if (!appearanceId) {
+          const appearance = await prisma.characterAppearance.findFirst({
+            where: { characterId },
+            orderBy: { appearanceIndex: 'asc' },
+            select: { id: true },
+          })
+          appearanceId = appearance?.id || ''
+        }
+
+        const body: Record<string, unknown> = {
+          meta: {
+            locale,
+          },
+          ...(appearanceId ? { appearanceId } : {}),
+          ...(typeof input.appearanceIndex === 'number' ? { appearanceIndex: input.appearanceIndex } : {}),
+          ...(typeof input.count === 'number' ? { count: input.count } : {}),
+          ...(typeof input.imageIndex === 'number' ? { imageIndex: input.imageIndex } : {}),
+          ...(normalizeString(input.artStyle) ? { artStyle: normalizeString(input.artStyle) } : {}),
+        }
+
+        const result = await submitAssetGenerateTask({
+          request: ctx.request,
+          kind: 'character',
+          assetId: characterId,
+          body,
+          access: {
+            scope: 'project',
+            userId: ctx.userId,
+            projectId: ctx.projectId,
+          },
+        })
+
+        writeOperationDataPart<TaskSubmittedPartData>(ctx.writer, 'data-task-submitted', {
+          operationId: 'generate_character_image',
+          taskId: result.taskId,
+          status: result.status,
+          runId: result.runId || null,
+          deduped: result.deduped,
+        })
+
+        return {
+          ...result,
+          characterId,
+          appearanceId: appearanceId || null,
+        }
+      },
     },
   }
 }

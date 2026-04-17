@@ -16,6 +16,7 @@ import type {
   ProjectPhasePartData,
   ScriptPreviewPartData,
   StoryboardPreviewPartData,
+  TaskSubmittedPartData,
   WorkflowPlanPartData,
   WorkflowStatusPartData,
 } from '@/lib/project-agent/types'
@@ -183,6 +184,19 @@ function ConfirmationRequestDataCard({ data }: DataMessagePartProps<Confirmation
   )
 }
 
+function TaskSubmittedDataCard({ data }: DataMessagePartProps<TaskSubmittedPartData>) {
+  return (
+    <div className="rounded-2xl border border-[var(--glass-stroke-base)] bg-[var(--glass-bg-surface)]/70 p-3 text-xs text-[var(--glass-text-secondary)]">
+      <div className="text-sm font-medium text-[var(--glass-text-primary)]">Task Submitted</div>
+      <div className="mt-2">operation: {data.operationId}</div>
+      <div>taskId: {data.taskId}</div>
+      <div>status: {data.status}</div>
+      {data.runId ? <div>runId: {data.runId}</div> : null}
+      {typeof data.deduped === 'boolean' ? <div>deduped: {String(data.deduped)}</div> : null}
+    </div>
+  )
+}
+
 export function WorkflowPlanDataCard({ data }: DataMessagePartProps<WorkflowPlanPartData>) {
   return (
     <div className="rounded-2xl border border-[var(--glass-stroke-base)] bg-[var(--glass-bg-surface)]/70 p-3">
@@ -313,6 +327,7 @@ export function useWorkspaceAssistantMessagePartComponents({
       by_name: {
         'project-phase': ProjectPhaseDataCard,
         'confirmation-request': ConfirmationRequestDataCard,
+        'task-submitted': TaskSubmittedDataCard,
         'workflow-plan': WorkflowPlanDataCard,
         'approval-request': HiddenApprovalRequestDataCard,
         'workflow-status': (props) => (
