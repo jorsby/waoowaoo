@@ -720,6 +720,63 @@ export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegi
         }
       },
     },
+    modify_asset_image: {
+      description: 'Modify an asset image (character/location) using edit model (async task submission).',
+      sideEffects: {
+        mode: 'act',
+        risk: 'high',
+        billable: true,
+        requiresConfirmation: true,
+        confirmationSummary: '将修改资源图片（可能覆盖现有结果且可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
+      inputSchema: z.object({
+        confirmed: z.boolean().optional(),
+        type: z.enum(['character', 'location']),
+        characterId: z.string().min(1).optional(),
+        locationId: z.string().min(1).optional(),
+      }).passthrough(),
+      execute: async (ctx, input) => {
+        const type = input.type
+        const assetId = type === 'character'
+          ? normalizeString((input as Record<string, unknown>).characterId)
+          : normalizeString((input as Record<string, unknown>).locationId)
+
+        if (!assetId) {
+          throw new Error('PROJECT_AGENT_ASSET_ID_REQUIRED')
+        }
+
+        const body: Record<string, unknown> = {
+          ...(isRecord(input) ? input : {}),
+          ...(type === 'character' ? { characterId: assetId } : { locationId: assetId }),
+        }
+        delete body.confirmed
+
+        const result = await submitAssetModifyTask({
+          request: ctx.request,
+          kind: type,
+          assetId,
+          body,
+          access: {
+            scope: 'project',
+            userId: ctx.userId,
+            projectId: ctx.projectId,
+          },
+        })
+
+        writeOperationDataPart<TaskSubmittedPartData>(ctx.writer, 'data-task-submitted', {
+          operationId: 'modify_asset_image',
+          taskId: result.taskId,
+          status: result.status,
+          runId: result.runId || null,
+          deduped: result.deduped,
+        })
+
+        return {
+          ...result,
+          assetId,
+        }
+      },
+    },
     regenerate_panel_image: {
       description: 'Regenerate storyboard panel images (async task submission).',
       sideEffects: {
