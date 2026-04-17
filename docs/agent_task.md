@@ -6,6 +6,10 @@
 
 ---
 
+[TOC]
+
+---
+
 ## 1. 已有实现现状的理解
 
 ### 1.1 当前已经落地的部分
@@ -1221,16 +1225,25 @@ tool 侧应优先新增 `get_project_snapshot`（或等价命名）并在 prompt
 
 第一批只做最需要的，不追求一次铺满全部领域：
 
-- `get_project_phase`
-- `get_task_status`
-- `generate_character_image`
-- `generate_location_image`
-- `regenerate_panel_image`
-- `voice_generate`
-- `generate_video`
-- `modify_appearance`
+v1（已落地/已打通，tool surface 目前 15 个）：
 
-这些工具已经足够让 assistant 从“会解释流程”变成“真的能推进工作”。
+- `get_project_phase`
+- `get_project_snapshot`
+- `get_project_context`
+- `get_task_status`
+- `list_workflow_packages`
+- `list_recent_commands`
+- `fetch_workflow_preview`
+- `create_workflow_plan`
+- `approve_plan`（二次确认）
+- `reject_plan`
+- `generate_character_image`（二次确认）
+- `generate_location_image`（二次确认）
+- `regenerate_panel_image`（二次确认）
+- `voice_generate`（二次确认，支持批量）
+- `generate_video`（二次确认，支持批量）
+
+说明：以上工具已经足够让 assistant 从“会解释流程”变成“能提交异步任务推进项目”。但 P9 仍不够全面：编辑类（modify/patch）、治理类（mutation batch + undo）、以及更细粒度的 storyboard 操作（insert/panel variant 等）尚未纳入 v1 tool surface。
 
 #### 2.1 Tool 公开面设计（数量控制 vs 功能完备）
 
@@ -1260,33 +1273,29 @@ Tool 数量控制的具体做法：
 - “Operation”是内部能力契约（可多、typed、带 `sideEffects`）
 - “API route（参考）”列的是当前仓库中已有的实现入口，便于复用现有 service/submitTask 能力；目标是逐步让 API 也变成对 operation 的薄适配
 
-| Tool（公开面） | 类别 | 建议 Operation（内部） | API route（参考/复用） | 默认 Mode | `sideEffects`（建议） |
-| --- | --- | --- | --- | --- | --- |
-| `get_project_snapshot` | Read | `get_project_snapshot` | （新增） | Act | `read` |
-| `get_project_phase` | Read | `get_project_phase`（已存在） | （已在 assistant runtime 内） | Act | `read` |
-| `get_task_status` | Read | `get_task_status`（已存在） | `src/app/api/task-target-states/route.ts` | Act | `read` |
-| `list_workflow_packages` | Read | `list_workflow_packages`（已存在） | （skill-system catalog） | Act | `read` |
-| `create_workflow_plan` | Plan | `create_workflow_plan`（已存在） | `src/app/api/runs/route.ts`（间接） | Plan | `longRunning` `bulk` |
-| `approve_plan` | Plan | `approve_plan`（已存在） | （command-center） | Plan | `requiresApproval` |
-| `reject_plan` | Plan | `reject_plan`（已存在） | （command-center） | Plan | `requiresApproval` |
-| `fetch_workflow_preview` | Read | `fetch_workflow_preview`（已存在） | `src/app/api/runs/route.ts`（间接） | Act | `read` |
-| `list_recent_commands` | Read | `list_recent_commands`（已存在） | `src/app/api/runs/route.ts`（间接） | Act | `read` |
-| `generate_character_image` | Generate | `generate_character_image` | `src/app/api/projects/[projectId]/generate-character-image/route.ts` | Act | `longRunning` |
-| `generate_location_image` | Generate | `generate_location_image` | `src/app/api/projects/[projectId]/generate-image/route.ts` 或 `src/app/api/projects/[projectId]/regenerate-single-image/route.ts` | Act | `longRunning` |
-| `regenerate_panel_image` | Generate | `regenerate_panel_image` | `src/app/api/projects/[projectId]/regenerate-panel-image/route.ts` | Act | `overwrite` `longRunning` |
-| `panel_variant` | Generate | `panel_variant` | `src/app/api/projects/[projectId]/panel-variant/route.ts` | Act | `bulk` `longRunning` |
-| `modify_asset_image` | Edit/Generate | `modify_asset_image` | `src/app/api/projects/[projectId]/modify-asset-image/route.ts` 或 `src/app/api/projects/[projectId]/modify-storyboard-image/route.ts` | Act | `overwrite` `longRunning` |
-| `modify_appearance` | Edit | `modify_appearance` | `src/app/api/projects/[projectId]/character/appearance/route.ts` | Act | `overwrite` |
-| `voice_design` | Generate | `voice_design` | `src/app/api/projects/[projectId]/voice-design/route.ts` | Act | `longRunning` |
-| `voice_generate` | Generate | `voice_generate` | `src/app/api/projects/[projectId]/voice-generate/route.ts` | Act | `longRunning` `bulk` |
-| `generate_video` | Generate | `generate_video` | `src/app/api/projects/[projectId]/generate-video/route.ts` | Act | `longRunning` `bulk` |
-| `lip_sync` | Generate | `lip_sync` | `src/app/api/projects/[projectId]/lip-sync/route.ts` | Act | `longRunning` |
-| `update_project_config` | Edit | `update_project_config` | `src/app/api/projects/[projectId]/config/route.ts` | Act/Plan* | `overwrite` |
-| `create_entity` | Edit | `create_character`/`create_location`/… | `src/app/api/projects/[projectId]/ai-create-character/route.ts` `src/app/api/projects/[projectId]/ai-create-location/route.ts` 或 `src/app/api/projects/[projectId]/character/route.ts` `src/app/api/projects/[projectId]/location/route.ts` | Act/Plan* | `overwrite` |
-| `update_entity` | Edit | `update_character`/`update_location`/…（patch） | `src/app/api/projects/[projectId]/character/route.ts` `src/app/api/projects/[projectId]/location/route.ts` | Act/Plan* | `overwrite` |
-| `mutate_storyboard` | Edit | `insert_panel`/`reorder_panels`/`update_panel_prompt`（ops） | `src/app/api/projects/[projectId]/insert-panel/route.ts` `src/app/api/projects/[projectId]/panel/route.ts` | Act/Plan* | `bulk` `destructive` |
-| `list_recent_mutation_batches` | Governance | `list_recent_mutation_batches` | （新增） | Act | `read` |
-| `revert_mutation_batch` | Governance | `revert_mutation_batch` | （新增） | Plan | `destructive` `requiresApproval` |
+| Tool（公开面）                 | 类别          | Operation（内部）                                                     | API route（参考/复用）                                                                                                                                                                                                                       | `sideEffects.mode` | `sideEffects`（v1 约定）                                   | 状态 |
+| ------------------------------ | ------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | ---------------------------------------------------------- | ---- |
+| `get_project_phase`            | Read          | `get_project_phase`                                                    | （assistant runtime 内）                                                                                                                                                                                                                      | `query`            | `risk=none`                                                 | 已实现 |
+| `get_project_snapshot`         | Read          | `get_project_snapshot`                                                 | （operation 直接读 DB + run/artifact service）                                                                                                                                                                                                | `query`            | `risk=low`                                                  | 已实现 |
+| `get_project_context`          | Read          | `get_project_context`                                                  | （operation 直接装配 full context）                                                                                                                                                                                                           | `query`            | `risk=low`                                                  | 已实现 |
+| `get_task_status`              | Read          | `get_task_status`                                                      | `src/app/api/task-target-states/route.ts`（同源能力）                                                                                                                                                                                         | `query`            | `risk=none`                                                 | 已实现 |
+| `list_workflow_packages`       | Read          | `list_workflow_packages`                                               | （skill-system catalog）                                                                                                                                                                                                                      | `query`            | `risk=none`                                                 | 已实现 |
+| `list_recent_commands`         | Read          | `list_recent_commands`                                                 | （command-center read model）                                                                                                                                                                                                                 | `query`            | `risk=low`                                                  | 已实现 |
+| `fetch_workflow_preview`       | Read          | `fetch_workflow_preview`                                               | （preview loader）                                                                                                                                                                                                                            | `query`            | `risk=low`                                                  | 已实现 |
+| `create_workflow_plan`         | Plan          | `create_workflow_plan`                                                 | （command-center executor）                                                                                                                                                                                                                   | `plan`             | `risk=low`                                                  | 已实现 |
+| `approve_plan`                 | Plan          | `approve_plan`                                                         | （command-center executor）                                                                                                                                                                                                                   | `plan`             | `risk=high billable requiresConfirmation`                    | 已实现 |
+| `reject_plan`                  | Plan          | `reject_plan`                                                          | （command-center executor）                                                                                                                                                                                                                   | `plan`             | `risk=low`                                                  | 已实现 |
+| `generate_character_image`     | Act/Generate  | `generate_character_image`                                             | `src/app/api/projects/[projectId]/generate-character-image/route.ts`（同源 submitAssetGenerateTask）                                                                                                                                         | `act`              | `risk=medium billable requiresConfirmation`                  | 已实现 |
+| `generate_location_image`      | Act/Generate  | `generate_location_image`                                              | `src/app/api/projects/[projectId]/generate-image/route.ts`（legacy，同源 submitAssetGenerateTask）                                                                                                                                            | `act`              | `risk=medium billable requiresConfirmation`                  | 已实现 |
+| `regenerate_panel_image`       | Act/Generate  | `regenerate_panel_image`                                               | `src/app/api/projects/[projectId]/regenerate-panel-image/route.ts`（同源 submitTask: IMAGE_PANEL）                                                                                                                                            | `act`              | `risk=medium billable requiresConfirmation`                  | 已实现 |
+| `voice_generate`               | Act/Generate  | `voice_generate`                                                       | `src/app/api/projects/[projectId]/voice-generate/route.ts`（同源 submitTask: VOICE_LINE）                                                                                                                                                     | `act`              | `risk=high billable requiresConfirmation`                    | 已实现 |
+| `generate_video`               | Act/Generate  | `generate_video`                                                       | `src/app/api/projects/[projectId]/generate-video/route.ts`（同源 submitTask: VIDEO_PANEL）                                                                                                                                                    | `act`              | `risk=high billable requiresConfirmation`                    | 已实现 |
+| `voice_design`                 | Act/Generate  | `voice_design`（待接入）                                               | `src/app/api/projects/[projectId]/voice-design/route.ts`                                                                                                                                                                                      | `act`              | `risk=high billable requiresConfirmation`                    | 待接入 |
+| `lip_sync`                     | Act/Generate  | `lip_sync`（待接入）                                                   | `src/app/api/projects/[projectId]/lip-sync/route.ts`                                                                                                                                                                                          | `act`              | `risk=high billable requiresConfirmation`                    | 待接入 |
+| `modify_asset_image`           | Act/Edit      | `modify_asset_image`（待接入）                                         | `src/app/api/projects/[projectId]/modify-storyboard-image/route.ts`                                                                                                                                                                           | `act`              | `risk=high billable requiresConfirmation overwrite`          | 待接入 |
+| `mutate_storyboard`            | Act/Edit      | `insert_panel`/`panel_variant`/`update_panel`（待接入）                 | `src/app/api/projects/[projectId]/insert-panel/route.ts`、`src/app/api/projects/[projectId]/panel-variant/route.ts`、`src/app/api/projects/[projectId]/panel/route.ts`                                                                      | `act/plan`          | `risk=high requiresConfirmation destructive/bulk`            | 待接入 |
+| `list_recent_mutation_batches` | Governance    | `list_recent_mutation_batches`（待实现）                                | （新增）                                                                                                                                                                                                                                      | `query`            | `risk=none`                                                 | 待实现 |
+| `revert_mutation_batch`        | Governance    | `revert_mutation_batch`（待实现）                                       | （新增）                                                                                                                                                                                                                                      | `plan`             | `risk=high requiresConfirmation destructive`                 | 待实现 |
 
 \* 说明：`Act/Plan` 取决于 `operation.sideEffects`（例如是否 `bulk`/`overwrite`/`destructive`/`longRunning`）与入口语义；默认原则是“能安全直改就 Act，高影响就 Plan”。
 
@@ -1502,29 +1511,29 @@ system prompt 需要从当前的轻量规则，升级为包含：
 
 以下进度表基于“新设计方案”重新整理。
 
-| 编号 | 工作项 | 当前状态 | 进度判断 | 说明 |
-| --- | --- | --- | --- | --- |
-| P0 | 工程基线恢复与编译修复 | 已完成 | 高 | 已移除 `.next/types` 对全局基线的阻塞，补跑 `prisma generate` 和依赖安装后，全局 `tsc --noEmit` 通过 |
-| P1 | 项目级 assistant 聊天入口 | 已完成 | 高 | `/api/projects/[projectId]/assistant/chat` 已落地 |
-| P2 | Assistant 基础 runtime | 已完成 | 高 | 已有 AI SDK runtime，且现已改为从 operation registry 组装 tools |
-| P3 | Workspace Assistant 常驻面板 | 已完成 | 中高 | 面板、消息、审批区、输入区均已存在 |
-| P4 | 对话持久化 | 已完成 | 高 | `ProjectAssistantThread` 与对应 query hook 已实现 |
-| P5 | Workflow Plan Mode | 已完成 | 中高 | 已有 create / approve / reject / list 命令链路 |
-| P6 | 固定 workflow package 体系 | 已完成 | 中高 | `story-to-script` 与 `script-to-storyboard` 已 package 化 |
-| P7 | 项目完整上下文查询 | 已完成 | 中高 | 已将 `project-context` 吸收原 `policy-system` 逻辑，现有 full context 继续可用 |
-| P8 | 项目阶段推导 `resolveProjectPhase` | 部分完成 | 中 | 已实现最小 phase 解析与 `get_project_phase`，后续还需补失败项/stale artifacts/更细粒度阶段 |
-| P9 | Act Mode 直接操作 tools | 部分完成 | 低 | 已接入 `generate_character_image` / `generate_location_image` / `regenerate_panel_image` / `voice_generate` / `generate_video`（提交异步 task，需确认）；其他写操作仍未接入 |
-| P10 | Task 查询桥接能力 | 已完成 | 中 | 已接入最小 `get_task_status` operation，复用现有 `queryTaskTargetStates()` |
-| P11 | Prompt 升级与双模式选择规则 | 部分完成 | 中 | 已注入 `phase + progress + available actions` 摘要，并落地 `operation.sideEffects` + confirmed 二次确认卡片；Act/Plan 分流与更系统的规范仍需补完 |
-| P12 | Lite / Full Context 拆分 | 未开始 | 低 | 当前已去掉无意义 wrapper，但仍未拆成明确 lite/full 两套上下文（建议升级为 projection lite/full） |
-| P13 | Act Mode 富渲染组件 | 部分完成 | 低中 | 已新增 `project phase` + `confirmation request` + `task submitted` 卡片，其他 act-mode 结果卡仍未实现 |
-| P14 | Workspace 与 Assistant 状态统一 | 部分完成 | 中 | 当前有前端事件桥接，但仍是过渡形态 |
-| P15 | 抽象收口与精简 | 进行中 | 中 | `policy-system`、`approval.ts`、`normalize.ts` 已实质并回/降级为 shim，后续可继续物理移除 |
-| P16 | operation registry 收敛 | 进行中 | 中 | 已建立 `src/lib/operations/*` 并让现有 assistant tools 通过 operation 暴露 |
-| P17 | agent 代码量削减与目录收敛 | 进行中 | 中 | 已完成第一轮后端减法和运行时收敛，前端 runtime 收缩与 skill 目录重组仍在后续阶段 |
-| P18 | Project Projection（snapshot/projection） | 部分完成 | 低 | 已实现 `ProjectProjectionLite` 与 `get_project_snapshot`，后续再补 full projection 与更明确的 snapshot schema |
-| P19 | mutation batch 与撤回（undo） | 未开始 | 低 | 需要补齐 batch record、`list_recent_mutation_batches`、`revert_mutation_batch`，并接入 Act Mode 写操作 |
-| P20 | sideEffects 驱动的审批分流 | 部分完成 | 低 | 已落地 `operation.sideEffects`，并让 runtime 对 `billable`/`requiresConfirmation` 自动触发 confirmed gate；但尚未按入口语义与风险等级做完整 Act/Plan 分流 |
+| 编号 | 工作项                                    | 当前状态 | 进度判断 | 说明                                                                                                                                                                        |
+| ---- | ----------------------------------------- | -------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P0   | 工程基线恢复与编译修复                    | 已完成   | 高       | 已移除 `.next/types` 对全局基线的阻塞，补跑 `prisma generate` 和依赖安装后，全局 `tsc --noEmit` 通过                                                                        |
+| P1   | 项目级 assistant 聊天入口                 | 已完成   | 高       | `/api/projects/[projectId]/assistant/chat` 已落地                                                                                                                           |
+| P2   | Assistant 基础 runtime                    | 已完成   | 高       | 已有 AI SDK runtime，且现已改为从 operation registry 组装 tools                                                                                                             |
+| P3   | Workspace Assistant 常驻面板              | 已完成   | 中高     | 面板、消息、审批区、输入区均已存在                                                                                                                                          |
+| P4   | 对话持久化                                | 已完成   | 高       | `ProjectAssistantThread` 与对应 query hook 已实现                                                                                                                           |
+| P5   | Workflow Plan Mode                        | 已完成   | 中高     | 已有 create / approve / reject / list 命令链路                                                                                                                              |
+| P6   | 固定 workflow package 体系                | 已完成   | 中高     | `story-to-script` 与 `script-to-storyboard` 已 package 化                                                                                                                   |
+| P7   | 项目完整上下文查询                        | 已完成   | 中高     | 已将 `project-context` 吸收原 `policy-system` 逻辑，现有 full context 继续可用                                                                                              |
+| P8   | 项目阶段推导 `resolveProjectPhase`        | 部分完成 | 中       | 已实现最小 phase 解析与 `get_project_phase`，后续还需补失败项/stale artifacts/更细粒度阶段                                                                                  |
+| P9   | Act Mode 直接操作 tools                   | 部分完成 | 低       | 已接入 `generate_character_image` / `generate_location_image` / `regenerate_panel_image` / `voice_generate` / `generate_video`（提交异步 task，需确认）；编辑类与撤回治理类操作仍未接入 |
+| P10  | Task 查询桥接能力                         | 已完成   | 中       | 已接入最小 `get_task_status` operation，复用现有 `queryTaskTargetStates()`                                                                                                  |
+| P11  | Prompt 升级与双模式选择规则               | 部分完成 | 中       | 已注入 `phase + progress + available actions` 摘要，并落地 `operation.sideEffects` + confirmed 二次确认卡片；Act/Plan 分流与更系统的规范仍需补完                            |
+| P12  | Lite / Full Context 拆分                  | 未开始   | 低       | 当前已去掉无意义 wrapper，但仍未拆成明确 lite/full 两套上下文（建议升级为 projection lite/full）                                                                            |
+| P13  | Act Mode 富渲染组件                       | 部分完成 | 低中     | 已新增 `project phase` + `confirmation request` + `task submitted` 卡片，其他 act-mode 结果卡仍未实现                                                                       |
+| P14  | Workspace 与 Assistant 状态统一           | 部分完成 | 中       | 当前有前端事件桥接，但仍是过渡形态                                                                                                                                          |
+| P15  | 抽象收口与精简                            | 进行中   | 中       | `policy-system`、`approval.ts`、`normalize.ts` 已实质并回/降级为 shim，后续可继续物理移除                                                                                   |
+| P16  | operation registry 收敛                   | 进行中   | 中       | 已建立 `src/lib/operations/*` 并让现有 assistant tools 通过 operation 暴露                                                                                                  |
+| P17  | agent 代码量削减与目录收敛                | 进行中   | 中       | 已完成第一轮后端减法和运行时收敛，前端 runtime 收缩与 skill 目录重组仍在后续阶段                                                                                            |
+| P18  | Project Projection（snapshot/projection） | 部分完成 | 低       | 已实现 `ProjectProjectionLite` 与 `get_project_snapshot`，后续再补 full projection 与更明确的 snapshot schema                                                               |
+| P19  | mutation batch 与撤回（undo）             | 未开始   | 低       | 需要补齐 batch record、`list_recent_mutation_batches`、`revert_mutation_batch`，并接入 Act Mode 写操作                                                                      |
+| P20  | sideEffects 驱动的审批分流                | 部分完成 | 低       | 已落地 `operation.sideEffects`，并让 runtime 对 `billable`/`requiresConfirmation` 自动触发 confirmed gate；但尚未按入口语义与风险等级做完整 Act/Plan 分流                   |
 
 ### 当前阶段判断
 
@@ -1532,7 +1541,7 @@ system prompt 需要从当前的轻量规则，升级为包含：
 
 - `基础骨架：已完成`
 - `Plan Mode：已完成 MVP`
-- `Act Mode：仅完成查询型底座，写操作未开始`
+- `Act Mode：已接入首批写操作（生图/重生图/配音/视频），编辑类与撤回治理仍缺`
 - `系统状态建模：已起步，但仍是最小版本`
 - `工程健康度：已恢复到全局 typecheck 通过`
 - `代码层级：已做第一轮收缩，但仍有明显可删减空间`
@@ -1546,7 +1555,7 @@ system prompt 需要从当前的轻量规则，升级为包含：
 3. 补齐 `ProjectProjectionLite/Full` 与 `get_project_snapshot`（权威状态读取）
 4. 统一 `operation.sideEffects` 并落地 Act/Plan 分流与审批语义
 5. 扩展 `resolveProjectPhase` 到可用于真实流程引导的阶段模型
-6. 实现第一批 Act Mode 写操作 tools，并接入 mutation batch
+6. 扩展编辑类 Act Mode tools，并接入 mutation batch / undo
 7. 再决定哪些抽象继续精简
 
 ### 2026-04-17 完成清单（本轮落地）
