@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { queryTaskTargetStates } from '@/lib/task/state-service'
 import { assembleProjectContext } from '@/lib/project-context/assembler'
 import { executeProjectCommand, approveProjectPlan, listProjectCommands, rejectProjectPlan } from '@/lib/command-center/executor'
-import { listSkillCatalogEntries, listWorkflowPackages } from '@/lib/skill-system/catalog'
+import { listSkillCatalogEntries, listWorkflowPackages, readSkillCatalogDocument } from '@/lib/skill-system/catalog'
 import { loadScriptPreview, loadStoryboardPreview } from '@/lib/project-agent/preview'
 import { resolveProjectPhase } from '@/lib/project-agent/project-phase'
 import { assembleProjectProjectionLite } from '@/lib/project-projection/lite'
@@ -33,6 +33,12 @@ import { validatePreviewText, validateVoicePrompt } from '@/lib/providers/bailia
 import { createMutationBatch, listRecentMutationBatches } from '@/lib/mutation-batch/service'
 import { revertMutationBatch } from '@/lib/mutation-batch/revert'
 import { resolveInsertPanelUserInput } from '@/lib/project-workflow/insert-panel'
+import {
+  getSavedSkill,
+  listSavedSkills,
+  saveWorkflowPlanTemplateFromExecutionPlan,
+  SAVED_SKILL_KIND_WORKFLOW_PLAN_TEMPLATE,
+} from '@/lib/saved-skills/service'
 import {
   buildAssistantProjectContextSnapshot,
   buildWorkflowApprovalReasons,
@@ -353,17 +359,190 @@ export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegi
     list_workflow_packages: {
       description: 'List available workflow packages and skill catalog entries.',
       sideEffects: { mode: 'query', risk: 'none' },
-      inputSchema: z.object({}),
-      execute: async () => ({
-        workflows: listWorkflowPackages().map((workflowPackage) => ({
-          id: workflowPackage.manifest.id,
-          name: workflowPackage.manifest.name,
-          summary: workflowPackage.manifest.summary,
-          requiresApproval: workflowPackage.manifest.requiresApproval,
-          skills: workflowPackage.steps.map((step) => step.skillId),
-        })),
-        catalog: listSkillCatalogEntries(),
+      inputSchema: z.object({
+        documentPath: z.string().min(1).optional(),
+        maxChars: z.number().int().positive().max(20000).optional(),
       }),
+      execute: async (_, input) => {
+        const payload = {
+          workflows: listWorkflowPackages().map((workflowPackage) => ({
+            id: workflowPackage.manifest.id,
+            name: workflowPackage.manifest.name,
+            summary: workflowPackage.manifest.summary,
+            requiresApproval: workflowPackage.manifest.requiresApproval,
+            skills: workflowPackage.steps.map((step) => step.skillId),
+          })),
+          catalog: listSkillCatalogEntries(),
+        }
+
+        const documentPath = normalizeString(input.documentPath)
+        if (!documentPath) return payload
+
+        const content = readSkillCatalogDocument(documentPath)
+        const limit = Math.max(200, Math.min(20000, input.maxChars ?? 6000))
+        return {
+          ...payload,
+          document: {
+            documentPath,
+            truncated: content.length > limit,
+            content: content.slice(0, limit),
+          },
+        }
+      },
+    },
+    list_saved_skills: {
+      description: 'List saved skills (plan templates) for the current user within this project.',
+      sideEffects: { mode: 'query', risk: 'low' },
+      inputSchema: z.object({
+        limit: z.number().int().positive().max(50).optional(),
+      }),
+      execute: async (ctx, input) => {
+        const items = await listSavedSkills({
+          userId: ctx.userId,
+          projectId: ctx.projectId,
+          limit: input.limit ?? 20,
+        })
+        return items.map((item) => ({
+          id: item.id,
+          name: item.name,
+          summary: item.summary,
+          kind: item.kind,
+          projectId: item.projectId,
+          createdAt: item.createdAt.toISOString(),
+          updatedAt: item.updatedAt.toISOString(),
+        }))
+      },
+    },
+    save_workflow_plan_as_skill: {
+      description: 'Save an existing workflow execution plan as a reusable saved skill template.',
+      sideEffects: { mode: 'act', risk: 'low' },
+      inputSchema: z.object({
+        planId: z.string().min(1),
+        name: z.string().min(1),
+        summary: z.string().optional(),
+      }),
+      execute: async (ctx, input) => {
+        const saved = await saveWorkflowPlanTemplateFromExecutionPlan({
+          userId: ctx.userId,
+          projectId: ctx.projectId,
+          planId: input.planId,
+          name: input.name,
+          summary: input.summary ?? null,
+        })
+        return {
+          id: saved.id,
+          name: saved.name,
+          summary: saved.summary,
+          kind: saved.kind,
+          projectId: saved.projectId,
+          createdAt: saved.createdAt.toISOString(),
+          updatedAt: saved.updatedAt.toISOString(),
+        }
+      },
+    },
+    create_workflow_plan_from_saved_skill: {
+      description: 'Create a workflow plan from a saved skill template (workflow_plan_template).',
+      sideEffects: { mode: 'plan', risk: 'low' },
+      inputSchema: z.object({
+        savedSkillId: z.string().min(1),
+        episodeId: z.string().optional(),
+      }),
+      execute: async (ctx, input) => {
+        const saved = await getSavedSkill({
+          userId: ctx.userId,
+          savedSkillId: input.savedSkillId,
+        })
+        if (!saved) throw new Error('SAVED_SKILL_NOT_FOUND')
+        if (saved.projectId && saved.projectId !== ctx.projectId) {
+          throw new Error('SAVED_SKILL_PROJECT_MISMATCH')
+        }
+        if (saved.kind !== SAVED_SKILL_KIND_WORKFLOW_PLAN_TEMPLATE) {
+          throw new Error('SAVED_SKILL_KIND_UNSUPPORTED')
+        }
+        if (!isRecord(saved.data)) {
+          throw new Error('SAVED_SKILL_DATA_INVALID')
+        }
+        const workflowIdRaw = normalizeString(saved.data.workflowId)
+        if (workflowIdRaw !== 'story-to-script' && workflowIdRaw !== 'script-to-storyboard') {
+          throw new Error('SAVED_SKILL_WORKFLOW_ID_INVALID')
+        }
+        const content = normalizeString(saved.data.content)
+        const episodeId = normalizeString(input.episodeId)
+          || normalizeString(saved.data.episodeId)
+          || normalizeString(ctx.context.episodeId)
+          || undefined
+
+        const result = await executeProjectCommand({
+          request: ctx.request,
+          projectId: ctx.projectId,
+          userId: ctx.userId,
+          body: {
+            commandType: 'run_workflow_package',
+            source: 'assistant-panel',
+            workflowId: workflowIdRaw,
+            ...(episodeId ? { episodeId } : {}),
+            input: {
+              ...(content ? { content } : {}),
+            },
+          },
+        })
+
+        const planData: WorkflowPlanPartData = {
+          workflowId: workflowIdRaw,
+          commandId: result.commandId,
+          planId: result.planId,
+          summary: buildWorkflowPlanSummary(workflowIdRaw),
+          requiresApproval: result.requiresApproval,
+          event: buildWorkflowPlanCanonicalEvent({
+            workflowId: workflowIdRaw,
+            commandId: result.commandId,
+            planId: result.planId,
+          }),
+          steps: result.steps.map((step) => ({
+            skillId: step.skillId,
+            title: step.title,
+          })),
+        }
+        writeOperationDataPart(ctx.writer, 'data-workflow-plan', planData)
+        if (result.requiresApproval) {
+          const approvalData: ApprovalRequestPartData = {
+            workflowId: workflowIdRaw,
+            commandId: result.commandId,
+            planId: result.planId,
+            summary: buildWorkflowApprovalSummary(workflowIdRaw),
+            reasons: buildWorkflowApprovalReasons(result.steps),
+            event: buildWorkflowApprovalCanonicalEvent({
+              workflowId: workflowIdRaw,
+              planId: result.planId,
+              status: 'pending',
+            }),
+          }
+          writeOperationDataPart(ctx.writer, 'data-approval-request', approvalData)
+        } else {
+          const statusData: WorkflowStatusPartData = {
+            workflowId: workflowIdRaw,
+            commandId: result.commandId,
+            planId: result.planId,
+            runId: result.linkedRunId,
+            status: result.status,
+            activeSkillId: result.steps[0]?.skillId as WorkflowStatusPartData['activeSkillId'],
+            event: result.linkedRunId
+              ? buildRunLifecycleCanonicalEvent({
+                  workflowId: workflowIdRaw,
+                  runId: result.linkedRunId,
+                  status: 'start',
+                })
+              : null,
+          }
+          writeOperationDataPart(ctx.writer, 'data-workflow-status', statusData)
+        }
+
+        return {
+          ...result,
+          savedSkillId: saved.id,
+          savedSkillName: saved.name,
+        }
+      },
     },
     create_workflow_plan: {
       description: 'Create a persisted command and plan for a fixed workflow package.',
