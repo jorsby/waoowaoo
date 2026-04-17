@@ -13,10 +13,18 @@ import { submitTask } from '@/lib/task/submitter'
 import { resolveRequiredTaskLocale } from '@/lib/task/resolve-locale'
 import { TASK_TYPE } from '@/lib/task/types'
 import { buildDefaultTaskBillingInfo } from '@/lib/billing'
-import { hasPanelImageOutput } from '@/lib/task/has-output'
 import { withTaskUiPayload } from '@/lib/task/ui-payload'
 import { getProjectModelConfig, resolveProjectModelCapabilityGenerationOptions } from '@/lib/config-service'
-import { resolveModelSelection } from '@/lib/api-config'
+import { getProviderKey, resolveModelSelection, resolveModelSelectionOrSingle } from '@/lib/api-config'
+import { estimateVoiceLineMaxSeconds } from '@/lib/voice/generate-voice-line'
+import { parseModelKeyStrict } from '@/lib/model-config-contract'
+import { hasPanelImageOutput, hasVoiceLineAudioOutput } from '@/lib/task/has-output'
+import {
+  hasVoiceBindingForProvider,
+  parseSpeakerVoiceMap,
+  type CharacterVoiceFields,
+  type SpeakerVoiceMap,
+} from '@/lib/voice/provider-voice-binding'
 import {
   buildAssistantProjectContextSnapshot,
   buildWorkflowApprovalReasons,
@@ -34,6 +42,7 @@ import type {
   ProjectPhasePartData,
   ScriptPreviewPartData,
   StoryboardPreviewPartData,
+  TaskBatchSubmittedPartData,
   TaskSubmittedPartData,
   WorkflowPlanPartData,
   WorkflowStatusPartData,
@@ -60,6 +69,36 @@ function resolveCandidateCount(input?: unknown): number {
   const parsed = typeof input === 'number' ? input : Number(input)
   if (!Number.isFinite(parsed)) return 1
   return Math.max(1, Math.min(4, Math.trunc(parsed)))
+}
+
+type VoiceLineRow = {
+  id: string
+  speaker: string
+  content: string
+}
+
+type CharacterRow = CharacterVoiceFields & {
+  name: string
+}
+
+function matchCharacterBySpeaker(speaker: string, characters: CharacterRow[]) {
+  const normalizedSpeaker = speaker.trim().toLowerCase()
+  return characters.find((character) => character.name.trim().toLowerCase() === normalizedSpeaker) || null
+}
+
+function hasSpeakerVoiceForProvider(
+  speaker: string,
+  characters: CharacterRow[],
+  speakerVoices: SpeakerVoiceMap,
+  providerKey: string,
+): boolean {
+  const character = matchCharacterBySpeaker(speaker, characters)
+  const speakerVoice = speakerVoices[speaker]
+  return hasVoiceBindingForProvider({
+    providerKey,
+    character,
+    speakerVoice,
+  })
 }
 
 export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegistry {
@@ -575,6 +614,208 @@ export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegi
         return {
           ...result,
           panelId,
+        }
+      },
+    },
+    voice_generate: {
+      description: 'Generate voice line audio for one or more voice lines (async task submission).',
+      sideEffects: {
+        mode: 'act',
+        risk: 'high',
+        billable: true,
+        requiresConfirmation: true,
+        confirmationSummary: '将生成配音（可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
+      inputSchema: z.object({
+        confirmed: z.boolean().optional(),
+        episodeId: z.string().min(1).optional(),
+        lineId: z.string().min(1).optional(),
+        all: z.boolean().optional(),
+        audioModel: z.string().optional(),
+      }),
+      execute: async (ctx, input) => {
+        const locale = resolveLocaleFromContext(ctx.context.locale)
+        const episodeId = normalizeString(input.episodeId) || normalizeString(ctx.context.episodeId)
+        const lineId = normalizeString(input.lineId)
+        const all = input.all === true
+        const requestedAudioModel = normalizeString(input.audioModel)
+
+        if (!episodeId) {
+          throw new Error('PROJECT_AGENT_EPISODE_REQUIRED')
+        }
+        if (!all && !lineId) {
+          throw new Error('PROJECT_AGENT_VOICE_LINE_REQUIRED')
+        }
+        if (requestedAudioModel && !parseModelKeyStrict(requestedAudioModel)) {
+          throw new Error('PROJECT_AGENT_MODEL_KEY_INVALID')
+        }
+
+        const [pref, projectData, episode] = await Promise.all([
+          prisma.userPreference.findUnique({
+            where: { userId: ctx.userId },
+            select: { audioModel: true },
+          }),
+          prisma.project.findUnique({
+            where: { id: ctx.projectId },
+            select: {
+              id: true,
+              audioModel: true,
+              characters: {
+                select: {
+                  name: true,
+                  customVoiceUrl: true,
+                  voiceId: true,
+                },
+              },
+            },
+          }),
+          prisma.projectEpisode.findFirst({
+            where: {
+              id: episodeId,
+              projectId: ctx.projectId,
+            },
+            select: {
+              id: true,
+              speakerVoices: true,
+            },
+          }),
+        ])
+
+        if (!projectData || !episode) {
+          throw new Error('PROJECT_AGENT_NOT_FOUND')
+        }
+
+        const preferredAudioModel = normalizeString(pref?.audioModel)
+        if (preferredAudioModel && !parseModelKeyStrict(preferredAudioModel)) {
+          throw new Error('PROJECT_AGENT_MODEL_KEY_INVALID')
+        }
+        const projectAudioModel = normalizeString(projectData.audioModel)
+        if (projectAudioModel && !parseModelKeyStrict(projectAudioModel)) {
+          throw new Error('PROJECT_AGENT_MODEL_KEY_INVALID')
+        }
+
+        const resolvedAudioModel = requestedAudioModel || projectAudioModel || preferredAudioModel
+        const selectedResolvedAudioModel = await resolveModelSelectionOrSingle(
+          ctx.userId,
+          resolvedAudioModel || null,
+          'audio',
+        )
+        const selectedProviderKey = getProviderKey(selectedResolvedAudioModel.provider).toLowerCase()
+
+        const speakerVoices = parseSpeakerVoiceMap(episode.speakerVoices)
+        const characters = (projectData.characters || []) as CharacterRow[]
+
+        let voiceLines: VoiceLineRow[] = []
+        if (all) {
+          const allLines = await prisma.projectVoiceLine.findMany({
+            where: {
+              episodeId,
+              audioUrl: null,
+            },
+            orderBy: { lineIndex: 'asc' },
+            select: {
+              id: true,
+              speaker: true,
+              content: true,
+            },
+          })
+          voiceLines = allLines.filter((line) =>
+            hasSpeakerVoiceForProvider(line.speaker, characters, speakerVoices, selectedProviderKey),
+          )
+        } else {
+          const line = await prisma.projectVoiceLine.findFirst({
+            where: {
+              id: lineId,
+              episodeId,
+            },
+            select: {
+              id: true,
+              speaker: true,
+              content: true,
+            },
+          })
+          if (!line) {
+            throw new Error('PROJECT_AGENT_VOICE_LINE_NOT_FOUND')
+          }
+          if (!hasSpeakerVoiceForProvider(line.speaker, characters, speakerVoices, selectedProviderKey)) {
+            throw new Error('PROJECT_AGENT_VOICE_BINDING_REQUIRED')
+          }
+          voiceLines = [line]
+        }
+
+        if (voiceLines.length === 0) {
+          return {
+            success: true,
+            async: true,
+            results: [],
+            taskIds: [],
+            total: 0,
+            error: '没有需要生成的台词（可能是已生成或缺少音色绑定）',
+          }
+        }
+
+        const localeForTask = resolveRequiredTaskLocale(ctx.request, { meta: { locale } })
+        const results = await Promise.all(
+          voiceLines.map(async (line) => {
+            const payload = {
+              episodeId,
+              lineId: line.id,
+              maxSeconds: estimateVoiceLineMaxSeconds(line.content),
+              audioModel: selectedResolvedAudioModel.modelKey,
+              meta: {
+                locale,
+              },
+            }
+            const result = await submitTask({
+              userId: ctx.userId,
+              locale: localeForTask,
+              requestId: getRequestId(ctx.request),
+              projectId: ctx.projectId,
+              episodeId,
+              type: TASK_TYPE.VOICE_LINE,
+              targetType: 'ProjectVoiceLine',
+              targetId: line.id,
+              payload: withTaskUiPayload(payload, {
+                hasOutputAtStart: await hasVoiceLineAudioOutput(line.id),
+              }),
+              dedupeKey: `voice_line:${line.id}`,
+              billingInfo: buildDefaultTaskBillingInfo(TASK_TYPE.VOICE_LINE, payload),
+            })
+            return {
+              refId: line.id,
+              taskId: result.taskId,
+              status: result.status,
+            }
+          }),
+        )
+
+        const taskIds = results.map((item) => item.taskId)
+        if (!all) {
+          writeOperationDataPart<TaskSubmittedPartData>(ctx.writer, 'data-task-submitted', {
+            operationId: 'voice_generate',
+            taskId: taskIds[0] || '',
+            status: results[0]?.status || 'queued',
+          })
+          return {
+            success: true,
+            async: true,
+            taskId: taskIds[0],
+          }
+        }
+
+        writeOperationDataPart<TaskBatchSubmittedPartData>(ctx.writer, 'data-task-batch-submitted', {
+          operationId: 'voice_generate',
+          total: taskIds.length,
+          taskIds,
+          results: results.map((item) => ({ refId: item.refId, taskId: item.taskId })),
+        })
+
+        return {
+          success: true,
+          async: true,
+          results: results.map((item) => ({ lineId: item.refId, taskId: item.taskId })),
+          taskIds,
+          total: taskIds.length,
         }
       },
     },
