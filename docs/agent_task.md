@@ -1524,7 +1524,7 @@ system prompt 需要从当前的轻量规则，升级为包含：
 | P17 | agent 代码量削减与目录收敛 | 进行中 | 中 | 已完成第一轮后端减法和运行时收敛，前端 runtime 收缩与 skill 目录重组仍在后续阶段 |
 | P18 | Project Projection（snapshot/projection） | 部分完成 | 低 | 已实现 `ProjectProjectionLite` 与 `get_project_snapshot`，后续再补 full projection 与更明确的 snapshot schema |
 | P19 | mutation batch 与撤回（undo） | 未开始 | 低 | 需要补齐 batch record、`list_recent_mutation_batches`、`revert_mutation_batch`，并接入 Act Mode 写操作 |
-| P20 | sideEffects 驱动的审批分流 | 部分完成 | 低 | 已落地 `operation.sideEffects` 与 runtime confirmed gate；但尚未按入口语义与风险等级做完整 Act/Plan 分流 |
+| P20 | sideEffects 驱动的审批分流 | 部分完成 | 低 | 已落地 `operation.sideEffects`，并让 runtime 对 `billable`/`requiresConfirmation` 自动触发 confirmed gate；但尚未按入口语义与风险等级做完整 Act/Plan 分流 |
 
 ### 当前阶段判断
 
@@ -1560,6 +1560,7 @@ system prompt 需要从当前的轻量规则，升级为包含：
 - [x] 前端新增 task 提交卡片：assistant 面板支持渲染 confirmation / task submitted 数据卡
 - [x] 补齐 `get_project_snapshot`：新增 `ProjectProjectionLite` 作为轻量状态读取入口，并让 `resolveProjectPhase` 使用 projection 而非 full context
 - [x] Prompt 注入增强：system prompt 增加 `progress` 与 `available actions` 摘要，便于模型做下一步建议与 Act/Plan 选择
+- [x] sideEffects 最小分流推进：补齐核心 operations 的 `sideEffects` 标注，并让 runtime 对 `billable` 自动触发 confirmed gate（减少遗漏）
 - [x] 最小校验：`npm run typecheck` + `npm run test:unit:all` 均通过
 
 这条路径的核心目标是：
