@@ -1512,7 +1512,7 @@ system prompt 需要从当前的轻量规则，升级为包含：
 | P8 | 项目阶段推导 `resolveProjectPhase` | 部分完成 | 中 | 已实现最小 phase 解析与 `get_project_phase`，后续还需补失败项/stale artifacts/更细粒度阶段 |
 | P9 | Act Mode 直接操作 tools | 部分完成 | 低 | 已接入 `generate_character_image` / `generate_location_image`（提交异步 task，需确认）；其他写操作仍未接入 |
 | P10 | Task 查询桥接能力 | 已完成 | 中 | 已接入最小 `get_task_status` operation，复用现有 `queryTaskTargetStates()` |
-| P11 | Prompt 升级与双模式选择规则 | 部分完成 | 中 | 已注入基础 `projectPhase` 信息，并落地 `operation.sideEffects` + confirmed 二次确认卡片；Act/Plan 分流与更系统的规范仍需补完 |
+| P11 | Prompt 升级与双模式选择规则 | 部分完成 | 中 | 已注入 `phase + progress + available actions` 摘要，并落地 `operation.sideEffects` + confirmed 二次确认卡片；Act/Plan 分流与更系统的规范仍需补完 |
 | P12 | Lite / Full Context 拆分 | 未开始 | 低 | 当前已去掉无意义 wrapper，但仍未拆成明确 lite/full 两套上下文（建议升级为 projection lite/full） |
 | P13 | Act Mode 富渲染组件 | 部分完成 | 低中 | 已新增 `project phase` + `confirmation request` + `task submitted` 卡片，其他 act-mode 结果卡仍未实现 |
 | P14 | Workspace 与 Assistant 状态统一 | 部分完成 | 中 | 当前有前端事件桥接，但仍是过渡形态 |
@@ -1553,6 +1553,7 @@ system prompt 需要从当前的轻量规则，升级为包含：
 - [x] 实现 Act Mode 资产生图闭环：`generate_character_image` / `generate_location_image` 接入现有 `submitAssetGenerateTask()`，并输出 task submitted 卡片（taskId/status/runId/deduped）
 - [x] 前端新增 task 提交卡片：assistant 面板支持渲染 confirmation / task submitted 数据卡
 - [x] 补齐 `get_project_snapshot`：新增 `ProjectProjectionLite` 作为轻量状态读取入口，并让 `resolveProjectPhase` 使用 projection 而非 full context
+- [x] Prompt 注入增强：system prompt 增加 `progress` 与 `available actions` 摘要，便于模型做下一步建议与 Act/Plan 选择
 - [x] 最小校验：`npm run typecheck` + `npm run test:unit:all` 均通过
 
 这条路径的核心目标是：
