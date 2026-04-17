@@ -17,14 +17,17 @@ import { withTaskUiPayload } from '@/lib/task/ui-payload'
 import { getProjectModelConfig, resolveProjectModelCapabilityGenerationOptions } from '@/lib/config-service'
 import { getProviderKey, resolveModelSelection, resolveModelSelectionOrSingle } from '@/lib/api-config'
 import { estimateVoiceLineMaxSeconds } from '@/lib/voice/generate-voice-line'
-import { parseModelKeyStrict } from '@/lib/model-config-contract'
-import { hasPanelImageOutput, hasVoiceLineAudioOutput } from '@/lib/task/has-output'
+import { parseModelKeyStrict, type CapabilityValue } from '@/lib/model-config-contract'
+import { hasPanelImageOutput, hasPanelVideoOutput, hasVoiceLineAudioOutput } from '@/lib/task/has-output'
 import {
   hasVoiceBindingForProvider,
   parseSpeakerVoiceMap,
   type CharacterVoiceFields,
   type SpeakerVoiceMap,
 } from '@/lib/voice/provider-voice-binding'
+import { BillingOperationError } from '@/lib/billing/errors'
+import { resolveBuiltinCapabilitiesByModelKey } from '@/lib/model-capabilities/lookup'
+import { resolveBuiltinPricing } from '@/lib/model-pricing/lookup'
 import {
   buildAssistantProjectContextSnapshot,
   buildWorkflowApprovalReasons,
@@ -99,6 +102,129 @@ function hasSpeakerVoiceForProvider(
     character,
     speakerVoice,
   })
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+function toVideoRuntimeSelections(value: unknown): Record<string, CapabilityValue> {
+  if (!isRecord(value)) return {}
+  const selections: Record<string, CapabilityValue> = {}
+  for (const [field, raw] of Object.entries(value)) {
+    if (field === 'aspectRatio') continue
+    if (typeof raw === 'string' || typeof raw === 'number' || typeof raw === 'boolean') {
+      selections[field] = raw
+    }
+  }
+  return selections
+}
+
+function resolveVideoGenerationMode(payload: unknown): 'normal' | 'firstlastframe' {
+  if (!isRecord(payload)) return 'normal'
+  return isRecord(payload.firstLastFrame) ? 'firstlastframe' : 'normal'
+}
+
+function isSeedance2Model(modelKey: string): boolean {
+  const parsed = parseModelKeyStrict(modelKey)
+  if (!parsed) return false
+  return parsed.provider === 'ark'
+    && (
+      parsed.modelId === 'doubao-seedance-2-0-260128'
+      || parsed.modelId === 'doubao-seedance-2-0-fast-260128'
+    )
+}
+
+function resolveVideoModelKeyFromPayload(payload: Record<string, unknown>): string | null {
+  const firstLast = isRecord(payload.firstLastFrame) ? payload.firstLastFrame : null
+  if (firstLast && typeof firstLast.flModel === 'string' && parseModelKeyStrict(firstLast.flModel)) {
+    return firstLast.flModel
+  }
+  if (typeof payload.videoModel === 'string' && parseModelKeyStrict(payload.videoModel)) {
+    return payload.videoModel
+  }
+  return null
+}
+
+function requireVideoModelKeyFromPayload(payload: unknown): string {
+  if (!isRecord(payload) || typeof payload.videoModel !== 'string' || !parseModelKeyStrict(payload.videoModel)) {
+    throw new Error('PROJECT_AGENT_VIDEO_MODEL_REQUIRED')
+  }
+  return payload.videoModel
+}
+
+function validateFirstLastFrameModel(input: unknown) {
+  if (input === undefined || input === null) return
+  if (!isRecord(input)) {
+    throw new Error('PROJECT_AGENT_FIRSTLASTFRAME_PAYLOAD_INVALID')
+  }
+
+  const flModel = input.flModel
+  if (typeof flModel !== 'string' || !parseModelKeyStrict(flModel)) {
+    throw new Error('PROJECT_AGENT_FIRSTLASTFRAME_MODEL_INVALID')
+  }
+
+  const capabilities = resolveBuiltinCapabilitiesByModelKey('video', flModel)
+  if (capabilities?.video?.firstlastframe !== true) {
+    throw new Error('PROJECT_AGENT_FIRSTLASTFRAME_MODEL_UNSUPPORTED')
+  }
+}
+
+async function validateVideoCapabilityCombination(input: {
+  payload: unknown
+  projectId: string
+  userId: string
+}) {
+  const payload = input.payload
+  if (!isRecord(payload)) return
+  const modelKey = resolveVideoModelKeyFromPayload(payload)
+  if (!modelKey) return
+
+  const builtinCaps = resolveBuiltinCapabilitiesByModelKey('video', modelKey)
+  if (!builtinCaps) return
+
+  const runtimeSelections = toVideoRuntimeSelections(payload.generationOptions)
+  runtimeSelections.generationMode = resolveVideoGenerationMode(payload)
+
+  const resolvedOptions = await resolveProjectModelCapabilityGenerationOptions({
+    projectId: input.projectId,
+    userId: input.userId,
+    modelType: 'video',
+    modelKey,
+    runtimeSelections,
+  })
+
+  const resolution = resolveBuiltinPricing({
+    apiType: 'video',
+    model: modelKey,
+    selections: {
+      ...resolvedOptions,
+      ...(isSeedance2Model(modelKey) ? { containsVideoInput: false } : {}),
+    },
+  })
+  if (resolution.status === 'missing_capability_match') {
+    throw new Error('PROJECT_AGENT_VIDEO_CAPABILITY_COMBINATION_UNSUPPORTED')
+  }
+}
+
+function buildVideoPanelBillingInfoOrThrow(payload: unknown) {
+  try {
+    return buildDefaultTaskBillingInfo(TASK_TYPE.VIDEO_PANEL, isRecord(payload) ? payload : null)
+  } catch (error) {
+    if (
+      error instanceof BillingOperationError
+      && (
+        error.code === 'BILLING_UNKNOWN_VIDEO_CAPABILITY_COMBINATION'
+        || error.code === 'BILLING_UNKNOWN_VIDEO_RESOLUTION'
+      )
+    ) {
+      throw new Error('PROJECT_AGENT_VIDEO_CAPABILITY_COMBINATION_UNSUPPORTED')
+    }
+    if (error instanceof BillingOperationError && error.code === 'BILLING_UNKNOWN_MODEL') {
+      return null
+    }
+    throw error
+  }
 }
 
 export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegistry {
@@ -816,6 +942,154 @@ export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegi
           results: results.map((item) => ({ lineId: item.refId, taskId: item.taskId })),
           taskIds,
           total: taskIds.length,
+        }
+      },
+    },
+    generate_video: {
+      description: 'Generate panel videos for a storyboard panel or an episode batch (async task submission).',
+      sideEffects: {
+        mode: 'act',
+        risk: 'high',
+        billable: true,
+        requiresConfirmation: true,
+        confirmationSummary: '将生成视频（可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
+      inputSchema: z.object({
+        confirmed: z.boolean().optional(),
+        all: z.boolean().optional(),
+        limit: z.number().int().positive().max(50).optional(),
+        episodeId: z.string().min(1).optional(),
+        panelId: z.string().min(1).optional(),
+        storyboardId: z.string().min(1).optional(),
+        panelIndex: z.number().int().min(0).max(2000).optional(),
+        videoModel: z.string().min(1),
+        firstLastFrame: z.unknown().optional(),
+        generationOptions: z.record(z.unknown()).optional(),
+      }).passthrough(),
+      execute: async (ctx, input) => {
+        const locale = resolveLocaleFromContext(ctx.context.locale)
+        const inputRecord = isRecord(input) ? input : ({} as Record<string, unknown>)
+        const existingMeta = isRecord(inputRecord.meta) ? inputRecord.meta : {}
+        const payload: Record<string, unknown> = {
+          ...inputRecord,
+          meta: {
+            ...existingMeta,
+            locale,
+          },
+        }
+        delete payload.confirmed
+
+        requireVideoModelKeyFromPayload(payload)
+        validateFirstLastFrameModel(payload.firstLastFrame)
+        await validateVideoCapabilityCombination({
+          payload,
+          projectId: ctx.projectId,
+          userId: ctx.userId,
+        })
+
+        const localeForTask = resolveRequiredTaskLocale(ctx.request, payload)
+        const isBatch = payload.all === true
+        if (isBatch) {
+          const episodeId = normalizeString(payload.episodeId) || normalizeString(ctx.context.episodeId)
+          if (!episodeId) {
+            throw new Error('PROJECT_AGENT_EPISODE_REQUIRED')
+          }
+          const limit = typeof payload.limit === 'number' && Number.isFinite(payload.limit) ? payload.limit : 20
+
+          const panels = await prisma.projectPanel.findMany({
+            where: {
+              storyboard: { episodeId },
+              imageUrl: { not: null },
+              OR: [
+                { videoUrl: null },
+                { videoUrl: '' },
+              ],
+            },
+            select: { id: true },
+            take: limit,
+          })
+
+          if (panels.length === 0) {
+            return { tasks: [], total: 0 }
+          }
+
+          const tasks = await Promise.all(
+            panels.map(async (panel) =>
+              submitTask({
+                userId: ctx.userId,
+                locale: localeForTask,
+                requestId: getRequestId(ctx.request),
+                projectId: ctx.projectId,
+                episodeId,
+                type: TASK_TYPE.VIDEO_PANEL,
+                targetType: 'ProjectPanel',
+                targetId: panel.id,
+                payload: withTaskUiPayload(payload, {
+                  hasOutputAtStart: await hasPanelVideoOutput(panel.id),
+                }),
+                dedupeKey: `video_panel:${panel.id}`,
+                billingInfo: buildVideoPanelBillingInfoOrThrow(payload),
+              }),
+            ),
+          )
+
+          const taskIds = tasks.map((task) => task.taskId)
+          writeOperationDataPart<TaskBatchSubmittedPartData>(ctx.writer, 'data-task-batch-submitted', {
+            operationId: 'generate_video',
+            total: tasks.length,
+            taskIds,
+            results: panels.map((panel, index) => ({ refId: panel.id, taskId: taskIds[index] || '' })),
+          })
+
+          return {
+            tasks,
+            total: tasks.length,
+          }
+        }
+
+        let panelId = normalizeString(payload.panelId)
+        if (!panelId) {
+          const storyboardId = normalizeString(payload.storyboardId)
+          const panelIndex = typeof payload.panelIndex === 'number' ? payload.panelIndex : NaN
+          if (!storyboardId || !Number.isFinite(panelIndex)) {
+            throw new Error('PROJECT_AGENT_PANEL_REQUIRED')
+          }
+          const panel = await prisma.projectPanel.findFirst({
+            where: { storyboardId, panelIndex: Number(panelIndex) },
+            select: { id: true },
+          })
+          panelId = panel?.id || ''
+        }
+        if (!panelId) {
+          throw new Error('PROJECT_AGENT_PANEL_NOT_FOUND')
+        }
+
+        const result = await submitTask({
+          userId: ctx.userId,
+          locale: localeForTask,
+          requestId: getRequestId(ctx.request),
+          projectId: ctx.projectId,
+          type: TASK_TYPE.VIDEO_PANEL,
+          targetType: 'ProjectPanel',
+          targetId: panelId,
+          payload: withTaskUiPayload(payload, {
+            hasOutputAtStart: await hasPanelVideoOutput(panelId),
+          }),
+          dedupeKey: `video_panel:${panelId}`,
+          billingInfo: buildVideoPanelBillingInfoOrThrow(payload),
+        })
+
+        writeOperationDataPart<TaskSubmittedPartData>(ctx.writer, 'data-task-submitted', {
+          operationId: 'generate_video',
+          taskId: result.taskId,
+          status: result.status,
+          runId: result.runId || null,
+          deduped: result.deduped,
+        })
+
+        return {
+          ...result,
+          panelId,
         }
       },
     },
