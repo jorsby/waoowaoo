@@ -1225,7 +1225,7 @@ tool 侧应优先新增 `get_project_snapshot`（或等价命名）并在 prompt
 
 第一批只做最需要的，不追求一次铺满全部领域：
 
-v1（已落地/已打通，tool surface 目前 19 个）：
+v1（已落地/已打通，tool surface 目前 21 个）：
 
 - `get_project_phase`
 - `get_project_snapshot`
@@ -1246,6 +1246,8 @@ v1（已落地/已打通，tool surface 目前 19 个）：
 - `voice_design`（二次确认）
 - `lip_sync`（二次确认）
 - `generate_video`（二次确认，支持批量）
+- `list_recent_mutation_batches`
+- `revert_mutation_batch`（二次确认）
 
 说明：以上工具已经足够让 assistant 从“会解释流程”变成“能提交异步任务推进项目”。但 P9 仍不够全面：编辑类（modify/patch）、治理类（mutation batch + undo）、以及更细粒度的 storyboard 操作（insert/panel variant 等）尚未纳入 v1 tool surface。
 
@@ -1299,8 +1301,8 @@ Tool 数量控制的具体做法：
 | `lip_sync`                     | Act/Generate  | `lip_sync`                                                             | `src/app/api/projects/[projectId]/lip-sync/route.ts`（同源 submitTask: LIP_SYNC）                                                                                                                                                             | `act`              | `risk=high billable requiresConfirmation`                    | 已实现 |
 | `modify_asset_image`           | Act/Edit      | `modify_asset_image`                                                   | `src/app/api/projects/[projectId]/modify-asset-image/route.ts`（同源 submitAssetModifyTask）                                                                                                                                                  | `act`              | `risk=high billable requiresConfirmation overwrite`          | 已实现 |
 | `mutate_storyboard`            | Act/Edit      | `insert_panel`/`update_panel`/`reorder_panels`（待接入）                 | `src/app/api/projects/[projectId]/insert-panel/route.ts`、`src/app/api/projects/[projectId]/panel/route.ts`                                                                                                                                  | `act/plan`          | `risk=high requiresConfirmation destructive/bulk`            | 待接入 |
-| `list_recent_mutation_batches` | Governance    | `list_recent_mutation_batches`（待实现）                                | （新增）                                                                                                                                                                                                                                      | `query`            | `risk=none`                                                 | 待实现 |
-| `revert_mutation_batch`        | Governance    | `revert_mutation_batch`（待实现）                                       | （新增）                                                                                                                                                                                                                                      | `plan`             | `risk=high requiresConfirmation destructive`                 | 待实现 |
+| `list_recent_mutation_batches` | Governance    | `list_recent_mutation_batches`                                          | （新增）                                                                                                                                                                                                                                      | `query`            | `risk=low`                                                  | 已实现 |
+| `revert_mutation_batch`        | Governance    | `revert_mutation_batch`                                                 | （新增）                                                                                                                                                                                                                                      | `plan`             | `risk=high requiresConfirmation destructive`                 | 已实现 |
 
 \* 说明：`Act/Plan` 取决于 `operation.sideEffects`（例如是否 `bulk`/`overwrite`/`destructive`/`longRunning`）与入口语义；默认原则是“能安全直改就 Act，高影响就 Plan”。
 
@@ -1537,7 +1539,7 @@ system prompt 需要从当前的轻量规则，升级为包含：
 | P16  | operation registry 收敛                   | 进行中   | 中       | 已建立 `src/lib/operations/*` 并让现有 assistant tools 通过 operation 暴露                                                                                                  |
 | P17  | agent 代码量削减与目录收敛                | 进行中   | 中       | 已完成第一轮后端减法和运行时收敛，前端 runtime 收缩与 skill 目录重组仍在后续阶段                                                                                            |
 | P18  | Project Projection（snapshot/projection） | 部分完成 | 低       | 已实现 `ProjectProjectionLite` 与 `get_project_snapshot`，后续再补 full projection 与更明确的 snapshot schema                                                               |
-| P19  | mutation batch 与撤回（undo）             | 未开始   | 低       | 需要补齐 batch record、`list_recent_mutation_batches`、`revert_mutation_batch`，并接入 Act Mode 写操作                                                                      |
+| P19  | mutation batch 与撤回（undo）             | 部分完成 | 低       | 已落库 `mutation_batches`/`mutation_entries` 并接入 `list_recent_mutation_batches`/`revert_mutation_batch`；首批 act-mode 写操作会创建 batch（仍需补齐更全面的撤回语义与 UI） |
 | P20  | sideEffects 驱动的审批分流                | 部分完成 | 低       | 已落地 `operation.sideEffects`，并让 runtime 对 `billable`/`requiresConfirmation` 自动触发 confirmed gate；但尚未按入口语义与风险等级做完整 Act/Plan 分流                   |
 
 ### 当前阶段判断
@@ -1579,6 +1581,7 @@ system prompt 需要从当前的轻量规则，升级为包含：
 - [x] 补齐 `get_project_snapshot`：新增 `ProjectProjectionLite` 作为轻量状态读取入口，并让 `resolveProjectPhase` 使用 projection 而非 full context
 - [x] Prompt 注入增强：system prompt 增加 `progress` 与 `available actions` 摘要，便于模型做下一步建议与 Act/Plan 选择
 - [x] sideEffects 最小分流推进：补齐核心 operations 的 `sideEffects` 标注，并让 runtime 对 `billable` 自动触发 confirmed gate（减少遗漏）
+- [x] mutation batch 最小落地：新增 batch 表与 list/revert tools，并让首批 act-mode 写操作创建 batch 记录（便于“撤回刚才那次修改”）
 - [x] 最小校验：`npm run typecheck` + `npm run test:unit:all` 均通过
 
 这条路径的核心目标是：
