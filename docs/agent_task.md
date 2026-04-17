@@ -1225,18 +1225,21 @@ tool 侧应优先新增 `get_project_snapshot`（或等价命名）并在 prompt
 
 第一批只做最需要的，不追求一次铺满全部领域：
 
-v1（已落地/已打通，tool surface 目前 22 个）：
+v1（已落地/已打通，tool surface 目前 25 个）：
 
 - `get_project_phase`
 - `get_project_snapshot`
 - `get_project_context`
 - `get_task_status`
 - `list_workflow_packages`
+- `list_saved_skills`
 - `list_recent_commands`
 - `fetch_workflow_preview`
 - `create_workflow_plan`
+- `create_workflow_plan_from_saved_skill`
 - `approve_plan`（二次确认）
 - `reject_plan`
+- `save_workflow_plan_as_skill`
 - `generate_character_image`（二次确认）
 - `generate_location_image`（二次确认）
 - `modify_asset_image`（二次确认）
@@ -1287,11 +1290,14 @@ Tool 数量控制的具体做法：
 | `get_project_context`          | Read          | `get_project_context`                                                  | （operation 直接装配 full context）                                                                                                                                                                                                           | `query`            | `risk=low`                                                  | 已实现 |
 | `get_task_status`              | Read          | `get_task_status`                                                      | `src/app/api/task-target-states/route.ts`（同源能力）                                                                                                                                                                                         | `query`            | `risk=none`                                                 | 已实现 |
 | `list_workflow_packages`       | Read          | `list_workflow_packages`                                               | （skill-system catalog）                                                                                                                                                                                                                      | `query`            | `risk=none`                                                 | 已实现 |
+| `list_saved_skills`            | Read          | `list_saved_skills`                                                    | （新增，saved_skills）                                                                                                                                                                                                                         | `query`            | `risk=low`                                                  | 已实现 |
 | `list_recent_commands`         | Read          | `list_recent_commands`                                                 | （command-center read model）                                                                                                                                                                                                                 | `query`            | `risk=low`                                                  | 已实现 |
 | `fetch_workflow_preview`       | Read          | `fetch_workflow_preview`                                               | （preview loader）                                                                                                                                                                                                                            | `query`            | `risk=low`                                                  | 已实现 |
 | `create_workflow_plan`         | Plan          | `create_workflow_plan`                                                 | （command-center executor）                                                                                                                                                                                                                   | `plan`             | `risk=low`                                                  | 已实现 |
+| `create_workflow_plan_from_saved_skill` | Plan   | `create_workflow_plan_from_saved_skill`                                | （新增，saved_skills -> command-center executor）                                                                                                                                                                                              | `plan`             | `risk=low`                                                  | 已实现 |
 | `approve_plan`                 | Plan          | `approve_plan`                                                         | （command-center executor）                                                                                                                                                                                                                   | `plan`             | `risk=high billable requiresConfirmation`                    | 已实现 |
 | `reject_plan`                  | Plan          | `reject_plan`                                                          | （command-center executor）                                                                                                                                                                                                                   | `plan`             | `risk=low`                                                  | 已实现 |
+| `save_workflow_plan_as_skill`  | Act/Save      | `save_workflow_plan_as_skill`                                          | （新增，execution_plan -> saved_skills）                                                                                                                                                                                                       | `act`              | `risk=low`                                                  | 已实现 |
 | `generate_character_image`     | Act/Generate  | `generate_character_image`                                             | `src/app/api/projects/[projectId]/generate-character-image/route.ts`（同源 submitAssetGenerateTask）                                                                                                                                         | `act`              | `risk=medium billable requiresConfirmation`                  | 已实现 |
 | `generate_location_image`      | Act/Generate  | `generate_location_image`                                              | `src/app/api/projects/[projectId]/generate-image/route.ts`（legacy，同源 submitAssetGenerateTask）                                                                                                                                            | `act`              | `risk=medium billable requiresConfirmation`                  | 已实现 |
 | `regenerate_panel_image`       | Act/Generate  | `regenerate_panel_image`                                               | `src/app/api/projects/[projectId]/regenerate-panel-image/route.ts`（同源 submitTask: IMAGE_PANEL）                                                                                                                                            | `act`              | `risk=medium billable requiresConfirmation`                  | 已实现 |
@@ -1542,6 +1548,7 @@ system prompt 需要从当前的轻量规则，升级为包含：
 | P18  | Project Projection（snapshot/projection） | 部分完成 | 低       | 已实现 `ProjectProjectionLite` 与 `get_project_snapshot`，后续再补 full projection 与更明确的 snapshot schema                                                               |
 | P19  | mutation batch 与撤回（undo）             | 部分完成 | 低       | 已落库 `mutation_batches`/`mutation_entries` 并接入 `list_recent_mutation_batches`/`revert_mutation_batch`；首批 act-mode 写操作会创建 batch；前端已支持从 task 卡片一键撤回（仍需补齐更全面的撤回语义与历史视图） |
 | P20  | sideEffects 驱动的审批分流                | 部分完成 | 低       | 已落地 `operation.sideEffects`，并让 runtime 对 `billable`/`requiresConfirmation` 自动触发 confirmed gate；但尚未按入口语义与风险等级做完整 Act/Plan 分流                   |
+| P21  | Saved Skills（沉淀/重做）                 | 部分完成 | 低       | 已新增 `saved_skills` 表，并接入 `list_saved_skills` / `save_workflow_plan_as_skill` / `create_workflow_plan_from_saved_skill`；当前仅覆盖 workflow plan 模板，后续可扩展到 act-mode recipes |
 
 ### 当前阶段判断
 
@@ -1585,6 +1592,8 @@ system prompt 需要从当前的轻量规则，升级为包含：
 - [x] mutation batch 最小落地：新增 batch 表与 list/revert tools，并让首批 act-mode 写操作创建 batch 记录（便于“撤回刚才那次修改”）
 - [x] 前端撤回闭环：task submitted / batch submitted 卡片展示 `undoBatchId`，并提供“一键撤回本次修改”按钮（调用 `POST /api/mutation-batches/:batchId/revert`）
 - [x] 实现 `mutate_storyboard`：覆盖 insert panel / update panel prompt / reorder panels，并纳入 mutation batch，可用 `revert_mutation_batch` 撤回
+- [x] Saved Skills 最小落地：新增 `saved_skills` 表，并支持将已有 workflow plan 沉淀为可复用模板（`save_workflow_plan_as_skill` / `list_saved_skills`）
+- [x] Saved Skills 重做入口：支持从 saved skill 直接创建新的 workflow plan（`create_workflow_plan_from_saved_skill`）
 - [x] 最小校验：`npm run typecheck` + `npm run test:unit:all` 均通过
 
 这条路径的核心目标是：
