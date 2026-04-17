@@ -30,6 +30,8 @@ import { BillingOperationError } from '@/lib/billing/errors'
 import { resolveBuiltinCapabilitiesByModelKey } from '@/lib/model-capabilities/lookup'
 import { resolveBuiltinPricing } from '@/lib/model-pricing/lookup'
 import { validatePreviewText, validateVoicePrompt } from '@/lib/providers/bailian/voice-design'
+import { createMutationBatch, listRecentMutationBatches } from '@/lib/mutation-batch/service'
+import { revertMutationBatch } from '@/lib/mutation-batch/revert'
 import {
   buildAssistantProjectContextSnapshot,
   buildWorkflowApprovalReasons,
@@ -490,6 +492,55 @@ export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegi
           episodeId: ctx.context.episodeId || null,
           limit: input.limit || 10,
         }),
+    },
+    list_recent_mutation_batches: {
+      description: 'List recent mutation batches that can be reverted (undo).',
+      sideEffects: { mode: 'query', risk: 'low' },
+      inputSchema: z.object({
+        limit: z.number().int().positive().max(20).optional(),
+      }),
+      execute: async (ctx, input) => {
+        const batches = await listRecentMutationBatches({
+          projectId: ctx.projectId,
+          userId: ctx.userId,
+          limit: input.limit || 10,
+        })
+        return batches.map((batch) => ({
+          id: batch.id,
+          status: batch.status,
+          source: batch.source,
+          operationId: batch.operationId,
+          summary: batch.summary,
+          createdAt: batch.createdAt.toISOString(),
+          revertedAt: batch.revertedAt ? batch.revertedAt.toISOString() : null,
+          entryCount: batch.entries.length,
+          entries: batch.entries.map((entry) => ({
+            id: entry.id,
+            kind: entry.kind,
+            targetType: entry.targetType,
+            targetId: entry.targetId,
+            createdAt: entry.createdAt.toISOString(),
+          })),
+        }))
+      },
+    },
+    revert_mutation_batch: {
+      description: 'Revert (undo) a mutation batch by id.',
+      sideEffects: {
+        mode: 'plan',
+        risk: 'high',
+        requiresConfirmation: true,
+        confirmationSummary: '将撤回一次批量变更（可能删除或覆盖已有内容）。确认继续后请重新调用并传入 confirmed=true。',
+      },
+      inputSchema: z.object({
+        confirmed: z.boolean().optional(),
+        batchId: z.string().min(1),
+      }),
+      execute: async (ctx, input) => revertMutationBatch({
+        batchId: input.batchId,
+        projectId: ctx.projectId,
+        userId: ctx.userId,
+      }),
     },
     fetch_workflow_preview: {
       description: 'Load a rendered preview for the latest workflow artifacts.',
