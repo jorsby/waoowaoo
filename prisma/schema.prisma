@@ -511,6 +511,7 @@ model Project {
   executionPlans     ExecutionPlan[]
   planApprovals      PlanApproval[]
   assistantThreads   ProjectAssistantThread[]
+  mutationBatches    MutationBatch[]
   episodes           ProjectEpisode[]
   characters         ProjectCharacter[]
   locations          ProjectLocation[]
@@ -580,6 +581,7 @@ model User {
   projectCommands         ProjectCommand[]
   planApprovals           PlanApproval[]
   projectAssistantThreads ProjectAssistantThread[]
+  mutationBatches         MutationBatch[]
 
   @@map("user")
 }
