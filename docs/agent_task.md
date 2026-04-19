@@ -1142,6 +1142,11 @@ skill 不再做：
 
 这里的“风险”不应写死在 prompt 文案里，而应来自 operation 的 `sideEffects` 元数据与少量明确规则（例如 `overwrite`、`bulk`、`destructive`、`longRunning`）。
 
+实现对齐（截至 2026-04-17）：
+
+- `OperationSideEffects` 已补齐 `overwrite`/`bulk`/`destructive`/`longRunning` 标签，用于承载更细粒度的风险语义
+- `src/lib/project-agent/runtime.ts` 的 confirmed gate 已改为以 `sideEffects`（风险/计费/语义标签）综合判断是否需要用户明确确认
+
 #### 4.3.2 “workflow 非自由 skill 链”的工程化定义
 
 本方案允许“把固定 workflow 作为可稳定调用的 skill 入口”，但不允许“workflow 的内部执行退化为 assistant 自由串 skill 链”。
@@ -1298,7 +1303,7 @@ Tool 数量控制的具体做法：
 | `approve_plan`                 | Plan          | `approve_plan`                                                         | （command-center executor）                                                                                                                                                                                                                   | `plan`             | `risk=high billable requiresConfirmation`                    | 已实现 |
 | `reject_plan`                  | Plan          | `reject_plan`                                                          | （command-center executor）                                                                                                                                                                                                                   | `plan`             | `risk=low`                                                  | 已实现 |
 | `save_workflow_plan_as_skill`  | Act/Save      | `save_workflow_plan_as_skill`                                          | （新增，execution_plan -> saved_skills）                                                                                                                                                                                                       | `act`              | `risk=low`                                                  | 已实现 |
-| `generate_character_image`     | Act/Generate  | `generate_character_image`                                             | `src/app/api/projects/[projectId]/generate-character-image/route.ts`（同源 submitAssetGenerateTask）                                                                                                                                         | `act`              | `risk=medium billable requiresConfirmation`                  | 已实现 |
+| `generate_character_image`     | Act/Generate  | `generate_character_image`                                             | `src/app/api/projects/[projectId]/generate-character-image/route.ts`（已收敛：通过 API adapter 调用 operation）                                                                                                                              | `act`              | `risk=medium billable requiresConfirmation`                  | 已实现 |
 | `generate_location_image`      | Act/Generate  | `generate_location_image`                                              | `src/app/api/projects/[projectId]/generate-image/route.ts`（legacy，同源 submitAssetGenerateTask）                                                                                                                                            | `act`              | `risk=medium billable requiresConfirmation`                  | 已实现 |
 | `regenerate_panel_image`       | Act/Generate  | `regenerate_panel_image`                                               | `src/app/api/projects/[projectId]/regenerate-panel-image/route.ts`（同源 submitTask: IMAGE_PANEL）                                                                                                                                            | `act`              | `risk=medium billable requiresConfirmation`                  | 已实现 |
 | `panel_variant`                | Act/Generate  | `panel_variant`                                                        | `src/app/api/projects/[projectId]/panel-variant/route.ts`（同源 submitTask: PANEL_VARIANT + DB 插入新 panel）                                                                                                                                | `act`              | `risk=high billable requiresConfirmation destructive`         | 已实现 |
@@ -1334,6 +1339,11 @@ system prompt 需要从当前的轻量规则，升级为包含：
 
 - `maxSteps` 从 6 提升到 12-15
 
+实现对齐（截至 2026-04-17）：
+
+- `src/lib/project-agent/runtime.ts` 已将 `maxSteps` 提升到 `12`（`stepCountIs(12)`）
+- prompt 注入已包含 `failedItems` 与 `staleArtifacts` 的摘要字段，便于模型做异常解释与推荐动作
+
 #### 4. Context 分层
 
 将当前 project context 拆成：
@@ -1356,6 +1366,11 @@ system prompt 需要从当前的轻量规则，升级为包含：
 - 单次 GUI 明确动作：默认形成一个 mutation batch
 - 单次 assistant 回复导致的所有写操作：形成一个 mutation batch
 - 撤回单位：按 batch 撤回，而不是要求用户逐条撤回
+
+实现对齐（截至 2026-04-17）：
+
+- operation 内创建的 mutation batch 已支持 `source` 注入（区分 `assistant-panel` 与 `project-ui` 等入口语义）
+- `generate-character-image` API route 已率先通过 operation 适配执行，可沿用相同机制逐步把更多 GUI/API 操作接入 batch 体系
 
 需要新增或补齐的能力方向：
 

@@ -83,7 +83,7 @@ agent/
 
 # internal docs (not for public)
 docs/*
-!docs/agent_task.md
+!docs/agent_handoff_report.md
 
 # GitHub CI workflows (internal)
 # .github/ — 只保留 workflows，忽略其他
