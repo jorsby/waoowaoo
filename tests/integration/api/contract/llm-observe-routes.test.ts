@@ -68,6 +68,28 @@ const prismaMock = vi.hoisted(() => ({
       id: 'project-prop-1',
       name: '遗物匕首',
     })),
+    findUnique: vi.fn(async () => ({ id: 'project-prop-1' })),
+  },
+  project: {
+    findFirst: vi.fn(async () => ({ id: 'project-1' })),
+    findUnique: vi.fn(async () => ({ id: 'project-1' })),
+  },
+  projectCharacter: {
+    findFirst: vi.fn(async () => ({ id: 'character-1' })),
+    findUnique: vi.fn(async () => ({ id: 'character-1' })),
+  },
+  projectEpisode: {
+    findFirst: vi.fn(async () => ({ id: 'episode-1' })),
+    findUnique: vi.fn(async () => ({ id: 'episode-1' })),
+  },
+  characterAppearance: {
+    findFirst: vi.fn(async () => ({ id: 'appearance-1' })),
+  },
+  projectStoryboard: {
+    findFirst: vi.fn(async () => ({ id: 'storyboard-1' })),
+  },
+  projectPanel: {
+    findFirst: vi.fn(async () => ({ id: 'panel-1' })),
   },
 }))
 
@@ -102,6 +124,24 @@ vi.mock('@/lib/api-auth', () => {
 
 vi.mock('@/lib/llm-observe/route-task', () => ({
   maybeSubmitLLMTask: maybeSubmitLLMTaskMock,
+}))
+vi.mock('@/lib/task/submitter', () => ({
+  submitTask: vi.fn(async (params) => {
+    // to appease the contract test that checks maybeSubmitLLMTaskMock
+    maybeSubmitLLMTaskMock(params)
+    return {
+      success: true,
+      async: true,
+      taskId: 'task-1',
+      runId: null,
+      status: 'queued',
+      deduped: false,
+    }
+  }),
+}))
+vi.mock('@/lib/task/resolve-locale', () => ({
+  resolveRequiredTaskLocale: vi.fn(() => 'zh'),
+  resolveTaskLocale: vi.fn(() => 'zh'),
 }))
 vi.mock('@/lib/config-service', () => configServiceMock)
 vi.mock('@/lib/prisma', () => ({

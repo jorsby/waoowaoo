@@ -84,6 +84,7 @@ export const prismaMock = {
     findUnique: vi.fn(async () => ({ lipSyncModel: 'fal::lipsync-model' })),
   },
   projectStoryboard: {
+    findFirst: vi.fn(async () => ({ id: 'storyboard-1' })),
     findUnique: vi.fn(async () => ({
       id: 'storyboard-1',
       episode: {

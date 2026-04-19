@@ -49,7 +49,19 @@ const billingMock = vi.hoisted(() => ({
   buildDefaultTaskBillingInfo: vi.fn(() => ({ billable: false })),
 }))
 
+const prismaMock = vi.hoisted(() => ({
+  characterAppearance: {
+    findUnique: vi.fn(async () => ({
+      id: 'appearance-1',
+      characterId: 'character-1',
+      character: { projectId: 'project-1' },
+      imageUrls: '[]',
+    })),
+  },
+}))
+
 vi.mock('@/lib/api-auth', () => authMock)
+vi.mock('@/lib/prisma', () => ({ prisma: prismaMock }))
 vi.mock('@/lib/task/submitter', () => ({ submitTask: submitTaskMock }))
 vi.mock('@/lib/config-service', () => configServiceMock)
 vi.mock('@/lib/task/has-output', () => hasOutputMock)

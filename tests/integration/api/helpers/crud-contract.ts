@@ -34,17 +34,25 @@ export const prismaMock = {
     update: vi.fn(),
   },
   projectClip: {
+    findFirst: vi.fn(),
+    findUnique: vi.fn(),
     update: vi.fn(),
   },
   projectStoryboard: {
+    findFirst: vi.fn(),
     findUnique: vi.fn(),
     update: vi.fn(),
   },
   projectPanel: {
+    findFirst: vi.fn(),
     findUnique: vi.fn(),
     update: vi.fn(),
     create: vi.fn(),
     count: vi.fn(),
+  },
+  projectEpisode: {
+    findFirst: vi.fn(),
+    findUnique: vi.fn(),
   },
 }
 
@@ -107,6 +115,10 @@ export function resetCrudMocks() {
     content: 'clip content',
     screenplay: JSON.stringify({ scenes: [{ id: 1 }] }),
   })
+  prismaMock.projectStoryboard.findFirst.mockResolvedValue({
+    id: 'storyboard-1',
+    projectId: 'project-1',
+  })
   prismaMock.projectStoryboard.findUnique.mockResolvedValue({
     id: 'storyboard-1',
     projectId: 'project-1',
@@ -114,6 +126,19 @@ export function resetCrudMocks() {
   prismaMock.projectStoryboard.update.mockResolvedValue({
     id: 'storyboard-1',
     panelCount: 1,
+  })
+  prismaMock.projectClip.findFirst.mockResolvedValue({
+    id: 'clip-1',
+    episodeId: 'episode-1',
+  })
+  prismaMock.projectEpisode.findFirst.mockResolvedValue({
+    id: 'episode-1',
+    projectId: 'project-1',
+  })
+  prismaMock.projectPanel.findFirst.mockResolvedValue({
+    id: 'panel-1',
+    storyboardId: 'storyboard-1',
+    panelIndex: 0,
   })
   prismaMock.projectPanel.findUnique.mockResolvedValue({
     id: 'panel-1',

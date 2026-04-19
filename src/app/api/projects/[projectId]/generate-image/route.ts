@@ -20,7 +20,8 @@ export const POST = apiHandler(async (
   }
 
   const operationId = type === 'character' ? 'generate_character_image' : 'generate_location_image'
-  const input = type === 'character' ? { characterId: id } : { locationId: id }
+  const { type: _type, id: _id, ...restBody } = body
+  const input = type === 'character' ? { ...restBody, characterId: id } : { ...restBody, locationId: id }
 
   const result = await executeProjectAgentOperationFromApi({
     request,

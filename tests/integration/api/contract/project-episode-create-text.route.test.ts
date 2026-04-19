@@ -3,6 +3,7 @@ import { buildMockRequest } from '../../../helpers/request'
 
 const authMock = vi.hoisted(() => ({
   requireProjectAuth: vi.fn(async () => ({
+    session: { user: { id: 'user-1' } },
     project: { id: 'project-1' },
   })),
   isErrorResponse: vi.fn((value: unknown) => value instanceof Response),
@@ -21,6 +22,9 @@ const prismaMock = vi.hoisted(() => ({
     })),
   },
   project: {
+    findUnique: vi.fn(async () => ({
+      id: 'project-1',
+    })),
     update: vi.fn(async () => ({
       id: 'project-1',
       lastEpisodeId: 'episode-1',

@@ -36,9 +36,9 @@ describe('regression - panel variant cross storyboard safety', () => {
       { params: { projectId: seeded.project.id } },
     )
 
-    expect(response.status).toBe(400)
+    expect(response.status).toBe(404)
     const json = await response.json() as { error?: { code?: string } }
-    expect(json.error?.code).toBe('INVALID_PARAMS')
+    expect(json.error?.code).toBe('NOT_FOUND')
 
     const afterCount = await prisma.projectPanel.count({
       where: { storyboardId: seeded.storyboard.id },

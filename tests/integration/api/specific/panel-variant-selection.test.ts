@@ -203,8 +203,8 @@ describe('api specific - panel variant route', () => {
     })
 
     const json = await res.json() as { error: { code: string } }
-    expect(res.status).toBe(400)
-    expect(json.error.code).toBe('INVALID_PARAMS')
+    expect(res.status).toBe(404)
+    expect(json.error.code).toBe('NOT_FOUND')
     expect(createTxSpy.create).not.toHaveBeenCalled()
     expect(submitTaskMock).not.toHaveBeenCalled()
   })
@@ -220,8 +220,8 @@ describe('api specific - panel variant route', () => {
     })
 
     const json = await res.json() as { error: { code: string } }
-    expect(res.status).toBe(400)
-    expect(json.error.code).toBe('INVALID_PARAMS')
+    expect(res.status).toBe(404)
+    expect(json.error.code).toBe('NOT_FOUND')
     expect(createTxSpy.create).not.toHaveBeenCalled()
     expect(submitTaskMock).not.toHaveBeenCalled()
   })

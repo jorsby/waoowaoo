@@ -44,6 +44,7 @@ vi.mock('@/lib/task/submitter', () => ({
 }))
 vi.mock('@/lib/task/resolve-locale', () => ({
   resolveRequiredTaskLocale: vi.fn(() => 'zh'),
+  resolveTaskLocale: vi.fn(() => 'zh'),
 }))
 vi.mock('@/lib/config-service', () => configServiceMock)
 vi.mock('@/lib/task/has-output', () => hasOutputMock)
