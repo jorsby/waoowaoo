@@ -121,7 +121,7 @@ function ProjectPhaseDataCard({ data }: DataMessagePartProps<ProjectPhasePartDat
   )
 }
 
-function AgentStopDataCard({ data }: DataMessagePartProps<ProjectAgentStopPartData>) {
+export function AgentStopDataCard({ data }: DataMessagePartProps<ProjectAgentStopPartData>) {
   return (
     <div className="rounded-2xl border border-[var(--glass-tone-warn-fg)]/30 bg-[var(--glass-bg-muted)]/70 p-3 text-xs text-[var(--glass-text-secondary)]">
       <div className="text-sm font-medium text-[var(--glass-text-primary)]">已达到最大步数</div>
