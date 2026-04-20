@@ -1,24 +1,14 @@
 import type { UIMessage, UIMessageStreamWriter } from 'ai'
 import type { NextRequest } from 'next/server'
 import { createProjectAgentOperationRegistry } from '@/lib/operations/registry'
+import { isConfirmedOperationInput, shouldRequireAssistantConfirmation } from '@/lib/operations/confirmation'
 import {
   writeOperationDataPart,
-  type OperationSideEffects,
   type ProjectAgentToolError,
   type ProjectAgentToolErrorCode,
   type ProjectAgentToolResult,
 } from '@/lib/operations/types'
 import type { ConfirmationRequestPartData, ProjectAgentContext } from '@/lib/project-agent/types'
-
-function shouldRequireAssistantConfirmation(sideEffects: OperationSideEffects | undefined): boolean {
-  if (!sideEffects) return false
-  if (sideEffects.requiresConfirmation !== undefined) return sideEffects.requiresConfirmation
-  if (sideEffects.mode === 'query') return false
-  if (sideEffects.billable) return true
-  if (sideEffects.risk === 'high' || sideEffects.risk === 'medium') return true
-  if (sideEffects.destructive || sideEffects.overwrite || sideEffects.bulk || sideEffects.longRunning) return true
-  return false
-}
 
 function toMessage(error: unknown): string {
   if (error instanceof Error) {
@@ -89,12 +79,7 @@ export async function executeProjectAgentOperationFromTool(params: {
 
   const requiresConfirmation = shouldRequireAssistantConfirmation(operation.sideEffects)
   if (requiresConfirmation) {
-    const confirmed = !!(
-      parsed.data
-      && typeof parsed.data === 'object'
-      && (parsed.data as { confirmed?: unknown }).confirmed === true
-    )
-    if (!confirmed) {
+    if (!isConfirmedOperationInput(params.input)) {
       const budgetKey = operation.sideEffects?.budgetKey
       const estimatedCostUnits = operation.sideEffects?.estimatedCostUnits
       const budget = !budgetKey && estimatedCostUnits === undefined

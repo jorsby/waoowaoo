@@ -112,6 +112,44 @@ describe('executeProjectAgentOperationFromTool', () => {
     expect(result.error.code).toBe('CONFIRMATION_REQUIRED')
   })
 
+  it('[confirmed input] -> executes operation when confirmation required', async () => {
+    const writer = buildWriter()
+    const execute = vi.fn(async () => ({ ok: true }))
+    registryState.registry = {
+      confirm_ok_op: {
+        id: 'confirm_ok_op',
+        description: 'confirm ok',
+        scope: 'project',
+        sideEffects: {
+          mode: 'act',
+          risk: 'high',
+          requiresConfirmation: true,
+          confirmationSummary: 'needs confirm',
+        },
+        inputSchema: z.object({ confirmed: z.boolean().optional() }),
+        outputSchema: z.object({ ok: z.boolean() }),
+        execute,
+      },
+    }
+
+    const result = await executeProjectAgentOperationFromTool({
+      request: buildRequest(),
+      operationId: 'confirm_ok_op',
+      projectId: 'project-1',
+      userId: 'user-1',
+      context: {},
+      source: 'assistant-panel',
+      writer,
+      input: { confirmed: true },
+    })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.data).toEqual({ ok: true })
+    expect(execute).toHaveBeenCalledTimes(1)
+    expect(execute).toHaveBeenCalledWith(expect.any(Object), { confirmed: true })
+  })
+
   it('[execution error] -> returns structured error', async () => {
     registryState.registry = {
       fail_op: {
