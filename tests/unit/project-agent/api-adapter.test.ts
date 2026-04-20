@@ -10,6 +10,7 @@ const registryState = vi.hoisted(() => ({
 
 vi.mock('@/lib/operations/registry', () => ({
   createProjectAgentOperationRegistry: () => registryState.registry,
+  createProjectAgentOperationRegistryForApi: () => registryState.registry,
 }))
 
 import { executeProjectAgentOperationFromApi } from '@/lib/adapters/api/execute-project-agent-operation'
@@ -140,7 +141,7 @@ describe('executeProjectAgentOperationFromApi', () => {
     })
   })
 
-  it('[requiresConfirmation sideEffects] -> api adapter does not enforce confirmed gate', async () => {
+  it('[requiresConfirmation sideEffects] -> does not enforce confirmed gate', async () => {
     const execute = vi.fn(async () => ({ ok: true }))
     registryState.registry = {
       confirm_semantics_op: {
@@ -207,4 +208,3 @@ describe('executeProjectAgentOperationFromApi', () => {
     })
   })
 })
-

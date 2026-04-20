@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server'
 import { ApiError } from '@/lib/api-errors'
-import { createProjectAgentOperationRegistry } from '@/lib/operations/registry'
+import { createProjectAgentOperationRegistryForApi } from '@/lib/operations/registry'
 
 function toMessage(error: unknown): string {
   if (error instanceof Error) return error.message?.trim() || 'OPERATION_FAILED'
@@ -37,7 +37,7 @@ export async function executeProjectAgentOperationFromApi(params: {
   input: unknown
   source?: string
 }) {
-  const registry = createProjectAgentOperationRegistry()
+  const registry = createProjectAgentOperationRegistryForApi()
   const operation = registry[params.operationId]
   if (!operation) {
     throw new ApiError('NOT_FOUND', {
