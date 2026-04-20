@@ -18,7 +18,7 @@ import { initializeFonts, createLabelSVG } from '@/lib/fonts'
 import { reportTaskProgress } from '@/lib/workers/shared'
 import { assertTaskActive } from '@/lib/workers/utils'
 import { TASK_TYPE, type TaskJobData } from '@/lib/task/types'
-import { buildPrompt, PROMPT_IDS } from '@/lib/prompt-i18n'
+import { buildAiPrompt as buildPrompt, AI_PROMPT_IDS as PROMPT_IDS } from '@/lib/ai-prompts'
 import { normalizeImageGenerationCount } from '@/lib/image-generation/count'
 import {
   parseReferenceImages,
@@ -178,7 +178,7 @@ export async function handleReferenceToCharacterTask(job: Job<TaskJobData>) {
       userId: job.data.userId,
       model: analysisModel,
       prompt: buildPrompt({
-        promptId: PROMPT_IDS.CHARACTER_IMAGE_TO_DESCRIPTION,
+        promptId: PROMPT_IDS.CHARACTER_REFERENCE_DESCRIBE_IMAGE,
         locale: job.data.locale,
       }),
       imageUrls: allReferenceImages,
@@ -236,7 +236,7 @@ export async function handleReferenceToCharacterTask(job: Job<TaskJobData>) {
   let description: string | null = null
   if (analysisModel) {
     const analysisPrompt = buildPrompt({
-      promptId: PROMPT_IDS.CHARACTER_IMAGE_TO_DESCRIPTION,
+      promptId: PROMPT_IDS.CHARACTER_REFERENCE_DESCRIBE_IMAGE,
       locale: job.data.locale,
     })
     const completion = await executeAiVisionStep({

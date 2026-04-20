@@ -6,7 +6,7 @@ import { withInternalLLMStreamCallbacks, type InternalLLMStreamCallbacks } from 
 import type { LLMStreamKind } from '@/lib/llm-observe/types'
 import { QUEUE_NAME } from '@/lib/task/queues'
 import { TASK_TYPE, type TaskJobData } from '@/lib/task/types'
-import { buildPrompt, PROMPT_IDS } from '@/lib/prompt-i18n'
+import { buildAiPrompt as buildPrompt, AI_PROMPT_IDS as PROMPT_IDS } from '@/lib/ai-prompts'
 import { resolveInsertPanelUserInput } from '@/lib/project-workflow/insert-panel'
 import { buildInsertPanelLocationsDescription } from '@/lib/project-workflow/insert-panel-prompt-context'
 import {
@@ -542,7 +542,7 @@ async function handleInsertPanelTask(job: Job<TaskJobData>) {
     .join('\n') || '无'
 
   const prompt = buildPrompt({
-    promptId: PROMPT_IDS.NP_AGENT_STORYBOARD_INSERT,
+    promptId: PROMPT_IDS.STORYBOARD_INSERT_PANEL,
     locale: job.data.locale,
     variables: {
       user_input: userInput,

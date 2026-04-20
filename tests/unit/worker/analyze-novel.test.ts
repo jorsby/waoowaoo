@@ -50,13 +50,13 @@ vi.mock('@/lib/workers/handlers/llm-stream', () => ({
     flush: vi.fn(async () => undefined),
   })),
 }))
-vi.mock('@/lib/prompt-i18n', () => ({
-  PROMPT_IDS: {
-    NP_AGENT_CHARACTER_PROFILE: 'char',
-    NP_SELECT_LOCATION: 'loc',
-    NP_SELECT_PROP: 'prop',
+vi.mock('@/lib/ai-prompts', () => ({
+  AI_PROMPT_IDS: {
+    CHARACTER_ANALYZE: 'character-analyze',
+    LOCATION_ANALYZE: 'location-analyze',
+    PROP_ANALYZE: 'prop-analyze',
   },
-  buildPrompt: vi.fn(() => 'analysis-prompt'),
+  buildAiPrompt: vi.fn(() => 'analysis-prompt'),
 }))
 
 import { handleAnalyzeNovelTask } from '@/lib/workers/handlers/analyze-novel'

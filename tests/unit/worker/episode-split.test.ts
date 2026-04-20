@@ -49,8 +49,8 @@ const llmStreamMock = vi.hoisted(() => ({
 }))
 
 const promptMock = vi.hoisted(() => ({
-  PROMPT_IDS: { NP_EPISODE_SPLIT: 'np_episode_split' },
-  buildPrompt: vi.fn(() => 'EPISODE_SPLIT_PROMPT'),
+  AI_PROMPT_IDS: { SCRIPT_EPISODE_SPLIT: 'script-episode-split' },
+  buildAiPrompt: vi.fn(() => 'EPISODE_SPLIT_PROMPT'),
 }))
 
 vi.mock('@/lib/prisma', () => ({ prisma: prismaMock }))
@@ -60,7 +60,7 @@ vi.mock('@/lib/llm-observe/internal-stream-context', () => internalStreamMock)
 vi.mock('@/lib/workers/shared', () => sharedMock)
 vi.mock('@/lib/workers/utils', () => utilsMock)
 vi.mock('@/lib/workers/handlers/llm-stream', () => llmStreamMock)
-vi.mock('@/lib/prompt-i18n', () => promptMock)
+vi.mock('@/lib/ai-prompts', () => promptMock)
 vi.mock('@/lib/project-workflow/story-to-script/clip-matching', () => ({
   createTextMarkerMatcher: (content: string) => ({
     matchMarker: (marker: string, fromIndex = 0) => {

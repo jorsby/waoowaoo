@@ -49,9 +49,9 @@ vi.mock('@/lib/workers/handlers/screenplay-convert-helpers', () => ({
   readText: (value: unknown) => (typeof value === 'string' ? value : ''),
   parseScreenplayPayload: helpersMock.parseScreenplayPayload,
 }))
-vi.mock('@/lib/prompt-i18n', () => ({
-  PROMPT_IDS: { NP_SCREENPLAY_CONVERSION: 'np_screenplay_conversion' },
-  getPromptTemplate: vi.fn(() => 'screenplay-template-{clip_content}-{clip_id}'),
+vi.mock('@/lib/ai-prompts', () => ({
+  AI_PROMPT_IDS: { SCRIPT_GENERATE_SCREENPLAY: 'script-generate-screenplay' },
+  getAiPromptTemplate: vi.fn(() => 'screenplay-template-{clip_content}-{clip_id}'),
 }))
 
 import { handleScreenplayConvertTask } from '@/lib/workers/handlers/screenplay-convert'

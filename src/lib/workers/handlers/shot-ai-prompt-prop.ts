@@ -6,7 +6,7 @@ import type { TaskJobData } from '@/lib/task/types'
 import { resolveAnalysisModel } from './shot-ai-persist'
 import { runShotPromptCompletion } from './shot-ai-prompt-runtime'
 import { parseJsonObject, readRequiredString, type AnyObj } from './shot-ai-prompt-utils'
-import { buildPrompt, PROMPT_IDS } from '@/lib/prompt-i18n'
+import { buildAiPrompt as buildPrompt, AI_PROMPT_IDS as PROMPT_IDS } from '@/lib/ai-prompts'
 
 export async function handleModifyPropTask(job: Job<TaskJobData>, payload: AnyObj) {
   const propId = readRequiredString(payload.propId, 'propId')
@@ -17,7 +17,7 @@ export async function handleModifyPropTask(job: Job<TaskJobData>, payload: AnyOb
   const projectWorkflow = await resolveAnalysisModel(job.data.projectId, job.data.userId)
 
   const finalPrompt = buildPrompt({
-    promptId: PROMPT_IDS.NP_PROP_DESCRIPTION_UPDATE,
+    promptId: PROMPT_IDS.PROP_UPDATE_DESCRIPTION,
     locale: job.data.locale,
     variables: {
       prop_name: propName,

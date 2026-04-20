@@ -74,15 +74,15 @@ vi.mock('@/lib/workers/handlers/llm-stream', () => ({
     flush: vi.fn(async () => undefined),
   })),
 }))
-vi.mock('@/lib/prompt-i18n', () => ({
-  PROMPT_IDS: {
-    NP_AGENT_CHARACTER_PROFILE: 'a',
-    NP_SELECT_LOCATION: 'b',
-    NP_SELECT_PROP: 'c',
-    NP_AGENT_CLIP: 'd',
-    NP_SCREENPLAY_CONVERSION: 'e',
+vi.mock('@/lib/ai-prompts', () => ({
+  AI_PROMPT_IDS: {
+    CHARACTER_ANALYZE: 'character-analyze',
+    LOCATION_ANALYZE: 'location-analyze',
+    PROP_ANALYZE: 'prop-analyze',
+    SCRIPT_CLIP_SEGMENTS: 'script-clip-segments',
+    SCRIPT_GENERATE_SCREENPLAY: 'script-generate-screenplay',
   },
-  getPromptTemplate: vi.fn(() => 'prompt-template'),
+  getAiPromptTemplate: vi.fn(() => 'prompt-template'),
 }))
 vi.mock('@/lib/workers/handlers/story-to-script-helpers', () => ({
   asString: (value: unknown) => (typeof value === 'string' ? value : ''),

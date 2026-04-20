@@ -25,12 +25,12 @@ const aiRuntimeMock = vi.hoisted(() => ({
 }))
 
 const promptMock = vi.hoisted(() => ({
-  PROMPT_IDS: {
-    NP_CHARACTER_DESCRIPTION_UPDATE: 'np_character_description_update',
-    NP_LOCATION_DESCRIPTION_UPDATE: 'np_location_description_update',
-    NP_PROP_DESCRIPTION_UPDATE: 'np_prop_description_update',
+  AI_PROMPT_IDS: {
+    CHARACTER_UPDATE_DESCRIPTION: 'character-update-description',
+    LOCATION_UPDATE_DESCRIPTION: 'location-update-description',
+    PROP_UPDATE_DESCRIPTION: 'prop-update-description',
   },
-  buildPrompt: vi.fn(({ promptId }: { promptId: string }) => `${promptId}-prompt`),
+  buildAiPrompt: vi.fn(({ promptId }: { promptId: string }) => `${promptId}-prompt`),
 }))
 
 const loggerWarnMock = vi.hoisted(() => vi.fn())
@@ -72,7 +72,7 @@ const prismaMock = vi.hoisted(() => ({
 vi.mock('@/lib/workers/utils', () => utilsMock)
 vi.mock('@/lib/media/outbound-image', () => outboundImageMock)
 vi.mock('@/lib/ai-runtime', () => aiRuntimeMock)
-vi.mock('@/lib/prompt-i18n', () => promptMock)
+vi.mock('@/lib/ai-prompts', () => promptMock)
 vi.mock('@/lib/logging/core', () => loggingMock)
 vi.mock('@/lib/prisma', () => ({
   prisma: prismaMock,

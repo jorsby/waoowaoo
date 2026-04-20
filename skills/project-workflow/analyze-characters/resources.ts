@@ -1,8 +1,8 @@
 export const analyzeCharactersResources = {
   models: ['analysisModel'],
   promptFiles: [
-    'skills/project-workflow/analyze-characters/prompts/template.zh.txt',
-    'skills/project-workflow/analyze-characters/prompts/template.en.txt',
+    'src/lib/ai-prompts/templates/character/analyze/character-analyze.zh.txt',
+    'src/lib/ai-prompts/templates/character/analyze/character-analyze.en.txt',
   ],
   loaders: ['episode.novelText', 'project.characters'],
   toolAllowlist: ['executeAiTextStep'],

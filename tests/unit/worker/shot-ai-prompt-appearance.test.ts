@@ -22,9 +22,9 @@ vi.mock('@/lib/workers/shared', () => ({
 vi.mock('@/lib/workers/utils', () => ({
   assertTaskActive: runtimeMock.assertTaskActive,
 }))
-vi.mock('@/lib/prompt-i18n', () => ({
-  PROMPT_IDS: { NP_CHARACTER_MODIFY: 'np_character_modify' },
-  buildPrompt: vi.fn(() => 'appearance-final-prompt'),
+vi.mock('@/lib/ai-prompts', () => ({
+  AI_PROMPT_IDS: { CHARACTER_MODIFY: 'character-modify' },
+  buildAiPrompt: vi.fn(() => 'appearance-final-prompt'),
 }))
 
 import { handleModifyAppearanceTask } from '@/lib/workers/handlers/shot-ai-prompt-appearance'

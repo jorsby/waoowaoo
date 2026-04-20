@@ -24,9 +24,9 @@ vi.mock('@/lib/workers/shared', () => ({
 vi.mock('@/lib/workers/utils', () => ({
   assertTaskActive: runtimeMock.assertTaskActive,
 }))
-vi.mock('@/lib/prompt-i18n', () => ({
-  PROMPT_IDS: { NP_LOCATION_MODIFY: 'np_location_modify' },
-  buildPrompt: vi.fn(() => 'location-final-prompt'),
+vi.mock('@/lib/ai-prompts', () => ({
+  AI_PROMPT_IDS: { LOCATION_MODIFY: 'location-modify' },
+  buildAiPrompt: vi.fn(() => 'location-final-prompt'),
 }))
 
 import { handleModifyLocationTask } from '@/lib/workers/handlers/shot-ai-prompt-location'

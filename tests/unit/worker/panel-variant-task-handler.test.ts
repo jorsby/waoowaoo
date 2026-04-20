@@ -65,9 +65,9 @@ vi.mock('@/lib/workers/handlers/image-task-handler-shared', async () => {
     resolveNovelData: sharedMock.resolveNovelData,
   }
 })
-vi.mock('@/lib/prompt-i18n', () => ({
-  PROMPT_IDS: { NP_AGENT_SHOT_VARIANT_GENERATE: 'np_agent_shot_variant_generate' },
-  buildPrompt: promptMock.buildPrompt,
+vi.mock('@/lib/ai-prompts', () => ({
+  AI_PROMPT_IDS: { SHOT_VARIANT_GENERATE: 'shot-variant-generate' },
+  buildAiPrompt: promptMock.buildPrompt,
 }))
 
 import { handlePanelVariantTask } from '@/lib/workers/handlers/panel-variant-task-handler'

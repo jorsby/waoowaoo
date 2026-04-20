@@ -76,9 +76,9 @@ vi.mock('@/lib/workers/handlers/llm-stream', () => ({
   createWorkerLLMStreamContext: vi.fn(() => ({ streamId: 'run-1' })),
   createWorkerLLMStreamCallbacks: vi.fn(() => ({ flush: vi.fn(async () => undefined) })),
 }))
-vi.mock('@/lib/prompt-i18n', () => ({
-  PROMPT_IDS: { NP_EPISODE_SPLIT: 'np_episode_split' },
-  buildPrompt: vi.fn(() => 'episode-split-prompt'),
+vi.mock('@/lib/ai-prompts', () => ({
+  AI_PROMPT_IDS: { SCRIPT_EPISODE_SPLIT: 'script-episode-split' },
+  buildAiPrompt: vi.fn(() => 'episode-split-prompt'),
 }))
 vi.mock('@/lib/project-workflow/story-to-script/clip-matching', () => ({
   createTextMarkerMatcher: (content: string) => ({

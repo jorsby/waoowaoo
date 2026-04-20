@@ -60,9 +60,9 @@ vi.mock('@/lib/workers/handlers/llm-stream', () => ({
   createWorkerLLMStreamCallbacks: llmStreamMock.createWorkerLLMStreamCallbacks,
 }))
 vi.mock('@/lib/workers/handlers/shot-ai-persist', () => persistMock)
-vi.mock('@/lib/prompt-i18n', () => ({
-  PROMPT_IDS: { NP_AGENT_SHOT_VARIANT_ANALYSIS: 'np_agent_shot_variant_analysis' },
-  buildPrompt: vi.fn(() => 'shot-variants-prompt'),
+vi.mock('@/lib/ai-prompts', () => ({
+  AI_PROMPT_IDS: { SHOT_VARIANT_ANALYZE: 'shot-variant-analyze' },
+  buildAiPrompt: vi.fn(() => 'shot-variants-prompt'),
 }))
 
 import { handleAnalyzeShotVariantsTask } from '@/lib/workers/handlers/shot-ai-variants'

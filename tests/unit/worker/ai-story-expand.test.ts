@@ -18,9 +18,9 @@ vi.mock('@/lib/ai-runtime', () => aiRuntimeMock)
 vi.mock('@/lib/llm-observe/internal-stream-context', () => ({
   withInternalLLMStreamCallbacks: vi.fn(async (_callbacks: unknown, fn: () => Promise<unknown>) => await fn()),
 }))
-vi.mock('@/lib/prompt-i18n', () => ({
-  PROMPT_IDS: { NP_AI_STORY_EXPAND: 'np_ai_story_expand' },
-  buildPrompt: vi.fn(() => 'story-expand-prompt'),
+vi.mock('@/lib/ai-prompts', () => ({
+  AI_PROMPT_IDS: { SCRIPT_EXPAND_STORY: 'script-expand-story' },
+  buildAiPrompt: vi.fn(() => 'story-expand-prompt'),
 }))
 vi.mock('@/lib/workers/shared', () => ({ reportTaskProgress: workerMock.reportTaskProgress }))
 vi.mock('@/lib/workers/utils', () => ({ assertTaskActive: workerMock.assertTaskActive }))

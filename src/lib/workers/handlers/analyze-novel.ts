@@ -8,7 +8,7 @@ import { reportTaskProgress } from '@/lib/workers/shared'
 import { assertTaskActive } from '@/lib/workers/utils'
 import { createWorkerLLMStreamCallbacks, createWorkerLLMStreamContext } from './llm-stream'
 import type { TaskJobData } from '@/lib/task/types'
-import { buildPrompt, PROMPT_IDS } from '@/lib/prompt-i18n'
+import { buildAiPrompt as buildPrompt, AI_PROMPT_IDS as PROMPT_IDS } from '@/lib/ai-prompts'
 import { resolveAnalysisModel } from './resolve-analysis-model'
 import { seedProjectLocationBackedImageSlots } from '@/lib/assets/services/location-backed-assets'
 import { normalizeLocationAvailableSlots } from '@/lib/location-available-slots'
@@ -99,7 +99,7 @@ export async function handleAnalyzeNovelTask(job: Job<TaskJobData>) {
     .map((item) => item.name)
     .join(', ')
   const characterPromptTemplate = buildPrompt({
-    promptId: PROMPT_IDS.NP_AGENT_CHARACTER_PROFILE,
+    promptId: PROMPT_IDS.CHARACTER_ANALYZE,
     locale: job.data.locale,
     variables: {
       input: contentToAnalyze,
@@ -107,7 +107,7 @@ export async function handleAnalyzeNovelTask(job: Job<TaskJobData>) {
     },
   })
   const locationPromptTemplate = buildPrompt({
-    promptId: PROMPT_IDS.NP_SELECT_LOCATION,
+    promptId: PROMPT_IDS.LOCATION_ANALYZE,
     locale: job.data.locale,
     variables: {
       input: contentToAnalyze,
@@ -115,7 +115,7 @@ export async function handleAnalyzeNovelTask(job: Job<TaskJobData>) {
     },
   })
   const propPromptTemplate = buildPrompt({
-    promptId: PROMPT_IDS.NP_SELECT_PROP,
+    promptId: PROMPT_IDS.PROP_ANALYZE,
     locale: job.data.locale,
     variables: {
       input: contentToAnalyze,

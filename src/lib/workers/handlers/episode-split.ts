@@ -10,7 +10,7 @@ import { getUserModelConfig } from '@/lib/config-service'
 import { createTextMarkerMatcher } from '@/lib/project-workflow/story-to-script/clip-matching'
 import { createWorkerLLMStreamCallbacks, createWorkerLLMStreamContext } from './llm-stream'
 import type { TaskJobData } from '@/lib/task/types'
-import { buildPrompt, PROMPT_IDS } from '@/lib/prompt-i18n'
+import { buildAiPrompt as buildPrompt, AI_PROMPT_IDS as PROMPT_IDS } from '@/lib/ai-prompts'
 
 type EpisodeSplit = {
   number?: number
@@ -88,7 +88,7 @@ export async function handleEpisodeSplitTask(job: Job<TaskJobData>) {
   }
 
   const promptBase = buildPrompt({
-    promptId: PROMPT_IDS.NP_EPISODE_SPLIT,
+    promptId: PROMPT_IDS.SCRIPT_EPISODE_SPLIT,
     locale: job.data.locale,
     variables: {
       CONTENT: content,

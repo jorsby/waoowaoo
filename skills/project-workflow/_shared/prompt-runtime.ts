@@ -1,22 +1,7 @@
-import fs from 'node:fs'
-import path from 'node:path'
 import type { WorkflowSkillId } from '@/lib/skill-system/types'
+import { buildAiPrompt, getAiPromptTemplate, resolveAiPromptIdFromWorkflowSkillId } from '@/lib/ai-prompts'
 
 export type SkillLocale = 'zh' | 'en'
-
-const fileCache = new Map<string, string>()
-
-function readCachedFile(filePath: string): string {
-  const cached = fileCache.get(filePath)
-  if (cached) return cached
-  const content = fs.readFileSync(filePath, 'utf8')
-  fileCache.set(filePath, content)
-  return content
-}
-
-function resolveSkillRoot(skillId: WorkflowSkillId): string {
-  return path.resolve(process.cwd(), 'skills', 'project-workflow', skillId)
-}
 
 export function applyTemplate(template: string, replacements: Record<string, string>): string {
   let next = template
@@ -27,11 +12,7 @@ export function applyTemplate(template: string, replacements: Record<string, str
 }
 
 export function readSkillPromptTemplate(skillId: WorkflowSkillId, locale: SkillLocale): string {
-  const templatePath = path.join(resolveSkillRoot(skillId), 'prompts', `template.${locale}.txt`)
-  if (!fs.existsSync(templatePath)) {
-    throw new Error(`Missing skill prompt file for ${skillId} (${locale}): ${templatePath}`)
-  }
-  return readCachedFile(templatePath).trim()
+  return getAiPromptTemplate(resolveAiPromptIdFromWorkflowSkillId(skillId), locale).trim()
 }
 
 export function composeSkillPrompt(params: {
@@ -39,8 +20,9 @@ export function composeSkillPrompt(params: {
   locale: SkillLocale
   replacements: Record<string, string>
 }): string {
-  return applyTemplate(
-    readSkillPromptTemplate(params.skillId, params.locale),
-    params.replacements,
-  )
+  return buildAiPrompt({
+    promptId: resolveAiPromptIdFromWorkflowSkillId(params.skillId),
+    locale: params.locale,
+    variables: params.replacements,
+  })
 }

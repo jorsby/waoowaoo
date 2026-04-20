@@ -1,6 +1,6 @@
 import { buildCharactersLibInfo, type CharacterBrief } from './analyze-global-parse'
 import type { Locale } from '@/i18n/routing'
-import { getPromptTemplate, PROMPT_IDS } from '@/lib/prompt-i18n'
+import { getAiPromptTemplate as getPromptTemplate, AI_PROMPT_IDS as PROMPT_IDS } from '@/lib/ai-prompts'
 
 export type AnalyzeGlobalPromptTemplates = {
   characterPromptTemplate: string
@@ -10,9 +10,9 @@ export type AnalyzeGlobalPromptTemplates = {
 
 export function loadAnalyzeGlobalPromptTemplates(locale: Locale): AnalyzeGlobalPromptTemplates {
   return {
-    characterPromptTemplate: getPromptTemplate(PROMPT_IDS.NP_AGENT_CHARACTER_PROFILE, locale),
-    locationPromptTemplate: getPromptTemplate(PROMPT_IDS.NP_SELECT_LOCATION, locale),
-    propPromptTemplate: getPromptTemplate(PROMPT_IDS.NP_SELECT_PROP, locale),
+    characterPromptTemplate: getPromptTemplate(PROMPT_IDS.CHARACTER_ANALYZE, locale),
+    locationPromptTemplate: getPromptTemplate(PROMPT_IDS.LOCATION_ANALYZE, locale),
+    propPromptTemplate: getPromptTemplate(PROMPT_IDS.PROP_ANALYZE, locale),
   }
 }
 

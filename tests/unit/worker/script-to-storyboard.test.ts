@@ -193,16 +193,16 @@ vi.mock('@/lib/run-runtime/service', () => ({
   createArtifact: vi.fn(async () => undefined),
 }))
 
-vi.mock('@/lib/prompt-i18n', () => ({
-  PROMPT_IDS: {
-    NP_AGENT_STORYBOARD_PLAN: 'plan',
-    NP_AGENT_CINEMATOGRAPHER: 'cinematographer',
-    NP_AGENT_ACTING_DIRECTION: 'acting',
-    NP_AGENT_STORYBOARD_DETAIL: 'detail',
-    NP_VOICE_ANALYSIS: 'voice-analysis',
+vi.mock('@/lib/ai-prompts', () => ({
+  AI_PROMPT_IDS: {
+    STORYBOARD_PLAN: 'storyboard-plan',
+    STORYBOARD_REFINE_CINEMATOGRAPHY: 'storyboard-refine-cinematography',
+    STORYBOARD_REFINE_ACTING: 'storyboard-refine-acting',
+    STORYBOARD_REFINE_DETAIL: 'storyboard-refine-detail',
+    VOICE_GENERATE_LINES: 'voice-generate-lines',
   },
-  getPromptTemplate: vi.fn(() => 'prompt-template'),
-  buildPrompt: vi.fn(() => 'voice-analysis-prompt'),
+  getAiPromptTemplate: vi.fn(() => 'prompt-template'),
+  buildAiPrompt: vi.fn(() => 'voice-analysis-prompt'),
 }))
 
 vi.mock('@/lib/workers/handlers/script-to-storyboard-helpers', () => ({

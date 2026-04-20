@@ -11,7 +11,7 @@ import {
 } from './shot-ai-persist'
 import { runShotPromptCompletion } from './shot-ai-prompt-runtime'
 import { parseJsonObject, readRequiredString, type AnyObj } from './shot-ai-prompt-utils'
-import { buildPrompt, PROMPT_IDS } from '@/lib/prompt-i18n'
+import { buildAiPrompt as buildPrompt, AI_PROMPT_IDS as PROMPT_IDS } from '@/lib/ai-prompts'
 
 export async function handleModifyLocationTask(job: Job<TaskJobData>, payload: AnyObj) {
   const locationId = readRequiredString(payload.locationId, 'locationId')
@@ -23,7 +23,7 @@ export async function handleModifyLocationTask(job: Job<TaskJobData>, payload: A
   const location = await requireProjectLocation(locationId, job.data.projectId)
 
   const finalPrompt = buildPrompt({
-    promptId: PROMPT_IDS.NP_LOCATION_MODIFY,
+    promptId: PROMPT_IDS.LOCATION_MODIFY,
     locale: job.data.locale,
     variables: {
       location_name: location.name,

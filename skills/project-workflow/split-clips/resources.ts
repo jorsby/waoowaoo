@@ -1,8 +1,8 @@
 export const splitClipsResources = {
   models: ['analysisModel'],
   promptFiles: [
-    'skills/project-workflow/split-clips/prompts/template.zh.txt',
-    'skills/project-workflow/split-clips/prompts/template.en.txt',
+    'src/lib/ai-prompts/templates/script/clip-segments/script-clip-segments.zh.txt',
+    'src/lib/ai-prompts/templates/script/clip-segments/script-clip-segments.en.txt',
   ],
   loaders: ['episode.novelText', 'analysis.characters', 'analysis.locations', 'analysis.props'],
   toolAllowlist: ['executeAiTextStep', 'createClipContentMatcher'],

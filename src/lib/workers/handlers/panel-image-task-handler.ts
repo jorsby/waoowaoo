@@ -20,7 +20,7 @@ import {
   pickFirstString,
   resolveNovelData,
 } from './image-task-handler-shared'
-import { buildPrompt, PROMPT_IDS } from '@/lib/prompt-i18n'
+import { buildAiPrompt as buildPrompt, AI_PROMPT_IDS as PROMPT_IDS } from '@/lib/ai-prompts'
 import {
   parseLocationAvailableSlots,
 } from '@/lib/location-available-slots'
@@ -146,7 +146,7 @@ function buildPanelPrompt(params: {
   contextJson: string
 }) {
   return buildPrompt({
-    promptId: PROMPT_IDS.NP_SINGLE_PANEL_IMAGE,
+    promptId: PROMPT_IDS.PANEL_IMAGE_GENERATE,
     locale: params.locale,
     variables: {
       aspect_ratio: params.aspectRatio,

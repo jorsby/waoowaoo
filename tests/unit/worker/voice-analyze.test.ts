@@ -53,9 +53,9 @@ vi.mock('@/lib/workers/handlers/voice-analyze-helpers', () => ({
   buildStoryboardJson: helperMock.buildStoryboardJson,
   parseVoiceLinesJson: helperMock.parseVoiceLinesJson,
 }))
-vi.mock('@/lib/prompt-i18n', () => ({
-  PROMPT_IDS: { NP_VOICE_ANALYSIS: 'np_voice_analysis' },
-  buildPrompt: vi.fn(() => 'voice-analysis-prompt'),
+vi.mock('@/lib/ai-prompts', () => ({
+  AI_PROMPT_IDS: { VOICE_GENERATE_LINES: 'voice-generate-lines' },
+  buildAiPrompt: vi.fn(() => 'voice-analysis-prompt'),
 }))
 
 import { handleVoiceAnalyzeTask } from '@/lib/workers/handlers/voice-analyze'

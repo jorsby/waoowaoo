@@ -10,7 +10,7 @@ import { createWorkerLLMStreamCallbacks, createWorkerLLMStreamContext } from './
 import type { TaskJobData } from '@/lib/task/types'
 import { resolveAnalysisModel } from './shot-ai-persist'
 import type { AnyObj } from './shot-ai-prompt'
-import { buildPrompt, PROMPT_IDS } from '@/lib/prompt-i18n'
+import { buildAiPrompt as buildPrompt, AI_PROMPT_IDS as PROMPT_IDS } from '@/lib/ai-prompts'
 
 function readText(value: unknown): string {
   return typeof value === 'string' ? value : ''
@@ -74,7 +74,7 @@ export async function handleAnalyzeShotVariantsTask(job: Job<TaskJobData>, paylo
   const charactersInfo = parsePanelCharacters(panel.characters)
 
   const prompt = buildPrompt({
-    promptId: PROMPT_IDS.NP_AGENT_SHOT_VARIANT_ANALYSIS,
+    promptId: PROMPT_IDS.SHOT_VARIANT_ANALYZE,
     locale: job.data.locale,
     variables: {
       panel_description: panel.description || '无',

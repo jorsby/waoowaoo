@@ -23,7 +23,7 @@ import {
   pickFirstString,
   resolveNovelData,
 } from './image-task-handler-shared'
-import { buildPrompt, PROMPT_IDS } from '@/lib/prompt-i18n'
+import { buildAiPrompt as buildPrompt, AI_PROMPT_IDS as PROMPT_IDS } from '@/lib/ai-prompts'
 
 // ── 构建变体提示词 ──────────────────────────────────────
 interface VariantPromptParams {
@@ -46,7 +46,7 @@ interface VariantPromptParams {
 
 function buildVariantPrompt(params: VariantPromptParams): string {
   return buildPrompt({
-    promptId: PROMPT_IDS.NP_AGENT_SHOT_VARIANT_GENERATE,
+    promptId: PROMPT_IDS.SHOT_VARIANT_GENERATE,
     locale: params.locale,
     variables: {
       original_description: params.originalDescription,

@@ -8,7 +8,7 @@ import { assertTaskActive } from '@/lib/workers/utils'
 import type { TaskJobData } from '@/lib/task/types'
 import { TASK_TYPE } from '@/lib/task/types'
 import { createWorkerLLMStreamCallbacks, createWorkerLLMStreamContext } from './llm-stream'
-import { buildPrompt, PROMPT_IDS } from '@/lib/prompt-i18n'
+import { buildAiPrompt as buildPrompt, AI_PROMPT_IDS as PROMPT_IDS } from '@/lib/ai-prompts'
 import { normalizeLocationAvailableSlots } from '@/lib/location-available-slots'
 
 function readRequiredString(value: unknown, field: string): string {
@@ -56,7 +56,7 @@ export async function handleAssetHubAIModifyTask(job: Job<TaskJobData>) {
 
   const finalPrompt = isCharacter
     ? buildPrompt({
-      promptId: PROMPT_IDS.NP_CHARACTER_MODIFY,
+      promptId: PROMPT_IDS.CHARACTER_MODIFY,
       locale: job.data.locale,
       variables: {
         character_input: removeCharacterPromptSuffix(currentDescriptionRaw),
@@ -65,7 +65,7 @@ export async function handleAssetHubAIModifyTask(job: Job<TaskJobData>) {
     })
     : isProp
       ? buildPrompt({
-        promptId: PROMPT_IDS.NP_PROP_DESCRIPTION_UPDATE,
+        promptId: PROMPT_IDS.PROP_UPDATE_DESCRIPTION,
         locale: job.data.locale,
         variables: {
           prop_name: readRequiredString(payload.propName || '道具', 'propName'),
@@ -75,7 +75,7 @@ export async function handleAssetHubAIModifyTask(job: Job<TaskJobData>) {
         },
       })
     : buildPrompt({
-      promptId: PROMPT_IDS.NP_LOCATION_MODIFY,
+      promptId: PROMPT_IDS.LOCATION_MODIFY,
       locale: job.data.locale,
       variables: {
         location_name: readRequiredString(payload.locationName || '场景', 'locationName'),

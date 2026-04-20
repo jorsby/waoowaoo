@@ -71,9 +71,9 @@ vi.mock('@/lib/workers/handlers/image-task-handler-shared', async () => {
     resolveNovelData: sharedMock.resolveNovelData,
   }
 })
-vi.mock('@/lib/prompt-i18n', () => ({
-  PROMPT_IDS: { NP_SINGLE_PANEL_IMAGE: 'np_single_panel_image' },
-  buildPrompt: promptMock.buildPrompt,
+vi.mock('@/lib/ai-prompts', () => ({
+  AI_PROMPT_IDS: { PANEL_IMAGE_GENERATE: 'panel-image-generate' },
+  buildAiPrompt: promptMock.buildPrompt,
 }))
 
 import { handlePanelImageTask } from '@/lib/workers/handlers/panel-image-task-handler'

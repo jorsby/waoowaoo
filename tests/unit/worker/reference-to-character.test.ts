@@ -76,13 +76,13 @@ const workersUtilsMock = vi.hoisted(() => ({
   assertTaskActive: vi.fn(async () => {}),
 }))
 
-const promptI18nMock = vi.hoisted(() => ({
-  PROMPT_IDS: {
-    CHARACTER_IMAGE_TO_DESCRIPTION: 'character_image_to_description',
-    CHARACTER_REFERENCE_TO_SHEET: 'character_reference_to_sheet',
+const aiPromptMock = vi.hoisted(() => ({
+  AI_PROMPT_IDS: {
+    CHARACTER_REFERENCE_DESCRIBE_IMAGE: 'character-reference-describe-image',
+    CHARACTER_REFERENCE_TO_SHEET: 'character-reference-to-sheet',
   },
-  buildPrompt: vi.fn((input: { promptId: string }) => (
-    input.promptId === 'character_reference_to_sheet'
+  buildAiPrompt: vi.fn((input: { promptId: string }) => (
+    input.promptId === 'character-reference-to-sheet'
       ? 'BASE_REFERENCE_PROMPT'
       : 'ANALYSIS_PROMPT'
   )),
@@ -113,7 +113,7 @@ vi.mock('@/lib/storage', () => cosMock)
 vi.mock('@/lib/fonts', () => fontsMock)
 vi.mock('@/lib/workers/shared', () => workersSharedMock)
 vi.mock('@/lib/workers/utils', () => workersUtilsMock)
-vi.mock('@/lib/prompt-i18n', () => promptI18nMock)
+vi.mock('@/lib/ai-prompts', () => aiPromptMock)
 
 import { handleReferenceToCharacterTask } from '@/lib/workers/handlers/reference-to-character'
 

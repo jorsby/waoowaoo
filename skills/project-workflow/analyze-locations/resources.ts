@@ -1,8 +1,8 @@
 export const analyzeLocationsResources = {
   models: ['analysisModel'],
   promptFiles: [
-    'skills/project-workflow/analyze-locations/prompts/template.zh.txt',
-    'skills/project-workflow/analyze-locations/prompts/template.en.txt',
+    'src/lib/ai-prompts/templates/location/analyze/location-analyze.zh.txt',
+    'src/lib/ai-prompts/templates/location/analyze/location-analyze.en.txt',
   ],
   loaders: ['episode.novelText', 'project.locations'],
   toolAllowlist: ['executeAiTextStep'],

@@ -12,7 +12,7 @@ import {
   parseVoiceLinesJson,
   type VoiceLinePayload,
 } from './voice-analyze-helpers'
-import { buildPrompt, PROMPT_IDS } from '@/lib/prompt-i18n'
+import { buildAiPrompt as buildPrompt, AI_PROMPT_IDS as PROMPT_IDS } from '@/lib/ai-prompts'
 import { resolveAnalysisModel } from './resolve-analysis-model'
 
 const MAX_VOICE_ANALYZE_ATTEMPTS = 2
@@ -88,7 +88,7 @@ export async function handleVoiceAnalyzeTask(job: Job<TaskJobData>) {
   const charactersIntroduction = buildCharactersIntroduction(projectWorkflow.characters)
   const storyboardJson = buildStoryboardJson(episode.storyboards || [])
   const promptTemplate = buildPrompt({
-    promptId: PROMPT_IDS.NP_VOICE_ANALYSIS,
+    promptId: PROMPT_IDS.VOICE_GENERATE_LINES,
     locale: job.data.locale,
     variables: {
       input: novelText,

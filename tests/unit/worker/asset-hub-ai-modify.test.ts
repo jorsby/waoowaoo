@@ -48,12 +48,12 @@ vi.mock('@/lib/workers/handlers/llm-stream', () => ({
   createWorkerLLMStreamContext: llmStreamMock.createWorkerLLMStreamContext,
   createWorkerLLMStreamCallbacks: llmStreamMock.createWorkerLLMStreamCallbacks,
 }))
-vi.mock('@/lib/prompt-i18n', () => ({
-  PROMPT_IDS: {
-    NP_CHARACTER_MODIFY: 'np_character_modify',
-    NP_LOCATION_MODIFY: 'np_location_modify',
+vi.mock('@/lib/ai-prompts', () => ({
+  AI_PROMPT_IDS: {
+    CHARACTER_MODIFY: 'character-modify',
+    LOCATION_MODIFY: 'location-modify',
   },
-  buildPrompt: vi.fn((_args: unknown) => 'final-prompt'),
+  buildAiPrompt: vi.fn((_args: unknown) => 'final-prompt'),
 }))
 
 import { handleAssetHubAIModifyTask } from '@/lib/workers/handlers/asset-hub-ai-modify'

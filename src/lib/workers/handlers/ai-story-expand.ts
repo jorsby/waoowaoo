@@ -1,7 +1,7 @@
 import type { Job } from 'bullmq'
 import { executeAiTextStep } from '@/lib/ai-runtime'
 import { withInternalLLMStreamCallbacks } from '@/lib/llm-observe/internal-stream-context'
-import { buildPrompt, PROMPT_IDS } from '@/lib/prompt-i18n'
+import { buildAiPrompt as buildPrompt, AI_PROMPT_IDS as PROMPT_IDS } from '@/lib/ai-prompts'
 import type { TaskJobData } from '@/lib/task/types'
 import { reportTaskProgress } from '@/lib/workers/shared'
 import { assertTaskActive } from '@/lib/workers/utils'
@@ -24,7 +24,7 @@ export async function handleAiStoryExpandTask(job: Job<TaskJobData>) {
   }
 
   const prompt = buildPrompt({
-    promptId: PROMPT_IDS.NP_AI_STORY_EXPAND,
+    promptId: PROMPT_IDS.SCRIPT_EXPAND_STORY,
     locale: job.data.locale,
     variables: {
       input: promptInput,

@@ -1,8 +1,8 @@
 export const analyzePropsResources = {
   models: ['analysisModel'],
   promptFiles: [
-    'skills/project-workflow/analyze-props/prompts/template.zh.txt',
-    'skills/project-workflow/analyze-props/prompts/template.en.txt',
+    'src/lib/ai-prompts/templates/prop/analyze/prop-analyze.zh.txt',
+    'src/lib/ai-prompts/templates/prop/analyze/prop-analyze.en.txt',
   ],
   loaders: ['episode.novelText', 'project.props'],
   toolAllowlist: ['executeAiTextStep'],

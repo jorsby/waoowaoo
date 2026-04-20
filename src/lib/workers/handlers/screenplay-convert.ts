@@ -15,7 +15,7 @@ import {
   parseScreenplayPayload,
   readText,
 } from './screenplay-convert-helpers'
-import { getPromptTemplate, PROMPT_IDS } from '@/lib/prompt-i18n'
+import { getAiPromptTemplate as getPromptTemplate, AI_PROMPT_IDS as PROMPT_IDS } from '@/lib/ai-prompts'
 import { resolveAnalysisModel } from './resolve-analysis-model'
 
 const MAX_SCREENPLAY_ATTEMPTS = 2
@@ -71,7 +71,7 @@ export async function handleScreenplayConvertTask(job: Job<TaskJobData>) {
     throw new Error('No clips found, please split clips first')
   }
 
-  const screenplayPromptTemplate = getPromptTemplate(PROMPT_IDS.NP_SCREENPLAY_CONVERSION, job.data.locale)
+  const screenplayPromptTemplate = getPromptTemplate(PROMPT_IDS.SCRIPT_GENERATE_SCREENPLAY, job.data.locale)
   const charactersLibName = projectWorkflow.characters.map((item) => item.name).join('、') || '无'
   const locationsLibName = projectWorkflow.locations.map((item) => item.name).join('、') || '无'
   const charactersIntroduction = buildCharactersIntroduction(projectWorkflow.characters)

@@ -11,7 +11,7 @@ import {
     type LocationAvailableSlot,
     normalizeLocationAvailableSlots,
 } from '@/lib/location-available-slots'
-import { buildPrompt, PROMPT_IDS } from '@/lib/prompt-i18n'
+import { buildAiPrompt as buildPrompt, AI_PROMPT_IDS as PROMPT_IDS } from '@/lib/ai-prompts'
 import type { Locale } from '@/i18n/routing'
 
 export type AssetType = 'character' | 'location'
@@ -68,8 +68,8 @@ export async function aiDesign(options: AIDesignOptions): Promise<AIDesignResult
     try {
         finalPrompt = buildPrompt({
             promptId: assetType === 'character'
-                ? PROMPT_IDS.NP_CHARACTER_CREATE
-                : PROMPT_IDS.NP_LOCATION_CREATE,
+                ? PROMPT_IDS.CHARACTER_CREATE
+                : PROMPT_IDS.LOCATION_CREATE,
             locale,
             variables: {
                 user_input: userInstruction,

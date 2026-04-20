@@ -1,8 +1,7 @@
 import { executeAiTextStep, executeAiVisionStep } from '@/lib/ai-runtime'
 import { removeCharacterPromptSuffix, removeLocationPromptSuffix, removePropPromptSuffix } from '@/lib/constants'
 import { safeParseJsonObject } from '@/lib/json-repair'
-import { buildPrompt, PROMPT_IDS } from '@/lib/prompt-i18n'
-import type { PromptLocale } from '@/lib/prompt-i18n/types'
+import { buildAiPrompt as buildPrompt, AI_PROMPT_IDS as PROMPT_IDS, type AiPromptLocale as PromptLocale } from '@/lib/ai-prompts'
 import {
   buildCharacterDescriptionFields,
   readIndexedDescription,
@@ -64,7 +63,7 @@ export async function generateModifiedAssetDescription(params: {
   const hasReferenceImages = Array.isArray(params.referenceImages) && params.referenceImages.length > 0
   const finalPrompt = params.type === 'character'
     ? buildPrompt({
-      promptId: PROMPT_IDS.NP_CHARACTER_DESCRIPTION_UPDATE,
+      promptId: PROMPT_IDS.CHARACTER_UPDATE_DESCRIPTION,
       locale: params.locale,
       variables: {
         original_description: removeCharacterPromptSuffix(params.currentDescription),
@@ -74,7 +73,7 @@ export async function generateModifiedAssetDescription(params: {
     })
     : params.type === 'prop'
       ? buildPrompt({
-        promptId: PROMPT_IDS.NP_PROP_DESCRIPTION_UPDATE,
+        promptId: PROMPT_IDS.PROP_UPDATE_DESCRIPTION,
         locale: params.locale,
         variables: {
           prop_name: trimText(params.propName) || '道具',
@@ -84,7 +83,7 @@ export async function generateModifiedAssetDescription(params: {
         },
       })
     : buildPrompt({
-      promptId: PROMPT_IDS.NP_LOCATION_DESCRIPTION_UPDATE,
+      promptId: PROMPT_IDS.LOCATION_UPDATE_DESCRIPTION,
       locale: params.locale,
       variables: {
         location_name: trimText(params.locationName) || '场景',
