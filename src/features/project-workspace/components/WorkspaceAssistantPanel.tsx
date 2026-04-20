@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import {
   AssistantRuntimeProvider,
   ComposerPrimitive,
@@ -11,6 +11,7 @@ import {
   useProjectContext,
   useRejectProjectPlan,
 } from '@/lib/query/hooks'
+import { useProjectAssistantToolSelection, useProjectAssistantToolSelectionSync } from '@/lib/query/hooks'
 import type { RunStreamView } from '@/lib/query/hooks/run-stream/types'
 import {
   ApprovalCard,
@@ -21,6 +22,8 @@ import { collectPendingApprovalActions, removeApprovalRequestFromMessages } from
 import { createAssistantMessage } from './workspace-assistant/workflow-timeline'
 import { useWorkspaceAssistantRuntime } from './workspace-assistant/useWorkspaceAssistantRuntime'
 import { getWorkflowDisplayLabel } from '@/lib/skill-system/project-workflow-machine'
+import { ToolConfigModal } from './workspace-assistant/ToolConfigModal'
+import { AppIcon } from '@/components/ui/icons'
 
 interface WorkspaceAssistantPanelProps {
   projectId: string
@@ -37,6 +40,15 @@ export default function WorkspaceAssistantPanel({
   storyToScriptStream,
   scriptToStoryboardStream,
 }: WorkspaceAssistantPanelProps) {
+  const [toolConfigOpen, setToolConfigOpen] = useState(false)
+  const toolSelectionQuery = useProjectAssistantToolSelection({
+    projectId,
+    scope: 'global',
+  })
+  const toolSelectionSync = useProjectAssistantToolSelectionSync({
+    projectId,
+    scope: 'global',
+  })
   const workflowLabels = useMemo(() => ({
     'story-to-script': getWorkflowDisplayLabel('story-to-script'),
     'script-to-storyboard': getWorkflowDisplayLabel('script-to-storyboard'),
@@ -110,8 +122,18 @@ export default function WorkspaceAssistantPanel({
                   <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--glass-text-tertiary)]">AI Assistant</p>
                   <h2 className="mt-2 text-lg font-semibold text-[var(--glass-text-primary)]">Workspace Chat</h2>
                 </div>
-                <div className="rounded-full border border-[var(--glass-stroke-base)] bg-[var(--glass-bg-surface)] px-3 py-1 text-xs text-[var(--glass-text-secondary)]">
-                  {assistantRuntime.pending ? '执行中' : '就绪'}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="glass-btn-base glass-btn-ghost h-9 w-9"
+                    onClick={() => setToolConfigOpen(true)}
+                    aria-label="tools"
+                  >
+                    <AppIcon name="settingsHexMinor" className="h-5 w-5" />
+                  </button>
+                  <div className="rounded-full border border-[var(--glass-stroke-base)] bg-[var(--glass-bg-surface)] px-3 py-1 text-xs text-[var(--glass-text-secondary)]">
+                    {assistantRuntime.pending ? '执行中' : '就绪'}
+                  </div>
                 </div>
               </div>
               <p className="mt-2 text-sm text-[var(--glass-text-secondary)]">{contextSummary}</p>
@@ -178,6 +200,19 @@ export default function WorkspaceAssistantPanel({
           </ThreadPrimitive.Root>
         </AssistantRuntimeProvider>
       </div>
+      <ToolConfigModal
+        open={toolConfigOpen}
+        onClose={() => setToolConfigOpen(false)}
+        projectId={projectId}
+        value={toolSelectionQuery.data ?? null}
+        onSave={async (next) => {
+          if (!next) {
+            await toolSelectionSync.clear()
+            return
+          }
+          await toolSelectionSync.save(next)
+        }}
+      />
     </aside>
   )
 }

@@ -244,6 +244,11 @@ export {
 } from './useProjectAssistantThread'
 
 export {
+    useProjectAssistantToolSelection,
+    useProjectAssistantToolSelectionSync,
+} from './useProjectAssistantToolSelection'
+
+export {
     useUserModels,
     type UserModelOption as QueryUserModelOption,
     type UserModelsPayload as QueryUserModelsPayload,
