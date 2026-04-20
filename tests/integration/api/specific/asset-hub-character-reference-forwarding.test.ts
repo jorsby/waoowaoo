@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextResponse } from 'next/server'
 import { buildMockRequest } from '../../../helpers/request'
+import { TASK_TYPE } from '@/lib/task/types'
 
 const authMock = vi.hoisted(() => ({
   requireUserAuth: vi.fn<() => Promise<{ session: { user: { id: string } } } | Response>>(async () => ({
@@ -35,15 +36,33 @@ const mediaServiceMock = vi.hoisted(() => ({
   resolveMediaRefFromLegacyValue: vi.fn(async () => null),
 }))
 
-const envMock = vi.hoisted(() => ({
-  getBaseUrl: vi.fn(() => 'http://localhost:3000'),
+const configServiceMock = vi.hoisted(() => ({
+  getUserModelConfig: vi.fn(async () => ({ analysisModel: 'analysis-model' })),
+}))
+
+const submitterMock = vi.hoisted(() => ({
+  submitTask: vi.fn<(input: {
+    projectId: string
+    type: string
+    targetType: string
+    targetId: string
+    payload: Record<string, unknown>
+    dedupeKey?: string | null
+  }) => Promise<unknown>>(async () => ({ ok: true })),
+}))
+
+const billingMock = vi.hoisted(() => ({
+  buildDefaultTaskBillingInfo: vi.fn(() => null),
+  isBillableTaskType: vi.fn(() => false),
 }))
 
 vi.mock('@/lib/api-auth', () => authMock)
 vi.mock('@/lib/prisma', () => ({ prisma: prismaMock }))
 vi.mock('@/lib/media/attach', () => mediaAttachMock)
 vi.mock('@/lib/media/service', () => mediaServiceMock)
-vi.mock('@/lib/env', () => envMock)
+vi.mock('@/lib/config-service', () => configServiceMock)
+vi.mock('@/lib/task/submitter', () => submitterMock)
+vi.mock('@/lib/billing', () => billingMock)
 
 describe('api specific - asset hub character reference forwarding', () => {
   beforeEach(() => {
@@ -51,12 +70,7 @@ describe('api specific - asset hub character reference forwarding', () => {
     prismaMock.globalAssetFolder.findUnique.mockResolvedValue(null)
   })
 
-  it('forwards locale and accept-language into background reference task payload', async () => {
-    const fetchMock = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(
-      async () => new Response(JSON.stringify({ ok: true }), { status: 200 }),
-    )
-    vi.stubGlobal('fetch', fetchMock)
-
+  it('submits reference-to-character task with locale and reference fields', async () => {
     const mod = await import('@/app/api/asset-hub/characters/route')
     const req = buildMockRequest({
       path: '/api/asset-hub/characters',
@@ -77,14 +91,23 @@ describe('api specific - asset hub character reference forwarding', () => {
     const res = await mod.POST(req, { params: Promise.resolve({}) })
     expect(res.status).toBe(200)
 
-    const calledUrl = fetchMock.mock.calls[0]?.[0]
-    const calledInit = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined
-    expect(String(calledUrl)).toContain('/api/asset-hub/reference-to-character')
-    expect((calledInit?.headers as Record<string, string>)['Accept-Language']).toBe('zh-CN,zh;q=0.9')
+    expect(submitterMock.submitTask).toHaveBeenCalledTimes(1)
+    const submitted = submitterMock.submitTask.mock.calls[0]?.[0] as {
+      projectId?: string
+      type?: string
+      targetType?: string
+      targetId?: string
+      payload?: Record<string, unknown>
+      dedupeKey?: string | null
+    } | undefined
 
-    const rawBody = calledInit?.body
-    expect(typeof rawBody).toBe('string')
-    const forwarded = JSON.parse(String(rawBody)) as {
+    expect(submitted?.projectId).toBe('global-asset-hub')
+    expect(submitted?.type).toBe(TASK_TYPE.ASSET_HUB_REFERENCE_TO_CHARACTER)
+    expect(submitted?.targetType).toBe('GlobalCharacterAppearance')
+    expect(submitted?.targetId).toBe('appearance-1')
+    expect(submitted?.dedupeKey).toBe('asset_hub_reference_to_character:appearance-1:5')
+
+    const forwarded = (submitted?.payload || {}) as {
       locale?: string
       meta?: { locale?: string }
       customDescription?: string
