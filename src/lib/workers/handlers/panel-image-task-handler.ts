@@ -144,6 +144,7 @@ function buildPanelPrompt(params: {
   styleText: string
   sourceText: string
   contextJson: string
+  directorStyleDoc?: Awaited<ReturnType<typeof resolveNovelData>>['directorStyleDoc']
 }) {
   return buildPrompt({
     promptId: PROMPT_IDS.PANEL_IMAGE_GENERATE,
@@ -154,6 +155,7 @@ function buildPanelPrompt(params: {
       source_text: params.sourceText || '无',
       style: params.styleText,
     },
+    directorStyleDoc: params.directorStyleDoc,
   })
 }
 
@@ -227,6 +229,7 @@ export async function handlePanelImageTask(job: Job<TaskJobData>) {
     styleText: artStyle || '与参考图风格一致',
     sourceText: panel.srtSegment || panel.description || '',
     contextJson,
+    directorStyleDoc: projectData.directorStyleDoc,
   })
   logger.info({
     message: 'panel image prompt resolved',

@@ -32,6 +32,7 @@ import {
   persistRetryScreenplayResult,
   persistStoryToScriptWorkflowResults,
 } from '@/lib/domain/screenplay/service'
+import { parseDirectorStyleDoc } from '@/lib/director-style'
 
 type AnyObj = Record<string, unknown>
 
@@ -425,6 +426,7 @@ export async function handleStoryToScriptTask(job: Job<TaskJobData>) {
                 name: item.name,
                 introduction: item.introduction || '',
               })),
+              directorStyleDoc: parseDirectorStyleDoc(projectWorkflow.directorStyleDoc),
               runStep,
             }),
           )

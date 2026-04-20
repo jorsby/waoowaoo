@@ -36,6 +36,7 @@ describe('createHomeProjectLaunch', () => {
       storyText: '第一章内容',
       videoRatio: '9:16',
       artStyle: 'american-comic',
+      directorStylePresetId: 'horror-suspense',
       episodeName: '第 1 集',
     })
 
@@ -44,6 +45,7 @@ describe('createHomeProjectLaunch', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name: '开场白',
+        directorStylePresetId: 'horror-suspense',
       }),
     })
     expect(apiFetch).toHaveBeenNthCalledWith(2, '/api/projects/project-1/config', {

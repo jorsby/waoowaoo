@@ -17,18 +17,21 @@ export async function runStoryToScriptWorkflowPackage(
     baseCharacters: input.baseCharacters,
     baseCharacterIntroductions: input.baseCharacterIntroductions,
     locale,
+    directorStyleDoc: input.directorStyleDoc,
     runStep: input.runStep,
   })
   const locationResult = await executeAnalyzeLocations({
     content: input.content,
     baseLocations: input.baseLocations,
     locale,
+    directorStyleDoc: input.directorStyleDoc,
     runStep: input.runStep,
   })
   const propResult = await executeAnalyzeProps({
     content: input.content,
     baseProps: input.baseProps || [],
     locale,
+    directorStyleDoc: input.directorStyleDoc,
     runStep: input.runStep,
   })
 

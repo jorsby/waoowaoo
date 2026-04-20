@@ -34,6 +34,7 @@ export async function runScriptToStoryboardWorkflowPackage(
     characters: input.projectData.characters || [],
     locations: input.projectData.locations || [],
     props: input.projectData.props || [],
+    directorStyleDoc: input.projectData.directorStyleDoc ?? null,
   })
 
   const clipContexts = input.clips.map((clip) => ({
@@ -75,6 +76,7 @@ export async function runScriptToStoryboardWorkflowPackage(
         clipId: clip.id,
         phase1Panels,
         clipContext,
+        project,
         locale,
         runStep: input.runStep,
         stepIndex: input.clips.length + index + 1,
@@ -97,6 +99,7 @@ export async function runScriptToStoryboardWorkflowPackage(
         clipId: clip.id,
         phase1Panels,
         clipContext,
+        project,
         locale,
         runStep: input.runStep,
         stepIndex: input.clips.length * 2 + index + 1,
@@ -120,6 +123,7 @@ export async function runScriptToStoryboardWorkflowPackage(
         clipId: clip.id,
         phase1Panels,
         clipContext,
+        project,
         locale,
         runStep: input.runStep,
         stepIndex: input.clips.length * 3 + index + 1,

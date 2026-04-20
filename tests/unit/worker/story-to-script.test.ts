@@ -131,6 +131,17 @@ describe('worker story-to-script behavior', () => {
       id: 'project-1',
       name: 'Project One',
       analysisModel: 'llm::analysis-1',
+      directorStyleDoc: JSON.stringify({
+        character: '角色风格',
+        location: '场景风格',
+        prop: '道具风格',
+        storyboardPlan: '分镜风格',
+        cinematography: '摄影风格',
+        acting: '表演风格',
+        storyboardDetail: '细化风格',
+        image: '图片风格',
+        video: '视频风格',
+      }),
       characters: [{ id: 'char-1', name: 'Hero', introduction: 'hero intro' }],
       locations: [{ id: 'loc-1', name: 'Old Town', summary: 'town', assetKind: 'location' }],
     })
@@ -201,6 +212,11 @@ describe('worker story-to-script behavior', () => {
         workflowId: 'story-to-script',
         runId: 'run-test-story',
         taskId: 'task-story-to-script-1',
+      }),
+    }))
+    expect(workflowMock.runStoryToScriptSkillWorkflow).toHaveBeenCalledWith(expect.objectContaining({
+      directorStyleDoc: expect.objectContaining({
+        character: '角色风格',
       }),
     }))
   })

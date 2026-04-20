@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { logProjectAction } from '@/lib/logging/semantic'
 import { ApiError } from '@/lib/api-errors'
 import { isArtStyleValue } from '@/lib/constants'
+import { resolveDirectorStyleFieldsFromPreset } from '@/lib/director-style'
 import { attachMediaFieldsToProject } from '@/lib/media/attach'
 import { buildProjectReadModel } from '@/lib/projects/build-project-read-model'
 import {
@@ -230,12 +231,16 @@ export function createConfigOperations(): ProjectAgentOperationRegistry {
       inputSchema: z.object({}),
       outputSchema: z.object({
         capabilityOverrides: z.record(z.record(z.union([z.string(), z.number(), z.boolean()]))),
+        directorStylePresetId: z.string().nullable(),
+        directorStyleDoc: z.string().nullable(),
       }),
       execute: async (ctx) => {
         const projectData = await prisma.project.findUnique({
           where: { id: ctx.projectId },
           select: {
             capabilityOverrides: true,
+            directorStylePresetId: true,
+            directorStyleDoc: true,
             analysisModel: true,
             characterModel: true,
             locationModel: true,
@@ -262,6 +267,8 @@ export function createConfigOperations(): ProjectAgentOperationRegistry {
 
         return {
           capabilityOverrides: cleanedOverrides,
+          directorStylePresetId: projectData?.directorStylePresetId ?? null,
+          directorStyleDoc: projectData?.directorStyleDoc ?? null,
         }
       },
     },
@@ -281,6 +288,7 @@ export function createConfigOperations(): ProjectAgentOperationRegistry {
         audioModel: z.string().nullable().optional(),
         videoRatio: z.string().optional(),
         artStyle: z.string().optional(),
+        directorStylePresetId: z.string().nullable().optional(),
         capabilityOverrides: z.unknown().optional(),
       }).passthrough(),
       outputSchema: z.unknown(),
@@ -309,6 +317,7 @@ export function createConfigOperations(): ProjectAgentOperationRegistry {
           ...MODEL_FIELDS,
           'videoRatio',
           'artStyle',
+          'directorStylePresetId',
           'capabilityOverrides',
         ] as const
 
@@ -331,6 +340,21 @@ export function createConfigOperations(): ProjectAgentOperationRegistry {
             const cleanedOverrides = sanitizeCapabilityOverrides(overrides, modelContextMap)
             validateCapabilityOverrides(cleanedOverrides, modelContextMap)
             updateData.capabilityOverrides = serializeCapabilitySelections(cleanedOverrides)
+            continue
+          }
+
+          if (field === 'directorStylePresetId') {
+            try {
+              const styleFields = resolveDirectorStyleFieldsFromPreset(body.directorStylePresetId)
+              updateData.directorStylePresetId = styleFields.directorStylePresetId
+              updateData.directorStyleDoc = styleFields.directorStyleDoc
+            } catch {
+              throw new ApiError('INVALID_PARAMS', {
+                code: 'INVALID_DIRECTOR_STYLE_PRESET',
+                field: 'directorStylePresetId',
+                message: 'directorStylePresetId must be a supported value',
+              })
+            }
             continue
           }
 

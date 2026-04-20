@@ -7,6 +7,7 @@ import type {
   PropAsset,
   StoryboardPanel,
 } from '@/lib/storyboard-phases'
+import type { DirectorStyleDoc } from '@/lib/director-style'
 import type { SkillLocale } from './prompt-runtime'
 
 export type ScriptToStoryboardStepMeta = {
@@ -67,6 +68,7 @@ export type ScriptToStoryboardProjectContext = {
   charactersLibName: string
   locationsLibName: string
   charactersIntroduction: string
+  directorStyleDoc?: DirectorStyleDoc | null
 }
 
 export type ScriptToStoryboardWorkflowInput = {
@@ -77,6 +79,7 @@ export type ScriptToStoryboardWorkflowInput = {
     characters: CharacterAsset[]
     locations: LocationAsset[]
     props?: PropAsset[]
+    directorStyleDoc?: DirectorStyleDoc | null
   }
   novelText: string
   runStep: ScriptToStoryboardSkillRunner

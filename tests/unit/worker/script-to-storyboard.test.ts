@@ -269,6 +269,17 @@ describe('worker script-to-storyboard behavior', () => {
       id: 'project-1',
       name: 'Project One',
       analysisModel: 'llm::analysis-model',
+      directorStyleDoc: JSON.stringify({
+        character: '角色风格',
+        location: '场景风格',
+        prop: '道具风格',
+        storyboardPlan: '分镜风格',
+        cinematography: '摄影风格',
+        acting: '表演风格',
+        storyboardDetail: '细化风格',
+        image: '图片风格',
+        video: '视频风格',
+      }),
       characters: [{ id: 'char-1', name: 'Narrator' }],
       locations: [{ id: 'loc-1', name: 'Office' }],
     })
@@ -360,6 +371,13 @@ describe('worker script-to-storyboard behavior', () => {
         notIn: [1],
       },
     })
+    expect(runScriptToStoryboardSkillWorkflowMock).toHaveBeenCalledWith(expect.objectContaining({
+      projectData: expect.objectContaining({
+        directorStyleDoc: expect.objectContaining({
+          storyboardPlan: '分镜风格',
+        }),
+      }),
+    }))
   })
 
   it('空台词数组 -> 成功完成并清空旧台词', async () => {

@@ -66,6 +66,7 @@ vi.mock('@/lib/ai-prompts', () => ({
 }))
 
 import { handleAnalyzeShotVariantsTask } from '@/lib/workers/handlers/shot-ai-variants'
+import { buildAiPrompt } from '@/lib/ai-prompts'
 
 function buildJob(payload: Record<string, unknown>): Job<TaskJobData> {
   return {
@@ -86,7 +87,21 @@ function buildJob(payload: Record<string, unknown>): Job<TaskJobData> {
 describe('worker shot-ai-variants behavior', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    persistMock.resolveAnalysisModel.mockResolvedValue({ id: 'np-1', analysisModel: 'llm::analysis-1' })
+    persistMock.resolveAnalysisModel.mockResolvedValue({
+      id: 'np-1',
+      analysisModel: 'llm::analysis-1',
+      directorStyleDoc: JSON.stringify({
+        character: '角色风格',
+        location: '场景风格',
+        prop: '道具风格',
+        storyboardPlan: '分镜风格',
+        cinematography: '摄影风格',
+        acting: '表演风格',
+        storyboardDetail: '细化风格',
+        image: '图片风格',
+        video: '视频风格',
+      }),
+    })
     prismaMock.projectPanel.findUnique.mockResolvedValue({
       id: 'panel-1',
       panelNumber: 3,
@@ -132,6 +147,11 @@ describe('worker shot-ai-variants behavior', () => {
       panelInfo: expect.objectContaining({
         panelNumber: 3,
         imageUrl: 'https://signed.example/panel-1.png',
+      }),
+    }))
+    expect(buildAiPrompt).toHaveBeenCalledWith(expect.objectContaining({
+      directorStyleDoc: expect.objectContaining({
+        storyboardDetail: '细化风格',
       }),
     }))
     expect(llmStreamMock.flush).toHaveBeenCalled()

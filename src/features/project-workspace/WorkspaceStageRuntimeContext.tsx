@@ -23,12 +23,14 @@ export interface WorkspaceStageRuntimeValue {
   isStartingScriptToStoryboard: boolean
   videoRatio: string | null | undefined
   artStyle: string | null | undefined
+  directorStylePresetId: string | null | undefined
   videoModel: string | null | undefined
   capabilityOverrides: CapabilitySelections
   userVideoModels: WorkspaceStageVideoModelOption[]
   onNovelTextChange: (value: string) => Promise<void>
   onVideoRatioChange: (value: string) => Promise<void>
   onArtStyleChange: (value: string) => Promise<void>
+  onDirectorStylePresetChange: (value: string) => Promise<void>
   onRunStoryToScript: () => Promise<void>
   onClipUpdate: (clipId: string, data: unknown) => Promise<void>
   onOpenAssetLibrary: () => void

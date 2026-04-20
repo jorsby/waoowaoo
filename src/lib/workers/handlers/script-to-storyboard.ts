@@ -32,6 +32,7 @@ import {
   runScriptToStoryboardAtomicRetry,
 } from './script-to-storyboard-atomic-retry'
 import { persistStoryboardWorkflowOutputs } from '@/lib/domain/storyboard/service'
+import { parseDirectorStyleDoc } from '@/lib/director-style'
 
 type AnyObj = Record<string, unknown>
 
@@ -110,6 +111,7 @@ export async function handleScriptToStoryboardTask(job: Job<TaskJobData>) {
     },
   })
   if (!projectWorkflow) throw new Error('Project not found')
+  const directorStyleDoc = parseDirectorStyleDoc(projectWorkflow.directorStyleDoc)
 
   const episode = await prisma.projectEpisode.findUnique({
     where: { id: episodeId },
@@ -314,6 +316,7 @@ export async function handleScriptToStoryboardTask(job: Job<TaskJobData>) {
                     props: (projectWorkflow.locations || [])
                       .filter((item) => readAssetKind(item as unknown as Record<string, unknown>) === 'prop')
                       .map((item) => ({ name: item.name, summary: item.summary })),
+                    directorStyleDoc,
                   },
                   runStep,
                 })
@@ -350,6 +353,7 @@ export async function handleScriptToStoryboardTask(job: Job<TaskJobData>) {
                     props: (projectWorkflow.locations || [])
                       .filter((item) => readAssetKind(item as unknown as Record<string, unknown>) === 'prop')
                       .map((item) => ({ name: item.name, summary: item.summary })),
+                    directorStyleDoc,
                   },
                   novelText: episode.novelText || '',
                   runStep,

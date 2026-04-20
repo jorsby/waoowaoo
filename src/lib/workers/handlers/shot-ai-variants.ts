@@ -11,6 +11,7 @@ import type { TaskJobData } from '@/lib/task/types'
 import { resolveAnalysisModel } from './shot-ai-persist'
 import type { AnyObj } from './shot-ai-prompt'
 import { buildAiPrompt as buildPrompt, AI_PROMPT_IDS as PROMPT_IDS } from '@/lib/ai-prompts'
+import { parseDirectorStyleDoc } from '@/lib/director-style'
 
 function readText(value: unknown): string {
   return typeof value === 'string' ? value : ''
@@ -83,6 +84,7 @@ export async function handleAnalyzeShotVariantsTask(job: Job<TaskJobData>, paylo
       location: panel.location || '未知',
       characters_info: charactersInfo,
     },
+    directorStyleDoc: parseDirectorStyleDoc(projectWorkflow.directorStyleDoc),
   })
 
   await reportTaskProgress(job, 20, {

@@ -37,6 +37,7 @@ interface StoryInputComposerProps {
   stylePresetValue: string
   onStylePresetChange: (value: string) => void
   stylePresetOptions: readonly StoryInputComposerStylePresetOption[]
+  stylePresetLabel?: string
   onCompositionStart?: () => void
   onCompositionEnd?: (event: CompositionEvent<HTMLTextAreaElement>) => void
   textareaClassName?: string
@@ -63,6 +64,7 @@ export default function StoryInputComposer({
   stylePresetValue,
   onStylePresetChange,
   stylePresetOptions,
+  stylePresetLabel,
   onCompositionStart,
   onCompositionEnd,
   textareaClassName,
@@ -152,6 +154,7 @@ export default function StoryInputComposer({
                 value={stylePresetValue}
                 onChange={onStylePresetChange}
                 options={stylePresetOptions}
+                labelText={stylePresetLabel}
               />
             </div>
           ) : null}

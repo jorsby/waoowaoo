@@ -64,9 +64,9 @@ export async function executeAnalyzeCharactersSkill(params: {
   baseCharacters: string[]
   baseCharacterIntroductions: Array<{ name: string; introduction?: string | null }>
   locale: SkillLocale
+  directorStyleDoc?: import('@/lib/director-style').DirectorStyleDoc | null
   runStep: StoryToScriptSkillRunner
 }) {
-  const baseCharactersText = params.baseCharacters.length > 0 ? params.baseCharacters.join('、') : '无'
   const baseCharacterInfo = params.baseCharacterIntroductions.length > 0
     ? params.baseCharacterIntroductions.map((item, index) => `${index + 1}. ${item.name}`).join('\n')
     : '暂无已有角色'
@@ -75,9 +75,9 @@ export async function executeAnalyzeCharactersSkill(params: {
     locale: params.locale,
     replacements: {
       input: params.content,
-      characters_lib_name: baseCharactersText,
       characters_lib_info: baseCharacterInfo,
     },
+    directorStyleDoc: params.directorStyleDoc,
   })
   return await runAnalysisSkill({
     stepId: 'analyze_characters',
@@ -96,6 +96,7 @@ export async function executeAnalyzeLocationsSkill(params: {
   content: string
   baseLocations: string[]
   locale: SkillLocale
+  directorStyleDoc?: import('@/lib/director-style').DirectorStyleDoc | null
   runStep: StoryToScriptSkillRunner
 }) {
   const baseLocationsText = params.baseLocations.length > 0 ? params.baseLocations.join('、') : '无'
@@ -103,9 +104,10 @@ export async function executeAnalyzeLocationsSkill(params: {
     skillId: 'analyze-locations',
     locale: params.locale,
     replacements: {
-    input: params.content,
-    locations_lib_name: baseLocationsText,
+      input: params.content,
+      locations_lib_name: baseLocationsText,
     },
+    directorStyleDoc: params.directorStyleDoc,
   })
   return await runAnalysisSkill({
     stepId: 'analyze_locations',
@@ -124,6 +126,7 @@ export async function executeAnalyzePropsSkill(params: {
   content: string
   baseProps: string[]
   locale: SkillLocale
+  directorStyleDoc?: import('@/lib/director-style').DirectorStyleDoc | null
   runStep: StoryToScriptSkillRunner
 }) {
   const basePropsText = params.baseProps.length > 0 ? params.baseProps.join('、') : '无'
@@ -131,9 +134,10 @@ export async function executeAnalyzePropsSkill(params: {
     skillId: 'analyze-props',
     locale: params.locale,
     replacements: {
-    input: params.content,
-    props_lib_name: basePropsText,
+      input: params.content,
+      props_lib_name: basePropsText,
     },
+    directorStyleDoc: params.directorStyleDoc,
   })
   return await runAnalysisSkill({
     stepId: 'analyze_props',

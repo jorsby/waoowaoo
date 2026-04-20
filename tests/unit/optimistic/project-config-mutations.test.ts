@@ -66,6 +66,8 @@ function buildProject(): Project {
     capabilityOverrides: null,
     artStyle: 'american-comic',
     artStylePrompt: null,
+    directorStylePresetId: null,
+    directorStyleDoc: null,
     characters: [],
     locations: [],
     props: [],

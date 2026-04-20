@@ -8,6 +8,7 @@ import type {
   ProjectShot,
   ProjectStoryboard,
 } from '@/types/project'
+import { parseDirectorStyleDoc } from '@/lib/director-style'
 
 type ProjectLikeRecord = {
   id: string
@@ -35,6 +36,8 @@ type ProjectWorkflowSource = {
   capabilityOverrides?: ProjectWorkflowData['capabilityOverrides']
   artStyle?: string | null
   artStylePrompt?: string | null
+  directorStylePresetId?: string | null
+  directorStyleDoc?: string | null
   videoResolution?: string | null
   imageResolution?: string | null
   lastEpisodeId?: string | null
@@ -72,6 +75,8 @@ function buildProjectWorkflowData(source: ProjectWorkflowSource): ProjectWorkflo
     capabilityOverrides: source.capabilityOverrides ?? null,
     artStyle: source.artStyle ?? null,
     artStylePrompt: source.artStylePrompt ?? null,
+    directorStylePresetId: source.directorStylePresetId ?? null,
+    directorStyleDoc: parseDirectorStyleDoc(source.directorStyleDoc),
     videoResolution: source.videoResolution ?? null,
     imageResolution: source.imageResolution ?? null,
     lastEpisodeId: source.lastEpisodeId ?? null,

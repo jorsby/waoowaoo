@@ -1,4 +1,5 @@
 import type { ClipMatchLevel } from '@/lib/project-workflow/story-to-script/clip-matching'
+import type { DirectorStyleDoc } from '@/lib/director-style'
 import type { SkillLocale } from './prompt-runtime'
 
 export type StoryToScriptStepMeta = {
@@ -74,6 +75,7 @@ export type StoryToScriptWorkflowInput = {
   baseLocations: string[]
   baseProps?: string[]
   baseCharacterIntroductions: Array<{ name: string; introduction?: string | null }>
+  directorStyleDoc?: DirectorStyleDoc | null
   runStep: StoryToScriptSkillRunner
   onStepError?: (meta: StoryToScriptStepMeta, message: string) => void
   onLog?: (message: string, details?: Record<string, unknown>) => void

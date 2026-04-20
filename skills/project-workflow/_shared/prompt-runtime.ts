@@ -1,5 +1,6 @@
 import type { WorkflowSkillId } from '@/lib/skill-system/types'
 import { buildAiPrompt, getAiPromptTemplate, resolveAiPromptIdFromWorkflowSkillId } from '@/lib/ai-prompts'
+import type { DirectorStyleDoc } from '@/lib/director-style'
 
 export type SkillLocale = 'zh' | 'en'
 
@@ -19,10 +20,12 @@ export function composeSkillPrompt(params: {
   skillId: WorkflowSkillId
   locale: SkillLocale
   replacements: Record<string, string>
+  directorStyleDoc?: DirectorStyleDoc | null
 }): string {
   return buildAiPrompt({
     promptId: resolveAiPromptIdFromWorkflowSkillId(params.skillId),
     locale: params.locale,
     variables: params.replacements,
+    directorStyleDoc: params.directorStyleDoc,
   })
 }

@@ -36,6 +36,7 @@ import { handleAssetHubAIModifyTask } from './handlers/asset-hub-ai-modify'
 import { handleReferenceToCharacterTask } from './handlers/reference-to-character'
 import { handleShotAITask } from './handlers/shot-ai-tasks'
 import { handleCharacterProfileTask } from './handlers/character-profile'
+import { parseDirectorStyleDoc } from '@/lib/director-style'
 
 function readAssetKind(value: Record<string, unknown>): string {
   return typeof value.assetKind === 'string' ? value.assetKind : 'location'
@@ -552,6 +553,7 @@ async function handleInsertPanelTask(job: Job<TaskJobData>) {
       locations_description: locationsDescription,
       props_description: propsDescription,
     },
+    directorStyleDoc: parseDirectorStyleDoc(projectData.directorStyleDoc),
   })
 
   await reportTaskProgress(job, 40, { stage: 'insert_panel_generate_text' })

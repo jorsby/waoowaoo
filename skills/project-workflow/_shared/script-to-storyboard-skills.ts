@@ -41,6 +41,7 @@ export async function executePlanStoryboardPhase1Skill(params: {
       clip_json: buildClipJsonContext(params.clipContext.clip, params.clipContext),
       clip_content: screenplay ? `【剧本格式】\n${JSON.stringify(screenplay, null, 2)}` : clipContent,
     },
+    directorStyleDoc: params.project.directorStyleDoc,
   })
 
   const { parsed } = await runStoryboardStepWithRetry({
@@ -75,6 +76,7 @@ export async function executeRefineCinematographySkill(params: {
   clipId: string
   phase1Panels: StoryboardPanel[]
   clipContext: ScriptToStoryboardClipContext
+  project: ScriptToStoryboardProjectContext
   locale: SkillLocale
   runStep: ScriptToStoryboardSkillRunner
   stepIndex: number
@@ -90,6 +92,7 @@ export async function executeRefineCinematographySkill(params: {
       characters_info: params.clipContext.filteredFullDescription,
       props_description: params.clipContext.filteredPropsDescription,
     },
+    directorStyleDoc: params.project.directorStyleDoc,
   })
 
   const { parsed } = await runStoryboardStepWithRetry({
@@ -119,6 +122,7 @@ export async function executeRefineActingSkill(params: {
   clipId: string
   phase1Panels: StoryboardPanel[]
   clipContext: ScriptToStoryboardClipContext
+  project: ScriptToStoryboardProjectContext
   locale: SkillLocale
   runStep: ScriptToStoryboardSkillRunner
   stepIndex: number
@@ -132,6 +136,7 @@ export async function executeRefineActingSkill(params: {
       panel_count: String(params.phase1Panels.length),
       characters_info: params.clipContext.filteredFullDescription,
     },
+    directorStyleDoc: params.project.directorStyleDoc,
   })
 
   const { parsed } = await runStoryboardStepWithRetry({
@@ -161,6 +166,7 @@ export async function executeRefineStoryboardDetailSkill(params: {
   clipId: string
   phase1Panels: StoryboardPanel[]
   clipContext: ScriptToStoryboardClipContext
+  project: ScriptToStoryboardProjectContext
   locale: SkillLocale
   runStep: ScriptToStoryboardSkillRunner
   stepIndex: number
@@ -177,6 +183,7 @@ export async function executeRefineStoryboardDetailSkill(params: {
       locations_description: params.clipContext.filteredLocationsDescription,
       props_description: params.clipContext.filteredPropsDescription,
     },
+    directorStyleDoc: params.project.directorStyleDoc,
   })
 
   const { parsed } = await runStoryboardStepWithRetry({

@@ -20,6 +20,17 @@ const sharedMock = vi.hoisted(() => ({
   collectPanelReferenceImages: vi.fn(async () => ['https://signed.example/ref-1.png']),
   resolveNovelData: vi.fn(async () => ({
     videoRatio: '16:9',
+    directorStyleDoc: {
+      character: '角色风格',
+      location: '场景风格',
+      prop: '道具风格',
+      storyboardPlan: '分镜风格',
+      cinematography: '摄影风格',
+      acting: '表演风格',
+      storyboardDetail: '细化风格',
+      image: '图片风格',
+      video: '视频风格',
+    },
     characters: [],
     locations: [
       {
@@ -160,6 +171,11 @@ describe('worker panel-image-task-handler behavior', () => {
     expect(promptMock.buildPrompt).toHaveBeenCalledWith(expect.objectContaining({
       variables: expect.objectContaining({
         storyboard_text_json_input: expect.stringContaining('"available_slots"'),
+      }),
+    }))
+    expect(promptMock.buildPrompt).toHaveBeenCalledWith(expect.objectContaining({
+      directorStyleDoc: expect.objectContaining({
+        image: '图片风格',
       }),
     }))
 

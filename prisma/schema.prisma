@@ -531,6 +531,8 @@ model Project {
   globalAssetText    String?                  @db.LongText
   artStyle           String                   @default("american-comic")
   artStylePrompt     String?                  @db.LongText
+  directorStylePresetId String?
+  directorStyleDoc    String?                  @db.LongText
   characterModel     String?
   locationModel      String?
   storyboardModel    String?

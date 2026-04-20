@@ -30,6 +30,7 @@ export interface CreateHomeProjectLaunchParams {
   storyText: string
   videoRatio: string
   artStyle: string
+  directorStylePresetId?: string
   episodeName: string
 }
 
@@ -88,6 +89,7 @@ export async function createHomeProjectLaunch({
   storyText,
   videoRatio,
   artStyle,
+  directorStylePresetId,
   episodeName,
 }: CreateHomeProjectLaunchParams): Promise<CreateHomeProjectLaunchResult> {
   const projectResponse = await apiFetch('/api/projects', {
@@ -95,6 +97,7 @@ export async function createHomeProjectLaunch({
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       name: projectName,
+      ...(directorStylePresetId ? { directorStylePresetId } : {}),
     }),
   })
 

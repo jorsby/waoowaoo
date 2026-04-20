@@ -121,4 +121,43 @@ describe('api specific - project config art style validation', () => {
     )
     expect(prismaMock.userPreference.upsert).not.toHaveBeenCalled()
   })
+
+  it('accepts valid directorStylePresetId and persists the generated style document', async () => {
+    const mod = await import('@/app/api/projects/[projectId]/config/route')
+    const req = buildMockRequest({
+      path: '/api/projects/project-1/config',
+      method: 'PATCH',
+      body: {
+        directorStylePresetId: 'horror-suspense',
+      },
+    })
+
+    const res = await mod.PATCH(req, { params: Promise.resolve({ projectId: 'project-1' }) })
+    expect(res.status).toBe(200)
+    expect(prismaMock.project.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          directorStylePresetId: 'horror-suspense',
+          directorStyleDoc: expect.stringContaining('"storyboardPlan"'),
+        }),
+      }),
+    )
+  })
+
+  it('rejects invalid directorStylePresetId with invalid params', async () => {
+    const mod = await import('@/app/api/projects/[projectId]/config/route')
+    const req = buildMockRequest({
+      path: '/api/projects/project-1/config',
+      method: 'PATCH',
+      body: {
+        directorStylePresetId: 'crime-noir',
+      },
+    })
+
+    const res = await mod.PATCH(req, { params: Promise.resolve({ projectId: 'project-1' }) })
+    const body = await res.json()
+    expect(res.status).toBe(400)
+    expect(body.error.code).toBe('INVALID_PARAMS')
+    expect(prismaMock.project.update).not.toHaveBeenCalled()
+  })
 })

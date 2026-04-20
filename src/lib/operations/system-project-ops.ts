@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { ApiError } from '@/lib/api-errors'
 import { toMoneyNumber, type MoneyValue } from '@/lib/billing/money'
 import { isArtStyleValue } from '@/lib/constants'
+import { resolveDirectorStyleFieldsFromPreset } from '@/lib/director-style'
 import { resolveTaskLocale } from '@/lib/task/resolve-locale'
 import {
   formatProjectValidationIssue,
@@ -21,6 +22,7 @@ function readProjectDraftBody(body: unknown): ProjectDraftInput {
   return {
     name: typeof payload.name === 'string' ? payload.name : '',
     description: typeof payload.description === 'string' ? payload.description : null,
+    directorStylePresetId: typeof payload.directorStylePresetId === 'string' ? payload.directorStylePresetId : null,
   }
 }
 
@@ -186,6 +188,7 @@ export function createSystemProjectOperations(): ProjectAgentOperationRegistry {
       inputSchema: z.object({
         name: z.string().min(1),
         description: z.string().optional().nullable(),
+        directorStylePresetId: z.string().optional().nullable(),
       }).passthrough(),
       outputSchema: z.unknown(),
       execute: async (ctx, input) => {
@@ -202,6 +205,19 @@ export function createSystemProjectOperations(): ProjectAgentOperationRegistry {
         }
 
         const normalized = normalizeProjectDraft(draft)
+        let directorStyleFields: {
+          directorStylePresetId: string | null
+          directorStyleDoc: string | null
+        }
+        try {
+          directorStyleFields = resolveDirectorStyleFieldsFromPreset(draft.directorStylePresetId)
+        } catch {
+          throw new ApiError('INVALID_PARAMS', {
+            code: 'INVALID_DIRECTOR_STYLE_PRESET',
+            field: 'directorStylePresetId',
+            message: 'directorStylePresetId must be a supported value',
+          })
+        }
 
         const userPreference = await prisma.userPreference.findUnique({
           where: { userId: ctx.userId },
@@ -232,6 +248,7 @@ export function createSystemProjectOperations(): ProjectAgentOperationRegistry {
               artStyle: userPreference.artStyle,
               imageResolution: userPreference.imageResolution,
             }),
+            ...directorStyleFields,
           },
         })
 

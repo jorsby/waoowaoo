@@ -1,5 +1,6 @@
 import type { CapabilitySelections } from '@/lib/model-config-contract'
 import type { LocationAvailableSlot } from '@/lib/location-available-slots'
+import type { DirectorStyleDoc } from '@/lib/director-style'
 
 // ============================================
 // 基础项目类型
@@ -259,6 +260,8 @@ export interface ProjectWorkflowData {
   capabilityOverrides?: CapabilitySelections | string | null
   artStyle: string | null
   artStylePrompt: string | null
+  directorStylePresetId: string | null
+  directorStyleDoc: DirectorStyleDoc | null
   videoResolution?: string | null
   imageResolution?: string | null
   lastEpisodeId?: string | null

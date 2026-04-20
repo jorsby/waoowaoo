@@ -2,6 +2,8 @@ import { type Job } from 'bullmq'
 import { prisma } from '@/lib/prisma'
 import { type TaskJobData } from '@/lib/task/types'
 import { decodeImageUrlsFromDb } from '@/lib/contracts/image-urls-contract'
+import type { DirectorStyleDoc } from '@/lib/director-style'
+import { parseDirectorStyleDoc } from '@/lib/director-style'
 import {
   resolveImageSourceFromGeneration,
   toSignedUrlIfCos,
@@ -41,6 +43,7 @@ interface LocationLike {
 
 interface NovelProjectData {
   videoRatio?: string | null
+  directorStyleDoc?: DirectorStyleDoc | null
   characters?: CharacterLike[]
   locations?: LocationLike[]
 }
@@ -171,6 +174,11 @@ export async function resolveNovelData(projectId: string) {
   }
 
   return data
+    ? {
+      ...data,
+      directorStyleDoc: parseDirectorStyleDoc((data as { directorStyleDoc?: string | null }).directorStyleDoc),
+    }
+    : data
 }
 
 export function parsePanelCharacterReferences(value: string | null | undefined): PanelCharacterReference[] {

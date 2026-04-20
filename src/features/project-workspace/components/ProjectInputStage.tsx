@@ -6,7 +6,7 @@
  */
 
 import { useTranslations } from 'next-intl'
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useRef, useEffect, useCallback, useState } from 'react'
 import '@/styles/animations.css'
 import AiWriteModal from '@/components/home/AiWriteModal'
 import LongTextDetectionPrompt from '@/components/story-input/LongTextDetectionPrompt'
@@ -44,8 +44,10 @@ interface ProjectInputStageProps {
   // 配置项 - 比例与风格
   videoRatio?: string
   artStyle?: string
+  directorStylePresetId?: string
   onVideoRatioChange?: (value: string) => void
   onArtStyleChange?: (value: string) => void
+  onDirectorStylePresetChange?: (value: string) => void
 }
 
 export default function ProjectInputStage({
@@ -60,8 +62,10 @@ export default function ProjectInputStage({
   onEnableNarrationChange,
   videoRatio = '9:16',
   artStyle = 'american-comic',
+  directorStylePresetId = DEFAULT_STYLE_PRESET_VALUE,
   onVideoRatioChange,
-  onArtStyleChange
+  onArtStyleChange,
+  onDirectorStylePresetChange,
 }: ProjectInputStageProps) {
   const t = useTranslations('projectWorkflow')
   const homeT = useTranslations('home')
@@ -73,7 +77,6 @@ export default function ProjectInputStage({
   // 解决方案：组合期间仅更新本地 state，组合结束后再同步到父组件。
   const isComposingRef = useRef(false)
   const [localText, setLocalText] = useState(novelText)
-  const [stylePresetValue, setStylePresetValue] = useState<string>(DEFAULT_STYLE_PRESET_VALUE)
   const [aiWriteOpen, setAiWriteOpen] = useState(false)
   const [aiWriteLoading, setAiWriteLoading] = useState(false)
 
@@ -195,9 +198,10 @@ export default function ProjectInputStage({
             ...option,
             recommended: option.value === 'realistic'
           }))}
-          stylePresetValue={stylePresetValue}
-          onStylePresetChange={setStylePresetValue}
+          stylePresetValue={directorStylePresetId}
+          onStylePresetChange={(value) => onDirectorStylePresetChange?.(value)}
           stylePresetOptions={STYLE_PRESETS}
+          stylePresetLabel="导演风格"
           textareaClassName="px-0 pt-0 pb-3 align-top"
           primaryAction={(
             <button

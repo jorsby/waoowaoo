@@ -106,6 +106,7 @@ export default function HomePage() {
         storyText,
         videoRatio,
         artStyle,
+        directorStylePresetId: stylePresetValue || undefined,
         episodeName: `${tc('episode')} 1`,
       })
 
@@ -364,6 +365,7 @@ export default function HomePage() {
               stylePresetValue={stylePresetValue}
               onStylePresetChange={setStylePresetValue}
               stylePresetOptions={STYLE_PRESETS}
+              stylePresetLabel="导演风格"
               primaryAction={(
                 <button
                   onClick={() => void handleCreate()}

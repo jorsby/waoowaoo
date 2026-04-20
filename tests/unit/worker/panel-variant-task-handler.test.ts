@@ -21,6 +21,17 @@ const sharedMock = vi.hoisted(() => ({
   collectPanelReferenceImages: vi.fn(async () => ['https://signed.example/ref-character.png']),
   resolveNovelData: vi.fn(async () => ({
     videoRatio: '16:9',
+    directorStyleDoc: {
+      character: '角色风格',
+      location: '场景风格',
+      prop: '道具风格',
+      storyboardPlan: '分镜风格',
+      cinematography: '摄影风格',
+      acting: '表演风格',
+      storyboardDetail: '细化风格',
+      image: '图片风格',
+      video: '视频风格',
+    },
     characters: [{
       name: 'Hero',
       introduction: '主角',
@@ -161,6 +172,11 @@ describe('worker panel-variant-task-handler behavior', () => {
       variables: expect.objectContaining({
         characters_info: expect.stringContaining('固定位置：街道左侧靠墙的留白位置'),
         location_asset: expect.stringContaining('街道左侧靠墙的留白位置'),
+      }),
+    }))
+    expect(promptMock.buildPrompt).toHaveBeenCalledWith(expect.objectContaining({
+      directorStyleDoc: expect.objectContaining({
+        image: '图片风格',
       }),
     }))
 

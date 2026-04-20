@@ -325,6 +325,8 @@ model Project {
   globalAssetText    String?
   artStyle           String                 @default("american-comic")
   artStylePrompt     String?
+  directorStylePresetId String?
+  directorStyleDoc   String?
   characterModel     String?
   locationModel      String?
   storyboardModel    String?

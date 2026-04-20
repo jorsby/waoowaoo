@@ -165,6 +165,7 @@ export function buildProjectContext(params: {
   characters: ScriptToStoryboardProjectContext['characters']
   locations: ScriptToStoryboardProjectContext['locations']
   props: ScriptToStoryboardProjectContext['props']
+  directorStyleDoc?: ScriptToStoryboardProjectContext['directorStyleDoc']
 }): ScriptToStoryboardProjectContext {
   return {
     characters: params.characters,
@@ -173,6 +174,7 @@ export function buildProjectContext(params: {
     charactersLibName: params.characters.map((item) => item.name).join(', ') || '无',
     locationsLibName: params.locations.map((item) => item.name).join(', ') || '无',
     charactersIntroduction: buildCharactersIntroduction(params.characters || []),
+    directorStyleDoc: params.directorStyleDoc ?? null,
   }
 }
 

@@ -264,10 +264,12 @@ export function StylePresetSelector({
   value,
   onChange,
   options,
+  labelText = '导演风格',
 }: {
   value: string
   onChange: (value: string) => void
   options: readonly { value: string; label: string; description: string }[]
+  labelText?: string
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const { triggerRef, panelRef, panelStyle } = useFloatingDropdown(isOpen, 260)
@@ -285,7 +287,7 @@ export function StylePresetSelector({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isOpen, panelRef, triggerRef])
 
-  const selectedOption = options.find((option) => option.value === value) ?? options[0]
+  const selectedOption = options.find((option) => option.value === value) ?? null
 
   return (
     <>
@@ -294,12 +296,15 @@ export function StylePresetSelector({
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={`${TRIGGER_CLASSNAME} cursor-pointer`}
-        title={selectedOption.label}
+        title={selectedOption?.label ?? labelText}
       >
         <div className="flex min-w-0 items-center gap-2">
           <AppIcon name="clapperboard" className="h-4 w-4 shrink-0 text-[var(--glass-accent-from)]" />
+          <span className="truncate text-[11px] font-medium text-[var(--glass-text-tertiary)]">
+            {labelText}
+          </span>
           <span className={`${TRIGGER_TEXT_CLASSNAME} min-w-0 flex-1 truncate`}>
-            {selectedOption.label}
+            {selectedOption?.label ?? '未选择'}
           </span>
         </div>
         <AppIcon name="chevronDown" className={`h-4 w-4 text-[var(--glass-text-tertiary)] transition-transform ${isOpen ? 'rotate-180' : ''}`} />

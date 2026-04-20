@@ -158,6 +158,7 @@ export function useProjectWorkspaceController({
     isStartingScriptToStoryboard,
     videoRatio: projectSnapshot.videoRatio,
     artStyle: projectSnapshot.artStyle,
+    directorStylePresetId: projectSnapshot.directorStylePresetId,
     videoModel: projectSnapshot.videoModel,
     capabilityOverrides: projectSnapshot.capabilityOverrides,
     userVideoModels: userModels.userVideoModels || [],

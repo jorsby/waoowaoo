@@ -25,6 +25,7 @@ import {
   compileAssetPromptFragments,
 } from '@/lib/assets/services/asset-prompt-context'
 import { composeSkillPrompt, type SkillLocale } from '@skills/project-workflow/_shared/prompt-runtime'
+import type { DirectorStyleDoc } from '@/lib/director-style'
 
 type StoryboardClipInput = {
   id: string
@@ -342,6 +343,7 @@ export async function runScriptToStoryboardAtomicRetry(params: {
     characters: CharacterAsset[]
     locations: LocationAsset[]
     props?: PropAsset[]
+    directorStyleDoc?: DirectorStyleDoc | null
   }
   runStep: StepRunner
 }): Promise<ScriptToStoryboardAtomicRetryResult> {
@@ -437,6 +439,7 @@ export async function runScriptToStoryboardAtomicRetry(params: {
         clip_json: clipJson,
         clip_content: clipContentForPrompt,
       },
+      directorStyleDoc: params.projectData.directorStyleDoc,
     })
     phase1Panels = await runStepWithRetry({
       runStep: params.runStep,
@@ -466,6 +469,7 @@ export async function runScriptToStoryboardAtomicRetry(params: {
         characters_info: filteredFullDescription,
         props_description: filteredPropsDescription,
       },
+      directorStyleDoc: params.projectData.directorStyleDoc,
     })
     phase2Cinematography = await runStepWithRetry({
       runStep: params.runStep,
@@ -487,6 +491,7 @@ export async function runScriptToStoryboardAtomicRetry(params: {
         panel_count: String(planPanels.length),
         characters_info: filteredFullDescription,
       },
+      directorStyleDoc: params.projectData.directorStyleDoc,
     })
     phase2Acting = await runStepWithRetry({
       runStep: params.runStep,
@@ -509,6 +514,7 @@ export async function runScriptToStoryboardAtomicRetry(params: {
         locations_description: filteredLocationsDescription,
         props_description: filteredPropsDescription,
       },
+      directorStyleDoc: params.projectData.directorStyleDoc,
     })
     phase3Panels = await runStepWithRetry({
       runStep: params.runStep,
