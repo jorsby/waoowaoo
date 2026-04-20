@@ -7,6 +7,7 @@ import {
   sanitizeImageInputsForTaskPayload,
 } from './outbound-image'
 import { resolveStorageKeyFromMediaValue } from '@/lib/media/service'
+import { lookup } from 'node:dns/promises'
 
 vi.mock('@/lib/storage', () => ({
   getSignedUrl: vi.fn((key: string) => `/signed/${key}`),
@@ -19,9 +20,14 @@ vi.mock('@/lib/media/service', () => ({
   resolveStorageKeyFromMediaValue: vi.fn(),
 }))
 
+vi.mock('node:dns/promises', () => ({
+  lookup: vi.fn(),
+}))
+
 describe('outbound-image normalization', () => {
   const fetchMock = vi.fn()
   const resolveStorageKeyMock = vi.mocked(resolveStorageKeyFromMediaValue)
+  const dnsLookupMock = vi.mocked(lookup)
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -38,6 +44,10 @@ describe('outbound-image normalization', () => {
       headers: new Headers({ 'content-type': 'image/png' }),
       arrayBuffer: async () => Uint8Array.from([1, 2, 3]).buffer,
     } as unknown as Response)
+
+    dnsLookupMock.mockResolvedValue(
+      { address: '93.184.216.34', family: 4 } as unknown as { address: string; family: number },
+    )
   })
 
   it('keeps data url unchanged', async () => {
@@ -86,6 +96,28 @@ describe('outbound-image normalization', () => {
   it('keeps http input as-is', async () => {
     const input = 'https://example.com/a.png'
     expect(await normalizeToOriginalMediaUrl(input)).toBe(input)
+  })
+
+  it('rejects private ip outbound urls as unsafe', async () => {
+    await expect(normalizeToOriginalMediaUrl('http://127.0.0.1/a.png')).rejects.toMatchObject({
+      code: 'OUTBOUND_IMAGE_UNSAFE_URL',
+      stage: 'normalize_original',
+    })
+  })
+
+  it('rejects outbound redirect to private ip', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 302,
+        headers: new Headers({ location: 'http://127.0.0.1/secret.png' }),
+        arrayBuffer: async () => new ArrayBuffer(0),
+      } as unknown as Response)
+
+    await expect(normalizeToBase64ForGeneration('https://example.com/a.png')).rejects.toMatchObject({
+      code: 'OUTBOUND_IMAGE_UNSAFE_URL',
+      stage: 'normalize_base64',
+    })
   })
 
   it('converts normalized source to data url base64 payload', async () => {
