@@ -4,6 +4,7 @@ import { ApiError } from '@/lib/api-errors'
 import { addSignedUrlsToProject, deleteObjects } from '@/lib/storage'
 import { resolveStorageKeyFromMediaValue } from '@/lib/media/service'
 import { logProjectAction } from '@/lib/logging/semantic'
+import { logError } from '@/lib/logging/core'
 import {
   collectProjectBailianManagedVoiceIds,
   cleanupUnreferencedBailianVoices,
@@ -163,7 +164,7 @@ export function createProjectCrudOperations(): ProjectAgentOperationRegistry {
         prisma.project.update({
           where: { id: ctx.projectId },
           data: { lastAccessedAt: new Date() },
-        }).catch(() => undefined)
+        }).catch((error: unknown) => logError('update lastAccessedAt failed', error))
 
         return { project: addSignedUrlsToProject(project) }
       },
@@ -281,4 +282,3 @@ export function createProjectCrudOperations(): ProjectAgentOperationRegistry {
     },
   }
 }
-
