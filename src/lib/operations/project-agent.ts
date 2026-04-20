@@ -17,6 +17,7 @@ import { createVideoOperations } from './video-ops'
 import { createDownloadOperations } from './download-ops'
 import { createRunOperations } from './run-ops'
 import { createTaskOperations } from './task-ops'
+import { createSseOperations } from './sse-ops'
 import { createHash, randomUUID } from 'crypto'
 import { ApiError, getRequestId } from '@/lib/api-errors'
 import { submitTask } from '@/lib/task/submitter'
@@ -350,6 +351,7 @@ export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegi
     ...createSystemProjectOperations(),
     ...createRunOperations(),
     ...createTaskOperations(),
+    ...createSseOperations(),
     ...createReadOperations(),
     ...createProjectCrudOperations(),
     ...createVideoOperations(),
