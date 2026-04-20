@@ -5,6 +5,16 @@ const authState = vi.hoisted(() => ({
   authenticated: true,
 }))
 
+const prismaMock = vi.hoisted(() => ({
+  executionPlan: {
+    findUnique: vi.fn(),
+  },
+}))
+
+const apiAdapterMock = vi.hoisted(() => ({
+  executeProjectAgentOperationFromApi: vi.fn(),
+}))
+
 const executorMock = vi.hoisted(() => ({
   executeProjectCommand: vi.fn(async () => ({
     commandId: 'command-1',
@@ -110,6 +120,12 @@ vi.mock('@/lib/api-auth', () => {
   }
 })
 
+vi.mock('@/lib/prisma', () => ({
+  prisma: prismaMock,
+}))
+
+vi.mock('@/lib/adapters/api/execute-project-agent-operation', () => apiAdapterMock)
+
 vi.mock('@/lib/command-center/executor', () => executorMock)
 vi.mock('@/lib/project-context/assembler', () => contextAssemblerMock)
 
@@ -208,6 +224,25 @@ describe('project commands routes', () => {
   })
 
   it('GET /api/projects/[projectId]/commands -> returns command list', async () => {
+    apiAdapterMock.executeProjectAgentOperationFromApi.mockResolvedValueOnce([
+      {
+        commandId: 'command-1',
+        planId: 'plan-1',
+        requiresApproval: false,
+        status: 'running',
+        linkedTaskId: 'task-1',
+        linkedRunId: 'run-1',
+        summary: 'Story To Script',
+        steps: [],
+        createdAt: '2026-04-13T00:00:00.000Z',
+        updatedAt: '2026-04-13T00:00:00.000Z',
+        commandType: 'run_workflow_package',
+        source: 'gui',
+        episodeId: 'episode-1',
+        approval: null,
+      },
+    ])
+
     const response = await commandsGet(
       buildMockRequest({
         path: '/api/projects/project-1/commands',
@@ -228,6 +263,24 @@ describe('project commands routes', () => {
   })
 
   it('POST approve route -> returns linked run/task payload', async () => {
+    prismaMock.executionPlan.findUnique.mockResolvedValueOnce({
+      id: 'plan-1',
+      projectId: 'project-1',
+      command: {
+        normalizedInput: { workflowId: 'story-to-script' },
+        rawInput: {},
+      },
+    })
+    apiAdapterMock.executeProjectAgentOperationFromApi.mockResolvedValueOnce({
+      commandId: 'command-1',
+      planId: 'plan-1',
+      linkedTaskId: 'task-1',
+      linkedRunId: 'run-1',
+      status: 'running',
+      summary: 'Story To Script',
+      steps: [],
+    })
+
     const response = await approvePost(
       buildMockRequest({
         path: '/api/projects/project-1/plans/plan-1/approve',
@@ -248,6 +301,18 @@ describe('project commands routes', () => {
   })
 
   it('POST reject route -> returns rejected plan payload', async () => {
+    prismaMock.executionPlan.findUnique.mockResolvedValueOnce({
+      id: 'plan-1',
+      projectId: 'project-1',
+    })
+    apiAdapterMock.executeProjectAgentOperationFromApi.mockResolvedValueOnce({
+      commandId: 'command-1',
+      planId: 'plan-1',
+      status: 'rejected',
+      summary: 'Story To Script',
+      steps: [],
+    })
+
     const response = await rejectPost(
       buildMockRequest({
         path: '/api/projects/project-1/plans/plan-1/reject',
@@ -267,6 +332,25 @@ describe('project commands routes', () => {
   })
 
   it('GET context route -> returns assembled workspace context', async () => {
+    apiAdapterMock.executeProjectAgentOperationFromApi.mockResolvedValueOnce({
+      projectId: 'project-1',
+      projectName: 'Project One',
+      episodeId: 'episode-1',
+      episodeName: 'Episode One',
+      currentStage: 'config',
+      selectedScopeRef: null,
+      latestArtifacts: [],
+      activeRuns: [],
+      policy: {
+        projectId: 'project-1',
+        episodeId: 'episode-1',
+        videoRatio: '9:16',
+        artStyle: 'american-comic',
+        analysisModel: 'llm::analysis',
+        overrides: {},
+      },
+    })
+
     const response = await contextGet(
       buildMockRequest({
         path: '/api/projects/project-1/context',

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/api-errors'
 import { forbidden, notFound, requireUserAuth } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
-import { revertMutationBatch } from '@/lib/mutation-batch/revert'
+import { executeProjectAgentOperationFromApi } from '@/lib/adapters/api/execute-project-agent-operation'
 
 export const POST = apiHandler(async (
   _request: NextRequest,
@@ -22,15 +22,31 @@ export const POST = apiHandler(async (
   if (!batch) return notFound('MutationBatch')
   if (batch.userId !== session.user.id) return forbidden('Forbidden')
 
-  const result = await revertMutationBatch({
-    batchId: batch.id,
+  const result = await executeProjectAgentOperationFromApi({
+    request: _request,
+    operationId: 'revert_mutation_batch',
     projectId: batch.projectId,
     userId: session.user.id,
+    input: {
+      batchId: batch.id,
+    },
+    source: 'project-ui/api',
   })
 
+  if (!result || typeof result !== 'object' || Array.isArray(result)) {
+    throw new Error('REVERT_MUTATION_BATCH_RESULT_INVALID')
+  }
+  const record = result as Record<string, unknown>
+  if (typeof record.ok !== 'boolean') {
+    throw new Error('REVERT_MUTATION_BATCH_RESULT_INVALID')
+  }
+  if (typeof record.reverted !== 'number') {
+    throw new Error('REVERT_MUTATION_BATCH_RESULT_INVALID')
+  }
+
   return NextResponse.json({
-    ok: result.ok,
-    reverted: result.reverted,
-    ...(result.ok ? {} : { error: result.error }),
+    ok: record.ok,
+    reverted: record.reverted,
+    ...(record.ok ? {} : { error: record.error }),
   })
 })

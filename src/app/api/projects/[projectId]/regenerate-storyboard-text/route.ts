@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireProjectAuthLight, isErrorResponse } from '@/lib/api-auth'
-import { apiHandler, ApiError, getRequestId } from '@/lib/api-errors'
-import { submitTask } from '@/lib/task/submitter'
-import { resolveRequiredTaskLocale } from '@/lib/task/resolve-locale'
-import { TASK_TYPE } from '@/lib/task/types'
-import { buildDefaultTaskBillingInfo } from '@/lib/billing'
-import { getProjectModelConfig } from '@/lib/config-service'
+import { apiHandler, ApiError } from '@/lib/api-errors'
+import { executeProjectAgentOperationFromApi } from '@/lib/adapters/api/execute-project-agent-operation'
 
 export const POST = apiHandler(async (
   request: NextRequest,
@@ -17,28 +13,20 @@ export const POST = apiHandler(async (
   if (isErrorResponse(authResult)) return authResult
   const { session } = authResult
 
-  const body = await request.json()
-  const locale = resolveRequiredTaskLocale(request, body)
-  const storyboardId = body?.storyboardId
-
-  if (!storyboardId) {
-    throw new ApiError('INVALID_PARAMS')
+  let body: unknown = {}
+  try {
+    body = await request.json()
+  } catch {
+    throw new ApiError('INVALID_PARAMS', { code: 'BODY_PARSE_FAILED', field: 'body', message: 'request body must be valid JSON' })
   }
 
-  const projectModelConfig = await getProjectModelConfig(projectId, session.user.id)
-  const billingPayload = { ...body, ...(projectModelConfig.analysisModel ? { analysisModel: projectModelConfig.analysisModel } : {}) }
-
-  const result = await submitTask({
-    userId: session.user.id,
-    locale,
-    requestId: getRequestId(request),
+  const result = await executeProjectAgentOperationFromApi({
+    request,
+    operationId: 'regenerate_storyboard_text',
     projectId,
-    type: TASK_TYPE.REGENERATE_STORYBOARD_TEXT,
-    targetType: 'ProjectStoryboard',
-    targetId: storyboardId,
-    payload: billingPayload,
-    dedupeKey: `regenerate_storyboard_text:${storyboardId}`,
-    billingInfo: buildDefaultTaskBillingInfo(TASK_TYPE.REGENERATE_STORYBOARD_TEXT, billingPayload)
+    userId: session.user.id,
+    input: body,
+    source: 'project-ui/api',
   })
 
   return NextResponse.json(result)

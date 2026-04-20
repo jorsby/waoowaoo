@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { apiHandler, ApiError } from '@/lib/api-errors'
 import { isErrorResponse, requireProjectAuthLight } from '@/lib/api-auth'
-import { copyAssetFromGlobal } from '@/lib/assets/services/asset-actions'
+import { executeProjectAgentOperationFromApi } from '@/lib/adapters/api/execute-project-agent-operation'
 
 type LegacyCopyBody = {
   type?: 'character' | 'location' | 'voice'
@@ -17,7 +17,16 @@ export const POST = apiHandler(async (
   const authResult = await requireProjectAuthLight(projectId)
   if (isErrorResponse(authResult)) return authResult
 
-  const body = await request.json() as LegacyCopyBody
+  let body: LegacyCopyBody
+  try {
+    body = (await request.json()) as LegacyCopyBody
+  } catch {
+    throw new ApiError('INVALID_PARAMS', {
+      code: 'BODY_PARSE_FAILED',
+      field: 'body',
+      message: 'request body must be valid JSON',
+    })
+  }
   if (
     (body.type !== 'character' && body.type !== 'location' && body.type !== 'voice')
     || typeof body.targetId !== 'string'
@@ -28,14 +37,17 @@ export const POST = apiHandler(async (
     throw new ApiError('INVALID_PARAMS')
   }
 
-  const result = await copyAssetFromGlobal({
-    kind: body.type,
-    targetId: body.targetId,
-    globalAssetId: body.globalAssetId,
-    access: {
-      userId: authResult.session.user.id,
-      projectId,
+  const result = await executeProjectAgentOperationFromApi({
+    request,
+    operationId: 'copy_asset_from_global',
+    projectId,
+    userId: authResult.session.user.id,
+    input: {
+      type: body.type,
+      targetId: body.targetId,
+      globalAssetId: body.globalAssetId,
     },
+    source: 'project-ui',
   })
 
   return NextResponse.json(result)

@@ -7,6 +7,10 @@ import { createGovernanceOperations } from './governance-ops'
 import { createEditOperations } from './edit-ops'
 import { createGuiOperations } from './gui-ops'
 import { createExtraOperations } from './extra-ops'
+import { createLlmTaskOperations } from './llm-task-ops'
+import { createMediaOperations } from './media-ops'
+import { createConfigOperations } from './config-ops'
+import { createProjectDataOperations } from './project-data-ops'
 import { createHash, randomUUID } from 'crypto'
 import { ApiError, getRequestId } from '@/lib/api-errors'
 import { submitTask } from '@/lib/task/submitter'
@@ -341,8 +345,12 @@ export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegi
     ...createPlanOperations(),
     ...createGovernanceOperations(),
     ...createEditOperations(),
+    ...createConfigOperations(),
+    ...createProjectDataOperations(),
     ...createGuiOperations(),
     ...createExtraOperations(),
+    ...createLlmTaskOperations(),
+    ...createMediaOperations(),
     generate_character_image: {
       id: 'generate_character_image',
       description: 'Generate character appearance images for a project character.',

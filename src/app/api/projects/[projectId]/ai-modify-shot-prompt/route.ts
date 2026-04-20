@@ -1,8 +1,7 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { requireProjectAuth, isErrorResponse } from '@/lib/api-auth'
 import { apiHandler, ApiError } from '@/lib/api-errors'
-import { TASK_TYPE } from '@/lib/task/types'
-import { maybeSubmitLLMTask } from '@/lib/llm-observe/route-task'
+import { executeProjectAgentOperationFromApi } from '@/lib/adapters/api/execute-project-agent-operation'
 
 export const POST = apiHandler(async (
   request: NextRequest,
@@ -19,21 +18,15 @@ export const POST = apiHandler(async (
   if (!currentPrompt || !modifyInstruction) {
     throw new ApiError('INVALID_PARAMS')
   }
-  const panelId = typeof body?.panelId === 'string' ? body.panelId.trim() : ''
-  const episodeId = typeof body?.episodeId === 'string' ? body.episodeId.trim() : ''
 
-  const asyncTaskResponse = await maybeSubmitLLMTask({
+  const result = await executeProjectAgentOperationFromApi({
     request,
-    userId: session.user.id,
+    operationId: 'ai_modify_shot_prompt',
     projectId,
-    episodeId: episodeId || null,
-    type: TASK_TYPE.AI_MODIFY_SHOT_PROMPT,
-    targetType: panelId ? 'ProjectPanel' : 'Project',
-    targetId: panelId || projectId,
-    routePath: `/api/projects/${projectId}/ai-modify-shot-prompt`,
-    body,
-    dedupeKey: panelId ? `ai_modify_shot_prompt:${panelId}` : `ai_modify_shot_prompt:${projectId}`})
-  if (asyncTaskResponse) return asyncTaskResponse
+    userId: session.user.id,
+    input: body,
+    source: 'project-ui/api',
+  })
 
-  throw new ApiError('INVALID_PARAMS')
+  return NextResponse.json(result)
 })

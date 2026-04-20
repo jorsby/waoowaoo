@@ -1,8 +1,7 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { requireProjectAuth, isErrorResponse } from '@/lib/api-auth'
-import { apiHandler, ApiError } from '@/lib/api-errors'
-import { TASK_TYPE } from '@/lib/task/types'
-import { maybeSubmitLLMTask } from '@/lib/llm-observe/route-task'
+import { apiHandler } from '@/lib/api-errors'
+import { executeProjectAgentOperationFromApi } from '@/lib/adapters/api/execute-project-agent-operation'
 
 export const POST = apiHandler(async (
   request: NextRequest,
@@ -10,7 +9,6 @@ export const POST = apiHandler(async (
 ) => {
   const { projectId } = await context.params
   const body = await request.json().catch(() => ({}))
-  const episodeId = typeof body?.episodeId === 'string' ? body.episodeId : null
 
   const authResult = await requireProjectAuth(projectId, {
     include: { characters: true, locations: true },
@@ -18,23 +16,14 @@ export const POST = apiHandler(async (
   if (isErrorResponse(authResult)) return authResult
   const { session } = authResult
 
-  const asyncTaskResponse = await maybeSubmitLLMTask({
+  const result = await executeProjectAgentOperationFromApi({
     request,
-    userId: session.user.id,
+    operationId: 'analyze_novel',
     projectId,
-    episodeId,
-    type: TASK_TYPE.ANALYZE_NOVEL,
-    targetType: 'Project',
-    targetId: projectId,
-    routePath: `/api/projects/${projectId}/analyze`,
-    body: {
-      ...body,
-      displayMode: 'detail',
-    },
-    dedupeKey: `analyze_novel:${projectId}:${episodeId || 'global'}`,
-    priority: 1,
+    userId: session.user.id,
+    input: body,
+    source: 'project-ui/api',
   })
-  if (asyncTaskResponse) return asyncTaskResponse
 
-  throw new ApiError('INVALID_PARAMS')
+  return NextResponse.json(result)
 })

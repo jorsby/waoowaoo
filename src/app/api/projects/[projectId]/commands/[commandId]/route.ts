@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/api-errors'
 import { isErrorResponse, requireProjectAuth } from '@/lib/api-auth'
-import { listProjectCommands, syncProjectCommandStatus } from '@/lib/command-center/executor'
+import { executeProjectAgentOperationFromApi } from '@/lib/adapters/api/execute-project-agent-operation'
 
 export const GET = apiHandler(async (
   _request: NextRequest,
@@ -11,14 +11,16 @@ export const GET = apiHandler(async (
   const authResult = await requireProjectAuth(projectId)
   if (isErrorResponse(authResult)) return authResult
 
-  await syncProjectCommandStatus({ commandId })
-  const commands = await listProjectCommands({
+  const result = await executeProjectAgentOperationFromApi({
+    request: _request,
+    operationId: 'get_project_command',
     projectId,
-    limit: 50,
+    userId: authResult.session.user.id,
+    input: { commandId },
+    source: 'project-ui/api',
   })
-  const command = commands.find((item) => item.commandId === commandId) || null
 
   return NextResponse.json({
-    command,
+    ...(result && typeof result === 'object' && !Array.isArray(result) ? result : { command: null }),
   })
 })

@@ -1,0 +1,136 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { buildMockRequest } from '../../../helpers/request'
+
+const authState = vi.hoisted(() => ({
+  authenticated: true,
+}))
+
+const prismaMock = vi.hoisted(() => ({
+  executionPlan: {
+    findUnique: vi.fn(),
+  },
+}))
+
+const apiAdapterMock = vi.hoisted(() => ({
+  executeProjectAgentOperationFromApi: vi.fn(),
+}))
+
+vi.mock('@/lib/api-auth', () => {
+  const unauthorized = () => new Response(
+    JSON.stringify({ error: { code: 'UNAUTHORIZED' } }),
+    { status: 401, headers: { 'content-type': 'application/json' } },
+  )
+
+  return {
+    isErrorResponse: (value: unknown) => value instanceof Response,
+    requireProjectAuth: async (projectId: string) => {
+      if (!authState.authenticated) return unauthorized()
+      return {
+        session: { user: { id: 'user-1' } },
+        project: { id: projectId, userId: 'user-1' },
+      }
+    },
+  }
+})
+
+vi.mock('@/lib/prisma', () => ({
+  prisma: prismaMock,
+}))
+
+vi.mock('@/lib/adapters/api/execute-project-agent-operation', () => apiAdapterMock)
+
+import { POST as approvePost } from '@/app/api/projects/[projectId]/plans/[planId]/approve/route'
+import { POST as rejectPost } from '@/app/api/projects/[projectId]/plans/[planId]/reject/route'
+
+describe('api contract - plan approval routes (operation adapter)', () => {
+  beforeEach(() => {
+    authState.authenticated = true
+    vi.clearAllMocks()
+  })
+
+  it('POST /projects/[projectId]/plans/[planId]/approve -> resolves workflowId and calls approve_plan operation', async () => {
+    prismaMock.executionPlan.findUnique.mockResolvedValueOnce({
+      id: 'plan-1',
+      projectId: 'project-1',
+      command: {
+        normalizedInput: { workflowId: 'story-to-script' },
+        rawInput: {},
+      },
+    })
+    apiAdapterMock.executeProjectAgentOperationFromApi.mockResolvedValueOnce({
+      commandId: 'command-1',
+      planId: 'plan-1',
+      linkedTaskId: 'task-1',
+      linkedRunId: 'run-1',
+      status: 'running',
+      summary: 'summary',
+      steps: [{ skillId: 's1' }],
+    })
+
+    const res = await approvePost(
+      buildMockRequest({
+        path: '/api/projects/project-1/plans/plan-1/approve',
+        method: 'POST',
+        body: {},
+      }),
+      { params: Promise.resolve({ projectId: 'project-1', planId: 'plan-1' }) },
+    )
+
+    expect(res.status).toBe(200)
+    expect(apiAdapterMock.executeProjectAgentOperationFromApi).toHaveBeenCalledWith(expect.objectContaining({
+      operationId: 'approve_plan',
+      projectId: 'project-1',
+      userId: 'user-1',
+      input: {
+        planId: 'plan-1',
+        workflowId: 'story-to-script',
+      },
+    }))
+
+    await expect(res.json()).resolves.toEqual(expect.objectContaining({
+      success: true,
+      commandId: 'command-1',
+      planId: 'plan-1',
+      taskId: 'task-1',
+      runId: 'run-1',
+      status: 'running',
+    }))
+  })
+
+  it('POST /projects/[projectId]/plans/[planId]/reject -> calls reject_plan operation with note', async () => {
+    prismaMock.executionPlan.findUnique.mockResolvedValueOnce({
+      id: 'plan-1',
+      projectId: 'project-1',
+    })
+    apiAdapterMock.executeProjectAgentOperationFromApi.mockResolvedValueOnce({
+      commandId: 'command-1',
+      planId: 'plan-1',
+      status: 'rejected',
+      summary: 'summary',
+      steps: [],
+    })
+
+    const res = await rejectPost(
+      buildMockRequest({
+        path: '/api/projects/project-1/plans/plan-1/reject',
+        method: 'POST',
+        body: {
+          note: 'no',
+        },
+      }),
+      { params: Promise.resolve({ projectId: 'project-1', planId: 'plan-1' }) },
+    )
+
+    expect(res.status).toBe(200)
+    expect(apiAdapterMock.executeProjectAgentOperationFromApi).toHaveBeenCalledWith(expect.objectContaining({
+      operationId: 'reject_plan',
+      projectId: 'project-1',
+      userId: 'user-1',
+      input: {
+        planId: 'plan-1',
+        note: 'no',
+      },
+    }))
+  })
+})
+

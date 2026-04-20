@@ -2,11 +2,8 @@ import { z } from 'zod'
 import sharp from 'sharp'
 import { createHash } from 'crypto'
 import { prisma } from '@/lib/prisma'
-import { ApiError, getRequestId } from '@/lib/api-errors'
-import { submitTask } from '@/lib/task/submitter'
-import { TASK_TYPE, type TaskType } from '@/lib/task/types'
-import { buildDefaultTaskBillingInfo, isBillableTaskType } from '@/lib/billing'
-import { resolveRequiredTaskLocale } from '@/lib/task/resolve-locale'
+import { ApiError } from '@/lib/api-errors'
+import { TASK_TYPE } from '@/lib/task/types'
 import { getProjectModelConfig } from '@/lib/config-service'
 import { normalizeImageGenerationCount } from '@/lib/image-generation/count'
 import { detectEpisodeMarkers, splitByMarkers } from '@/lib/episode-marker-detector'
@@ -14,6 +11,7 @@ import { initializeFonts, createLabelSVG } from '@/lib/fonts'
 import { uploadObject, generateUniqueKey } from '@/lib/storage'
 import { decodeImageUrlsFromDb, encodeImageUrls } from '@/lib/contracts/image-urls-contract'
 import type { ProjectAgentOperationRegistry } from './types'
+import { submitOperationTask } from './submit-operation-task'
 
 function normalizeString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
@@ -26,43 +24,6 @@ function parseReferenceImages(body: Record<string, unknown>): string[] {
   if (list.length > 0) return list.slice(0, 5)
   const single = typeof body.referenceImageUrl === 'string' ? body.referenceImageUrl.trim() : ''
   return single ? [single] : []
-}
-
-async function submitOperationTask(params: {
-  request: import('next/server').NextRequest
-  userId: string
-  projectId: string
-  episodeId?: string | null
-  type: TaskType
-  targetType: string
-  targetId: string
-  payload: Record<string, unknown>
-  dedupeKey?: string | null
-  priority?: number
-}) {
-  const locale = resolveRequiredTaskLocale(params.request, params.payload)
-  const billingInfo = isBillableTaskType(params.type) ? buildDefaultTaskBillingInfo(params.type, params.payload) : null
-  return await submitTask({
-    userId: params.userId,
-    locale,
-    requestId: getRequestId(params.request),
-    projectId: params.projectId,
-    episodeId: params.episodeId || null,
-    type: params.type,
-    targetType: params.targetType,
-    targetId: params.targetId,
-    payload: {
-      ...params.payload,
-      sync: 1,
-      meta: {
-        ...(typeof params.payload.meta === 'object' && params.payload.meta && !Array.isArray(params.payload.meta) ? params.payload.meta as Record<string, unknown> : {}),
-        locale,
-      },
-    },
-    dedupeKey: params.dedupeKey || null,
-    priority: params.priority ?? 0,
-    billingInfo,
-  })
 }
 
 export function createExtraOperations(): ProjectAgentOperationRegistry {

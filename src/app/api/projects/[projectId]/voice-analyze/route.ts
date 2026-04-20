@@ -1,8 +1,7 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { requireProjectAuthLight, isErrorResponse } from '@/lib/api-auth'
 import { apiHandler, ApiError } from '@/lib/api-errors'
-import { TASK_TYPE } from '@/lib/task/types'
-import { maybeSubmitLLMTask } from '@/lib/llm-observe/route-task'
+import { executeProjectAgentOperationFromApi } from '@/lib/adapters/api/execute-project-agent-operation'
 
 /**
  * POST /api/projects/[projectId]/voice-analyze
@@ -24,23 +23,13 @@ export const POST = apiHandler(async (
   if (isErrorResponse(authResult)) return authResult
   const { session } = authResult
 
-  const asyncTaskResponse = await maybeSubmitLLMTask({
+  const result = await executeProjectAgentOperationFromApi({
     request,
-    userId: session.user.id,
+    operationId: 'voice_analyze',
     projectId,
-    episodeId,
-    type: TASK_TYPE.VOICE_ANALYZE,
-    targetType: 'ProjectEpisode',
-    targetId: episodeId,
-    routePath: `/api/projects/${projectId}/voice-analyze`,
-    body: {
-      ...body,
-      displayMode: 'detail',
-    },
-    dedupeKey: `voice_analyze:${episodeId}`,
-    priority: 1,
+    userId: session.user.id,
+    input: body,
+    source: 'project-ui/api',
   })
-  if (asyncTaskResponse) return asyncTaskResponse
-
-  throw new ApiError('INVALID_PARAMS')
+  return NextResponse.json(result)
 })

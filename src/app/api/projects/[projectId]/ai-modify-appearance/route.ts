@@ -1,8 +1,7 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { requireProjectAuth, isErrorResponse } from '@/lib/api-auth'
 import { apiHandler, ApiError } from '@/lib/api-errors'
-import { TASK_TYPE } from '@/lib/task/types'
-import { maybeSubmitLLMTask } from '@/lib/llm-observe/route-task'
+import { executeProjectAgentOperationFromApi } from '@/lib/adapters/api/execute-project-agent-operation'
 
 export const POST = apiHandler(async (
   request: NextRequest,
@@ -23,17 +22,14 @@ export const POST = apiHandler(async (
     throw new ApiError('INVALID_PARAMS')
   }
 
-  const asyncTaskResponse = await maybeSubmitLLMTask({
+  const result = await executeProjectAgentOperationFromApi({
     request,
-    userId: session.user.id,
+    operationId: 'ai_modify_appearance',
     projectId,
-    type: TASK_TYPE.AI_MODIFY_APPEARANCE,
-    targetType: 'CharacterAppearance',
-    targetId: appearanceId,
-    routePath: `/api/projects/${projectId}/ai-modify-appearance`,
-    body,
-    dedupeKey: `ai_modify_appearance:${appearanceId}`})
-  if (asyncTaskResponse) return asyncTaskResponse
+    userId: session.user.id,
+    input: body,
+    source: 'project-ui/api',
+  })
 
-  throw new ApiError('INVALID_PARAMS')
+  return NextResponse.json(result)
 })

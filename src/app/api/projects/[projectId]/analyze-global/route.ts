@@ -1,8 +1,7 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { requireProjectAuth, isErrorResponse } from '@/lib/api-auth'
-import { apiHandler, ApiError } from '@/lib/api-errors'
-import { TASK_TYPE } from '@/lib/task/types'
-import { maybeSubmitLLMTask } from '@/lib/llm-observe/route-task'
+import { apiHandler } from '@/lib/api-errors'
+import { executeProjectAgentOperationFromApi } from '@/lib/adapters/api/execute-project-agent-operation'
 
 /**
  * 全局资产分析（任务化）
@@ -17,17 +16,14 @@ export const POST = apiHandler(async (
   const { session } = authResult
   const body = await request.json().catch(() => ({}))
 
-  const asyncTaskResponse = await maybeSubmitLLMTask({
+  const result = await executeProjectAgentOperationFromApi({
     request,
-    userId: session.user.id,
+    operationId: 'analyze_global',
     projectId,
-    type: TASK_TYPE.ANALYZE_GLOBAL,
-    targetType: 'Project',
-    targetId: projectId,
-    routePath: `/api/projects/${projectId}/analyze-global`,
-    body,
-    dedupeKey: `analyze_global:${projectId}`})
-  if (asyncTaskResponse) return asyncTaskResponse
+    userId: session.user.id,
+    input: body,
+    source: 'project-ui/api',
+  })
 
-  throw new ApiError('INVALID_PARAMS')
+  return NextResponse.json(result)
 })
