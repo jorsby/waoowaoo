@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { apiHandler, ApiError } from '@/lib/api-errors'
+import { apiHandler } from '@/lib/api-errors'
 import { isErrorResponse, requireUserAuth } from '@/lib/api-auth'
-import { getRunSnapshot } from '@/lib/run-runtime/service'
+import { executeProjectAgentOperationFromApi } from '@/lib/adapters/api/execute-project-agent-operation'
 
 export const GET = apiHandler(async (
-  _request: NextRequest,
+  request: NextRequest,
   context: { params: Promise<{ runId: string }> },
 ) => {
   const authResult = await requireUserAuth()
@@ -12,10 +12,14 @@ export const GET = apiHandler(async (
   const { session } = authResult
   const { runId } = await context.params
 
-  const snapshot = await getRunSnapshot(runId)
-  if (!snapshot || snapshot.run.userId !== session.user.id) {
-    throw new ApiError('NOT_FOUND')
-  }
+  const snapshot = await executeProjectAgentOperationFromApi({
+    request,
+    operationId: 'get_run_snapshot',
+    projectId: 'system',
+    userId: session.user.id,
+    input: { runId },
+    source: 'project-ui',
+  })
 
   return NextResponse.json(snapshot)
 })
