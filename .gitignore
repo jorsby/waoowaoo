@@ -82,8 +82,9 @@ AGENTS.md
 agent/
 
 # internal docs (not for public)
-docs/*
-!docs/agent/*
+docs/**
+!docs/agent/
+!docs/agent/**
 # GitHub CI workflows (internal)
 # .github/ — 只保留 workflows，忽略其他
 .github/*
