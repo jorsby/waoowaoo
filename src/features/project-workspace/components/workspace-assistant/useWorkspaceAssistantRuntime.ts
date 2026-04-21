@@ -4,6 +4,7 @@ import { useChat } from '@ai-sdk/react'
 import { AssistantChatTransport, useAISDKRuntime } from '@assistant-ui/react-ai-sdk'
 import type { AssistantRuntime } from '@assistant-ui/react'
 import type { ChatStatus, UIMessage } from 'ai'
+import { useLocale } from 'next-intl'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   useProjectAssistantThread,
@@ -45,15 +46,16 @@ export function useWorkspaceAssistantRuntime({
   episodeId,
   currentStage,
 }: UseWorkspaceAssistantRuntimeParams): UseWorkspaceAssistantRuntimeResult {
+  const locale = useLocale()
   const threadKey = `${projectId}:${episodeId || 'global'}`
   const assistantThread = useProjectAssistantThread(projectId, episodeId)
-  const { save: saveAssistantThread } = useProjectAssistantThreadSync(projectId, episodeId)
+  const { save: saveAssistantThread } = useProjectAssistantThreadSync(projectId, episodeId, locale)
   const contextPayload = useMemo(() => ({
-    locale: 'zh',
+    locale,
     projectId,
     episodeId,
     currentStage,
-  }), [currentStage, episodeId, projectId])
+  }), [currentStage, episodeId, locale, projectId])
   const transport = useMemo(() => new AssistantChatTransport({
     api: `/api/projects/${projectId}/assistant/chat`,
     body: {

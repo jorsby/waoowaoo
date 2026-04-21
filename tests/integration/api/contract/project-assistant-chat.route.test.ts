@@ -10,6 +10,18 @@ const projectAgentMock = vi.hoisted(() => ({
   createProjectAgentChatResponse: vi.fn(async () => new Response('ok', { status: 200 })),
 }))
 
+const compressionState = vi.hoisted(() => ({
+  shouldCompress: false,
+  compressedMessages: [
+    {
+      id: 'summary-1',
+      role: 'system',
+      parts: [{ type: 'text', text: 'summary' }],
+      metadata: { custom: { projectAgentConversationSummary: true } },
+    },
+  ] as Array<Record<string, unknown>>,
+}))
+
 const persistenceMock = vi.hoisted(() => ({
   loadProjectAssistantThread: vi.fn(async (): Promise<unknown> => null),
   saveProjectAssistantThread: vi.fn(async (): Promise<unknown> => ({
@@ -23,6 +35,23 @@ const persistenceMock = vi.hoisted(() => ({
     updatedAt: '2026-04-13T00:00:00.000Z',
   })),
   clearProjectAssistantThread: vi.fn(async (): Promise<void> => undefined),
+}))
+
+const modelConfigMock = vi.hoisted(() => ({
+  getUserModelConfig: vi.fn(async () => ({
+    analysisModel: 'llm::mock',
+  })),
+}))
+
+const modelResolverMock = vi.hoisted(() => ({
+  resolveProjectAgentLanguageModel: vi.fn(async () => ({
+    languageModel: {} as never,
+  })),
+}))
+
+const messageCompressionMock = vi.hoisted(() => ({
+  shouldCompressMessages: vi.fn(() => compressionState.shouldCompress),
+  compressMessages: vi.fn(async () => compressionState.compressedMessages),
 }))
 
 vi.mock('@/lib/api-auth', () => {
@@ -45,6 +74,9 @@ vi.mock('@/lib/api-auth', () => {
 
 vi.mock('@/lib/project-agent', () => projectAgentMock)
 vi.mock('@/lib/project-agent/persistence', () => persistenceMock)
+vi.mock('@/lib/config-service', () => modelConfigMock)
+vi.mock('@/lib/project-agent/model', () => modelResolverMock)
+vi.mock('@/lib/project-agent/message-compression', () => messageCompressionMock)
 
 import {
   DELETE as chatDelete,
@@ -56,6 +88,7 @@ import {
 describe('project assistant chat route', () => {
   beforeEach(() => {
     authState.authenticated = true
+    compressionState.shouldCompress = false
     vi.clearAllMocks()
   })
 
@@ -87,9 +120,55 @@ describe('project assistant chat route', () => {
       projectId: 'project-1',
       userId: 'user-1',
       context: {
-        episodeId: 'episode-1',
-        currentStage: 'config',
+          episodeId: 'episode-1',
+          currentStage: 'config',
       },
+    }))
+  })
+
+  it('POST /api/projects/[projectId]/assistant/chat -> forwards compressed messages when long conversation threshold is hit', async () => {
+    compressionState.shouldCompress = true
+    compressionState.compressedMessages = [
+      {
+        id: 'summary-1',
+        role: 'system',
+        parts: [{ type: 'text', text: 'summary' }],
+        metadata: { custom: { projectAgentConversationSummary: true } },
+      },
+      {
+        id: 'u1',
+        role: 'user',
+        parts: [{ type: 'text', text: 'latest' }],
+      },
+    ]
+
+    const response = await chatPost(
+      buildMockRequest({
+        path: '/api/projects/project-1/assistant/chat',
+        method: 'POST',
+        body: {
+          messages: Array.from({ length: 60 }, (_value, index) => ({
+            id: `m${index}`,
+            role: index % 2 === 0 ? 'user' : 'assistant',
+            parts: [{ type: 'text', text: `message-${index}` }],
+          })),
+          context: {
+            locale: 'en',
+          },
+        },
+      }),
+      { params: Promise.resolve({ projectId: 'project-1' }) },
+    )
+
+    expect(response.status).toBe(200)
+    expect(modelConfigMock.getUserModelConfig).toHaveBeenCalledWith('user-1')
+    expect(modelResolverMock.resolveProjectAgentLanguageModel).toHaveBeenCalledWith({
+      userId: 'user-1',
+      analysisModelKey: 'llm::mock',
+    })
+    expect(messageCompressionMock.compressMessages).toHaveBeenCalledTimes(1)
+    expect(projectAgentMock.createProjectAgentChatResponse).toHaveBeenCalledWith(expect.objectContaining({
+      messages: compressionState.compressedMessages,
     }))
   })
 
@@ -244,6 +323,44 @@ describe('project assistant chat route', () => {
         },
       ],
     })
+  })
+
+  it('PUT /api/projects/[projectId]/assistant/chat -> persists compressed thread when long conversation threshold is hit', async () => {
+    compressionState.shouldCompress = true
+    compressionState.compressedMessages = [
+      {
+        id: 'summary-1',
+        role: 'system',
+        parts: [{ type: 'text', text: 'summary' }],
+        metadata: { custom: { projectAgentConversationSummary: true } },
+      },
+      {
+        id: 'user-1',
+        role: 'user',
+        parts: [{ type: 'text', text: 'latest' }],
+      },
+    ]
+
+    const response = await chatPut(
+      buildMockRequest({
+        path: '/api/projects/project-1/assistant/chat',
+        method: 'PUT',
+        body: {
+          locale: 'en',
+          messages: Array.from({ length: 60 }, (_value, index) => ({
+            id: `m${index}`,
+            role: index % 2 === 0 ? 'user' : 'assistant',
+            parts: [{ type: 'text', text: `message-${index}` }],
+          })),
+        },
+      }),
+      { params: Promise.resolve({ projectId: 'project-1' }) },
+    )
+
+    expect(response.status).toBe(200)
+    expect(persistenceMock.saveProjectAssistantThread).toHaveBeenCalledWith(expect.objectContaining({
+      messages: compressionState.compressedMessages,
+    }))
   })
 
   it('DELETE /api/projects/[projectId]/assistant/chat -> clears workspace thread from database service', async () => {

@@ -70,6 +70,7 @@ describe('project assistant tool-catalog route', () => {
       buildMockRequest({
         path: '/api/projects/project-1/assistant/tool-catalog',
         method: 'GET',
+        query: { locale: 'zh' },
       }),
       { params: Promise.resolve({ projectId: 'project-1' }) },
     )
@@ -80,6 +81,41 @@ describe('project assistant tool-catalog route', () => {
         expect.objectContaining({
           operationId: 'visible',
           description: 'visible tool',
+        }),
+      ],
+    })
+  })
+
+  it('GET /api/projects/[projectId]/assistant/tool-catalog -> passes locale through to catalog builder', async () => {
+    registryState.registry = {
+      asset_hub_list_folders: {
+        id: 'asset_hub_list_folders',
+        description: 'List global asset folders for the current user.',
+        scope: 'project',
+        sideEffects: { mode: 'query', risk: 'low' },
+        channels: { tool: true, api: true },
+        tool: { selectable: true, defaultVisibility: 'core', groups: ['asset-hub'], tags: ['read'] },
+        inputSchema: z.object({}),
+        outputSchema: z.unknown(),
+        execute: async () => ({}),
+      },
+    }
+
+    const response = await toolCatalogGet(
+      buildMockRequest({
+        path: '/api/projects/project-1/assistant/tool-catalog',
+        method: 'GET',
+        query: { locale: 'zh' },
+      }),
+      { params: Promise.resolve({ projectId: 'project-1' }) },
+    )
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({
+      tools: [
+        expect.objectContaining({
+          operationId: 'asset_hub_list_folders',
+          description: '列出当前用户的全局资产文件夹。',
         }),
       ],
     })
@@ -98,4 +134,3 @@ describe('project assistant tool-catalog route', () => {
     expect(response.status).toBe(401)
   })
 })
-

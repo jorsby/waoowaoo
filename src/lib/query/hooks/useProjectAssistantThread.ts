@@ -30,7 +30,11 @@ export function useProjectAssistantThread(projectId: string | null, episodeId?: 
   })
 }
 
-export function useProjectAssistantThreadSync(projectId: string | null, episodeId?: string | null) {
+export function useProjectAssistantThreadSync(
+  projectId: string | null,
+  episodeId?: string | null,
+  locale?: string,
+) {
   const queryClient = useQueryClient()
 
   const save = useCallback(async (messages: UIMessage[]): Promise<ProjectAssistantThreadSnapshot | null> => {
@@ -42,6 +46,7 @@ export function useProjectAssistantThreadSync(projectId: string | null, episodeI
       },
       body: JSON.stringify({
         episodeId: episodeId || undefined,
+        locale,
         messages,
       }),
     })
@@ -51,7 +56,7 @@ export function useProjectAssistantThreadSync(projectId: string | null, episodeI
     const data = await response.json() as ProjectAssistantThreadResponse
     queryClient.setQueryData(queryKeys.project.assistantThread(projectId, episodeId || ''), data.thread)
     return data.thread
-  }, [episodeId, projectId, queryClient])
+  }, [episodeId, locale, projectId, queryClient])
 
   const clear = useCallback(async (): Promise<void> => {
     if (!projectId) throw new Error('projectId is required')

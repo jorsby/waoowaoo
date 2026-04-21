@@ -5,6 +5,8 @@ import type {
   ProjectAgentOperationDefinition,
   ProjectAgentOperationRegistry,
 } from '@/lib/operations/types'
+import { localizeSelectableToolDescription } from './copy'
+import { normalizeProjectAgentLocale } from './locale'
 
 export interface ProjectAgentToolCatalogItem {
   operationId: string
@@ -43,7 +45,11 @@ function isSelectable(operation: ProjectAgentOperationDefinition): boolean {
   return operation.tool.selectable === true
 }
 
-export function buildProjectAgentToolCatalog(operations: ProjectAgentOperationRegistry): ProjectAgentToolCatalog {
+export function buildProjectAgentToolCatalog(
+  operations: ProjectAgentOperationRegistry,
+  locale?: string,
+): ProjectAgentToolCatalog {
+  const normalizedLocale = normalizeProjectAgentLocale(locale)
   const tools: ProjectAgentToolCatalogItem[] = []
 
   for (const [operationId, operation] of Object.entries(operations)) {
@@ -53,7 +59,7 @@ export function buildProjectAgentToolCatalog(operations: ProjectAgentOperationRe
 
     tools.push({
       operationId,
-      description: operation.description,
+      description: localizeSelectableToolDescription(operationId, operation.description, normalizedLocale),
       groups: normalizeStringList(operation.tool?.groups),
       tags: normalizeStringList(operation.tool?.tags),
       defaultVisibility: readVisibility(operation),
@@ -71,4 +77,3 @@ export function buildProjectAgentToolCatalog(operations: ProjectAgentOperationRe
 
   return { tools }
 }
-

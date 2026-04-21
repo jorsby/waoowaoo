@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { useLocale, useTranslations } from 'next-intl'
 import GlassModalShell from '@/components/ui/primitives/GlassModalShell'
 import type { ProjectAgentToolCatalog, ProjectAgentToolCatalogItem } from '@/lib/project-agent/tool-catalog'
 import type { ProjectAgentToolSelection } from '@/lib/project-agent/tool-selection'
@@ -10,13 +11,18 @@ function cx(...names: Array<string | false | null | undefined>) {
   return names.filter(Boolean).join(' ')
 }
 
-function buildRiskBadge(item: ProjectAgentToolCatalogItem): string | null {
+interface AssistantAgentTranslator {
+  (key: string, values?: Record<string, string | number>): string
+  has: (key: string) => boolean
+}
+
+function buildRiskBadge(item: ProjectAgentToolCatalogItem, t: AssistantAgentTranslator): string | null {
   const se = item.sideEffects
   if (!se) return null
-  if (se.billable) return 'Billable'
-  if (se.risk === 'high') return 'High'
-  if (se.risk === 'medium') return 'Medium'
-  if (se.risk === 'low') return 'Low'
+  if (se.billable) return t('toolConfig.risk.billable')
+  if (se.risk === 'high') return t('toolConfig.risk.high')
+  if (se.risk === 'medium') return t('toolConfig.risk.medium')
+  if (se.risk === 'low') return t('toolConfig.risk.low')
   return null
 }
 
@@ -59,12 +65,23 @@ function mergeSelectionFromCatalog(params: {
   }
 }
 
-async function fetchToolCatalog(projectId: string): Promise<ProjectAgentToolCatalog> {
-  const response = await fetch(`/api/projects/${projectId}/assistant/tool-catalog`, { method: 'GET' })
+async function fetchToolCatalog(projectId: string, locale: string): Promise<ProjectAgentToolCatalog> {
+  const response = await fetch(`/api/projects/${projectId}/assistant/tool-catalog?locale=${encodeURIComponent(locale)}`, { method: 'GET' })
   if (!response.ok) {
     throw new Error(`TOOL_CATALOG_FETCH_FAILED:${response.status}`)
   }
   return (await response.json()) as ProjectAgentToolCatalog
+}
+
+function formatGroupLabel(group: string, t: AssistantAgentTranslator): string {
+  if (group === 'all') return t('toolConfig.all')
+  const segments = group.split(' / ').map((segment) => {
+    const key = segment.trim()
+    if (!key) return key
+    const translationKey = `toolConfig.groupSegment.${key}`
+    return t.has(translationKey) ? t(translationKey) : key
+  })
+  return segments.join(' / ')
 }
 
 export interface ToolConfigModalProps {
@@ -76,6 +93,8 @@ export interface ToolConfigModalProps {
 }
 
 export function ToolConfigModal({ open, onClose, projectId, value, onSave }: ToolConfigModalProps) {
+  const t = useTranslations('assistantAgent')
+  const locale = useLocale()
   const [loading, setLoading] = useState(false)
   const [errorText, setErrorText] = useState<string | null>(null)
   const [catalog, setCatalog] = useState<ProjectAgentToolCatalog | null>(null)
@@ -92,7 +111,7 @@ export function ToolConfigModal({ open, onClose, projectId, value, onSave }: Too
     if (!open) return
     setLoading(true)
     setErrorText(null)
-    fetchToolCatalog(projectId)
+    fetchToolCatalog(projectId, locale)
       .then((data) => {
         setCatalog(data)
         setDraft((current) => mergeSelectionFromCatalog({ current, tools: data.tools }))
@@ -101,13 +120,13 @@ export function ToolConfigModal({ open, onClose, projectId, value, onSave }: Too
         setErrorText(error instanceof Error ? error.message : String(error))
       })
       .finally(() => setLoading(false))
-  }, [open, projectId])
+  }, [locale, open, projectId])
 
   const groups = useMemo(() => {
     const tools = catalog?.tools ?? []
     const map = new Map<string, number>()
     for (const tool of tools) {
-      const group = tool.groups.length > 0 ? tool.groups.join(' / ') : 'Ungrouped'
+      const group = tool.groups.length > 0 ? tool.groups.join(' / ') : 'ungrouped'
       map.set(group, (map.get(group) ?? 0) + 1)
     }
     const items = Array.from(map.entries())
@@ -120,7 +139,7 @@ export function ToolConfigModal({ open, onClose, projectId, value, onSave }: Too
     const tools = catalog?.tools ?? []
     const q = search.trim().toLowerCase()
     return tools.filter((tool) => {
-      const group = tool.groups.length > 0 ? tool.groups.join(' / ') : 'Ungrouped'
+      const group = tool.groups.length > 0 ? tool.groups.join(' / ') : 'ungrouped'
       if (activeGroup !== 'all' && group !== activeGroup) return false
       if (!q) return true
       const hay = `${tool.operationId}\n${tool.description}\n${group}\n${tool.tags.join(',')}`.toLowerCase()
@@ -145,7 +164,7 @@ export function ToolConfigModal({ open, onClose, projectId, value, onSave }: Too
   const footer = (
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="text-xs text-[var(--glass-text-tertiary)]">
-        {loading ? 'Loading…' : errorText ? errorText : `已选 ${selectedCount} 项 · Eligible 不等于每轮注入`}
+        {loading ? t('toolConfig.loading') : errorText ? errorText : t('toolConfig.selectedSummary', { count: selectedCount })}
       </div>
       <div className="flex items-center gap-2">
         <button
@@ -162,7 +181,7 @@ export function ToolConfigModal({ open, onClose, projectId, value, onSave }: Too
             } : null)
           }}
         >
-          恢复默认
+          {t('toolConfig.reset')}
         </button>
         <button
           type="button"
@@ -181,7 +200,7 @@ export function ToolConfigModal({ open, onClose, projectId, value, onSave }: Too
           }}
           disabled={loading || !catalog}
         >
-          保存
+          {t('toolConfig.save')}
         </button>
       </div>
     </div>
@@ -192,20 +211,20 @@ export function ToolConfigModal({ open, onClose, projectId, value, onSave }: Too
       open={open}
       onClose={onClose}
       size="lg"
-      title="配置工具"
-      description="勾选仅影响 eligible 工具集合；后端仍按路由与 Top-N 注入策略裁剪。"
+      title={t('toolConfig.title')}
+      description={t('toolConfig.description')}
       footer={footer}
     >
       <div className="grid grid-cols-1 gap-4 md:grid-cols-[220px,1fr]">
         <div className="space-y-3">
           <div className="rounded-2xl border border-[var(--glass-stroke-base)] bg-[var(--glass-bg-muted)] p-3">
-            <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--glass-text-tertiary)]">模式</div>
+            <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--glass-text-tertiary)]">{t('toolConfig.mode')}</div>
             <div className="mt-2 grid grid-cols-2 gap-2">
               {[
-                { key: TOOL_PROFILE_MODE.EXPLORE, label: 'Explore' },
-                { key: TOOL_PROFILE_MODE.EDIT, label: 'Edit' },
-                { key: TOOL_PROFILE_MODE.GENERATE, label: 'Generate' },
-                { key: TOOL_PROFILE_MODE.RECOVER, label: 'Recover' },
+                { key: TOOL_PROFILE_MODE.EXPLORE, label: t('toolConfig.profileMode.explore') },
+                { key: TOOL_PROFILE_MODE.EDIT, label: t('toolConfig.profileMode.edit') },
+                { key: TOOL_PROFILE_MODE.GENERATE, label: t('toolConfig.profileMode.generate') },
+                { key: TOOL_PROFILE_MODE.RECOVER, label: t('toolConfig.profileMode.recover') },
               ].map((item) => (
                 <button
                   key={item.key}
@@ -224,7 +243,7 @@ export function ToolConfigModal({ open, onClose, projectId, value, onSave }: Too
                 </button>
               ))}
             </div>
-            <div className="mt-3 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--glass-text-tertiary)]">风险预算</div>
+            <div className="mt-3 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--glass-text-tertiary)]">{t('toolConfig.riskBudget')}</div>
             <select
               className="mt-2 w-full rounded-xl border border-[var(--glass-stroke-base)] bg-[var(--glass-bg-surface)] px-3 py-2 text-sm text-[var(--glass-text-primary)]"
               value={draft?.profile.riskBudget ?? TOOL_RISK_BUDGET.ALLOW_MEDIUM}
@@ -233,14 +252,14 @@ export function ToolConfigModal({ open, onClose, projectId, value, onSave }: Too
                 setDraft((current) => (current ? { ...current, profile: { ...current.profile, riskBudget: value } } : current))
               }}
             >
-              <option value={TOOL_RISK_BUDGET.LOW_ONLY}>low-only</option>
-              <option value={TOOL_RISK_BUDGET.ALLOW_MEDIUM}>allow-medium</option>
-              <option value={TOOL_RISK_BUDGET.ALLOW_HIGH_WITH_CONFIRM}>allow-high-with-confirm</option>
+              <option value={TOOL_RISK_BUDGET.LOW_ONLY}>{t('toolConfig.riskBudgetValue.low-only')}</option>
+              <option value={TOOL_RISK_BUDGET.ALLOW_MEDIUM}>{t('toolConfig.riskBudgetValue.allow-medium')}</option>
+              <option value={TOOL_RISK_BUDGET.ALLOW_HIGH_WITH_CONFIRM}>{t('toolConfig.riskBudgetValue.allow-high-with-confirm')}</option>
             </select>
           </div>
 
           <div className="rounded-2xl border border-[var(--glass-stroke-base)] bg-[var(--glass-bg-muted)] p-3">
-            <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--glass-text-tertiary)]">分组</div>
+            <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--glass-text-tertiary)]">{t('toolConfig.groups')}</div>
             <div className="mt-2 max-h-72 space-y-1 overflow-y-auto pr-1">
               {groups.map((group) => (
                 <button
@@ -254,7 +273,7 @@ export function ToolConfigModal({ open, onClose, projectId, value, onSave }: Too
                   )}
                   onClick={() => setActiveGroup(group.label)}
                 >
-                  <span className="truncate">{group.label === 'all' ? '全部' : group.label}</span>
+                  <span className="truncate">{formatGroupLabel(group.label, t)}</span>
                   <span className="ml-2 shrink-0 rounded-full border border-[var(--glass-stroke-base)] bg-[var(--glass-bg-surface)] px-2 py-0.5 text-xs text-[var(--glass-text-tertiary)]">
                     {group.count}
                   </span>
@@ -269,19 +288,19 @@ export function ToolConfigModal({ open, onClose, projectId, value, onSave }: Too
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="搜索工具 / 描述 / tag…"
+              placeholder={t('toolConfig.searchPlaceholder')}
               className="w-full rounded-2xl border border-[var(--glass-stroke-base)] bg-[var(--glass-bg-muted)] px-3 py-2 text-sm text-[var(--glass-text-primary)] outline-none"
             />
           </div>
 
           <div className="max-h-[520px] overflow-y-auto rounded-2xl border border-[var(--glass-stroke-base)] bg-[var(--glass-bg-muted)] p-2">
             {filteredTools.length === 0 ? (
-              <div className="px-3 py-6 text-center text-sm text-[var(--glass-text-tertiary)]">暂无可配置工具</div>
+              <div className="px-3 py-6 text-center text-sm text-[var(--glass-text-tertiary)]">{t('toolConfig.empty')}</div>
             ) : (
               <div className="space-y-1">
                 {filteredTools.map((item) => {
                   const checked = checkedState(item)
-                  const badge = buildRiskBadge(item)
+                  const badge = buildRiskBadge(item, t)
                   return (
                     <label
                       key={item.operationId}
@@ -335,7 +354,7 @@ export function ToolConfigModal({ open, onClose, projectId, value, onSave }: Too
                         <div className="mt-1 line-clamp-2 text-xs text-[var(--glass-text-secondary)]">{item.description}</div>
                         {item.groups.length > 0 ? (
                           <div className="mt-1 text-[11px] text-[var(--glass-text-tertiary)]">
-                            {item.groups.join(' / ')}
+                            {formatGroupLabel(item.groups.join(' / '), t)}
                           </div>
                         ) : null}
                       </div>

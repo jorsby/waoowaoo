@@ -7,7 +7,7 @@ import { buildProjectAgentToolCatalog } from '@/lib/project-agent/tool-catalog'
 export const runtime = 'nodejs'
 
 export const GET = apiHandler(async (
-  _request,
+  request,
   context: { params: Promise<{ projectId: string }> },
 ) => {
   const { projectId } = await context.params
@@ -15,7 +15,9 @@ export const GET = apiHandler(async (
   if (isErrorResponse(authResult)) return authResult
 
   const operations = createProjectAgentOperationRegistry()
-  const catalog = buildProjectAgentToolCatalog(operations)
+  const catalog = buildProjectAgentToolCatalog(
+    operations,
+    request.nextUrl.searchParams.get('locale') ?? undefined,
+  )
   return NextResponse.json(catalog)
 })
-

@@ -1,0 +1,93 @@
+{
+  "panel": {
+    "eyebrow": "AI Assistant",
+    "title": "Workspace Chat",
+    "pending": "Running",
+    "ready": "Ready",
+    "empty": "This is the single workspace console. Workflow plans, approvals, skill progress, and results from both chat and creation entry points are collected here.",
+    "composerPlaceholder": "Ask about current progress, approval reasons, next steps, or request an explanation of this workflow.",
+    "sending": "Sending...",
+    "send": "Send",
+    "streaming": "Streaming",
+    "loading": "Loading",
+    "statusReady": "Ready",
+    "runs": "{count} active runs",
+    "latest": "Latest",
+    "pendingApprovalTitle": "Pending approval",
+    "pendingApprovalCount": "{count} pending actions"
+  },
+  "toolConfig": {
+    "title": "Configure Tools",
+    "description": "Checkboxes only affect the eligible tool pool. The backend still trims tools by routing and Top-N injection.",
+    "loading": "Loading...",
+    "selectedSummary": "{count} selected in current view. Eligible does not mean injected every turn.",
+    "reset": "Reset",
+    "save": "Save",
+    "mode": "Mode",
+    "riskBudget": "Risk budget",
+    "groups": "Groups",
+    "all": "All",
+    "ungrouped": "Ungrouped",
+    "searchPlaceholder": "Search tools / descriptions / tags...",
+    "empty": "No configurable tools",
+    "risk": {
+      "billable": "Billable",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "profileMode": {
+      "explore": "Explore",
+      "edit": "Edit",
+      "generate": "Generate",
+      "recover": "Recover"
+    },
+    "riskBudgetValue": {
+      "low-only": "Low only",
+      "allow-medium": "Allow medium",
+      "allow-high-with-confirm": "Allow high with confirm"
+    },
+    "groupSegment": {
+      "asset-hub": "Asset Hub",
+      "read": "Read",
+      "folder": "Folder",
+      "picker": "Picker",
+      "character": "Character",
+      "location": "Location",
+      "voice": "Voice",
+      "ungrouped": "Ungrouped"
+    }
+  },
+  "cards": {
+    "projectPhase": "Project Phase",
+    "runs": "Runs {count}",
+    "clips": "Clips {count}",
+    "screenplays": "Screenplays {count}",
+    "storyboards": "Storyboards {count}",
+    "voice": "Voice {count}",
+    "maxSteps": "Maximum steps reached",
+    "stepUsage": "Current steps {stepCount} / limit {maxSteps}",
+    "reason": "Reason: {reason}",
+    "approvalRequired": "Approval Required",
+    "rejectNotePlaceholder": "Optional rejection note",
+    "approve": "Approve",
+    "reject": "Reject",
+    "confirmationRequired": "Confirmation required",
+    "taskSubmitted": "Task Submitted",
+    "batchTaskSubmitted": "Batch Task Submitted",
+    "undoCurrentChange": "Undo this change",
+    "undoCurrentBatch": "Undo this batch",
+    "undoRunning": "Undoing...",
+    "undoSucceeded": "Reverted (reverted={count})",
+    "undoFailed": "Undo failed",
+    "undoConfirmSingle": "Undo this change? This may overwrite or delete newly generated content.",
+    "undoConfirmBatch": "Undo this batch change? This may overwrite or delete newly generated content.",
+    "globalScope": "Global",
+    "scopeEpisode": "Episode {id}",
+    "scopeClip": "Clip {id}",
+    "scopePanel": "Panel {id}",
+    "step": "Step {current}/{total}",
+    "rejectedPlan": "Rejected the {workflow} plan.{reason}",
+    "approvedPlan": "Approved the {workflow} plan and started execution."
+  }
+}

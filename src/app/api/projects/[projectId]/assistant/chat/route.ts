@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { safeValidateUIMessages } from 'ai'
 import { apiHandler, ApiError } from '@/lib/api-errors'
 import { isErrorResponse, requireProjectAuth } from '@/lib/api-auth'
+import { getUserModelConfig } from '@/lib/config-service'
 import { createProjectAgentChatResponse } from '@/lib/project-agent'
+import { normalizeProjectAgentLocale } from '@/lib/project-agent/locale'
+import { compressMessages, shouldCompressMessages } from '@/lib/project-agent/message-compression'
+import { resolveProjectAgentLanguageModel } from '@/lib/project-agent/model'
 import {
   clearProjectAssistantThread,
   loadProjectAssistantThread,
@@ -12,6 +17,7 @@ type RequestBody = {
   messages?: unknown
   context?: unknown
   episodeId?: string | null
+  locale?: string | null
 }
 
 function mapProjectAgentError(error: unknown): ApiError {
@@ -29,6 +35,7 @@ function mapProjectAgentError(error: unknown): ApiError {
       || error.message === 'PROJECT_ASSISTANT_INVALID_THREAD_MESSAGES'
       || error.message === 'PROJECT_AGENT_TOOL_SELECTION_INVALID'
       || error.message === 'PROJECT_AGENT_TOOL_SELECTION_TOO_LARGE'
+      || error.message === 'PROJECT_AGENT_MESSAGE_SUMMARY_EMPTY'
     ) {
       return new ApiError('INVALID_PARAMS', {
         code: error.message,
@@ -51,6 +58,44 @@ function readEpisodeIdFromBody(body: RequestBody): string | null {
   return typeof body.episodeId === 'string' && body.episodeId.trim()
     ? body.episodeId.trim()
     : null
+}
+
+function readLocaleFromBody(body: RequestBody): 'zh' | 'en' {
+  if (body.context && typeof body.context === 'object') {
+    return normalizeProjectAgentLocale((body.context as Record<string, unknown>).locale)
+  }
+  return normalizeProjectAgentLocale(body.locale)
+}
+
+async function compressThreadMessagesIfNeeded(params: {
+  userId: string
+  locale: 'zh' | 'en'
+  messages: unknown
+}) {
+  const validation = await safeValidateUIMessages({ messages: params.messages })
+  if (!validation.success) {
+    throw new Error('PROJECT_AGENT_INVALID_MESSAGES')
+  }
+  if (!shouldCompressMessages(validation.data)) {
+    return validation.data
+  }
+
+  const userConfig = await getUserModelConfig(params.userId)
+  const analysisModelKey = userConfig.analysisModel?.trim() || ''
+  if (!analysisModelKey) {
+    throw new Error('PROJECT_AGENT_MODEL_NOT_CONFIGURED')
+  }
+
+  const resolved = await resolveProjectAgentLanguageModel({
+    userId: params.userId,
+    analysisModelKey,
+  })
+
+  return await compressMessages({
+    messages: validation.data,
+    locale: params.locale,
+    model: resolved.languageModel,
+  })
 }
 
 export const runtime = 'nodejs'
@@ -96,12 +141,18 @@ export const PUT = apiHandler(async (
   }
 
   try {
+    const locale = readLocaleFromBody(body)
+    const messages = await compressThreadMessagesIfNeeded({
+      userId: authResult.session.user.id,
+      locale,
+      messages: body.messages ?? [],
+    })
     const thread = await saveProjectAssistantThread({
       projectId,
       userId: authResult.session.user.id,
       episodeId: readEpisodeIdFromBody(body),
       assistantId: 'workspace-command',
-      messages: body.messages ?? [],
+      messages,
     })
     return NextResponse.json({ thread })
   } catch (error) {
@@ -150,12 +201,18 @@ export const POST = apiHandler(async (
   }
 
   try {
+    const locale = readLocaleFromBody(body)
+    const messages = await compressThreadMessagesIfNeeded({
+      userId: authResult.session.user.id,
+      locale,
+      messages: body.messages,
+    })
     return await createProjectAgentChatResponse({
       request,
       userId: authResult.session.user.id,
       projectId,
       context: body.context,
-      messages: body.messages,
+      messages,
     })
   } catch (error) {
     throw mapProjectAgentError(error)

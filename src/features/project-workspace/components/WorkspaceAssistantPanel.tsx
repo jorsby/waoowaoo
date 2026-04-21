@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import {
   AssistantRuntimeProvider,
   ComposerPrimitive,
@@ -40,6 +41,7 @@ export default function WorkspaceAssistantPanel({
   storyToScriptStream,
   scriptToStoryboardStream,
 }: WorkspaceAssistantPanelProps) {
+  const t = useTranslations('assistantAgent')
   const [toolConfigOpen, setToolConfigOpen] = useState(false)
   const toolSelectionQuery = useProjectAssistantToolSelection({
     projectId,
@@ -82,7 +84,9 @@ export default function WorkspaceAssistantPanel({
       createAssistantMessage([
         {
           type: 'text',
-          text: `已批准 ${pendingApproval ? workflowLabels[pendingApproval.data.workflowId] : '当前'} 计划，正在开始执行。`,
+          text: t('cards.approvedPlan', {
+            workflow: pendingApproval ? workflowLabels[pendingApproval.data.workflowId] : currentStage,
+          }),
         },
       ]),
     ])
@@ -96,20 +100,23 @@ export default function WorkspaceAssistantPanel({
       createAssistantMessage([
         {
           type: 'text',
-          text: `已拒绝 ${pendingApproval ? workflowLabels[pendingApproval.data.workflowId] : '当前'} 计划。${params.note?.trim() ? ` 原因：${params.note.trim()}` : ''}`,
+          text: t('cards.rejectedPlan', {
+            workflow: pendingApproval ? workflowLabels[pendingApproval.data.workflowId] : currentStage,
+            reason: params.note?.trim() ? ` ${params.note.trim()}` : '',
+          }),
         },
       ]),
     ])
   }
-  const contextSummary = `${projectContext?.episodeName || episodeId || '未选择剧集'} · ${currentStage} · ${projectContext?.activeRuns.length || 0} 个运行中`
+  const contextSummary = `${projectContext?.episodeName || episodeId || t('cards.globalScope')} · ${currentStage} · ${t('panel.runs', { count: projectContext?.activeRuns.length || 0 })}`
   const statusText = assistantRuntime.syncError
     || assistantRuntime.storageError
     || assistantRuntime.error?.message
     || (assistantRuntime.pending
-      ? 'Streaming'
+      ? t('panel.streaming')
       : assistantRuntime.storageLoading
-        ? 'Loading'
-        : 'Ready')
+        ? t('panel.loading')
+        : t('panel.statusReady'))
 
   return (
     <aside className="relative w-[360px] shrink-0 self-stretch">
@@ -119,8 +126,8 @@ export default function WorkspaceAssistantPanel({
             <div className="border-b border-[var(--glass-stroke-base)] bg-[linear-gradient(180deg,rgba(59,130,246,0.1),rgba(59,130,246,0))] px-5 py-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--glass-text-tertiary)]">AI Assistant</p>
-                  <h2 className="mt-2 text-lg font-semibold text-[var(--glass-text-primary)]">Workspace Chat</h2>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--glass-text-tertiary)]">{t('panel.eyebrow')}</p>
+                  <h2 className="mt-2 text-lg font-semibold text-[var(--glass-text-primary)]">{t('panel.title')}</h2>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -132,7 +139,7 @@ export default function WorkspaceAssistantPanel({
                     <AppIcon name="settingsHexMinor" className="h-5 w-5" />
                   </button>
                   <div className="rounded-full border border-[var(--glass-stroke-base)] bg-[var(--glass-bg-surface)] px-3 py-1 text-xs text-[var(--glass-text-secondary)]">
-                    {assistantRuntime.pending ? '执行中' : '就绪'}
+                    {assistantRuntime.pending ? t('panel.pending') : t('panel.ready')}
                   </div>
                 </div>
               </div>
@@ -145,7 +152,7 @@ export default function WorkspaceAssistantPanel({
             >
               {assistantRuntime.messageCount === 0 ? (
                 <div className="mb-3 rounded-2xl bg-[var(--glass-bg-muted)]/70 px-3 py-4 text-sm text-[var(--glass-text-secondary)]">
-                  这里是唯一的工作台。无论你从左侧聊天还是原来的开始创作入口触发，workflow 计划、审批、skill 进度和结果都会汇总在这里。
+                  {t('panel.empty')}
                 </div>
               ) : null}
 
@@ -160,13 +167,13 @@ export default function WorkspaceAssistantPanel({
                   <div className="rounded-2xl border border-[var(--glass-stroke-base)] bg-[var(--glass-bg-muted)]/80 p-3">
                     <div className="mb-3 flex items-center justify-between gap-3">
                       <div>
-                        <div className="text-sm font-medium text-[var(--glass-text-primary)]">待处理审批</div>
+                        <div className="text-sm font-medium text-[var(--glass-text-primary)]">{t('panel.pendingApprovalTitle')}</div>
                         <div className="mt-1 text-xs text-[var(--glass-text-secondary)]">
-                          {workflowLabels[activePendingApproval.data.workflowId]} · {pendingApprovalActions.length} 个待处理动作
+                          {workflowLabels[activePendingApproval.data.workflowId]} · {t('panel.pendingApprovalCount', { count: pendingApprovalActions.length })}
                         </div>
                       </div>
                       <div className="rounded-full bg-[var(--glass-bg-surface)] px-2.5 py-1 text-xs text-[var(--glass-text-secondary)]">
-                        Latest
+                        {t('panel.latest')}
                       </div>
                     </div>
                     <ApprovalCard
@@ -186,13 +193,13 @@ export default function WorkspaceAssistantPanel({
             <div className="border-t border-[var(--glass-stroke-base)] bg-[var(--glass-bg-surface)]/95 px-4 py-4">
               <ComposerPrimitive.Root>
                 <ComposerPrimitive.Input
-                  placeholder="询问当前进度、审批原因、下一步，或让助手解释这次 workflow。"
+                  placeholder={t('panel.composerPlaceholder')}
                   className="min-h-20 w-full rounded-2xl border border-[var(--glass-stroke-base)] bg-[var(--glass-bg-muted)] px-3 py-3 text-sm text-[var(--glass-text-primary)] outline-none"
                 />
                 <div className="mt-3 flex items-center justify-between gap-3">
                   <div className="text-xs text-[var(--glass-text-tertiary)]">{statusText}</div>
                   <ComposerPrimitive.Send className="rounded-xl bg-[var(--glass-accent-from)] px-4 py-2 text-sm font-medium text-white disabled:opacity-60">
-                    {assistantRuntime.pending ? '发送中...' : '发送'}
+                    {assistantRuntime.pending ? t('panel.sending') : t('panel.send')}
                   </ComposerPrimitive.Send>
                 </div>
               </ComposerPrimitive.Root>

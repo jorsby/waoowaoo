@@ -3,11 +3,13 @@
 import React from 'react'
 import {
   MessagePrimitive,
+  useMessage,
   type DataMessagePartProps,
   type ToolCallMessagePartProps,
 } from '@assistant-ui/react'
 import type { ComponentProps } from 'react'
 import { useMemo, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Tool, ToolContent, ToolHeader, ToolInput, ToolOutput } from '@/components/ai-elements/tool'
 import type {
   ApprovalRequestPartData,
@@ -100,33 +102,35 @@ export function WorkflowStatusCard(props: {
 }
 
 function ProjectPhaseDataCard({ data }: DataMessagePartProps<ProjectPhasePartData>) {
+  const t = useTranslations('assistantAgent')
   return (
     <div className="rounded-2xl border border-[var(--glass-stroke-base)] bg-[var(--glass-bg-surface)]/70 p-3">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <div className="text-sm font-medium text-[var(--glass-text-primary)]">Project Phase</div>
+          <div className="text-sm font-medium text-[var(--glass-text-primary)]">{t('cards.projectPhase')}</div>
           <div className="mt-1 text-xs text-[var(--glass-text-secondary)]">{data.phase}</div>
         </div>
         <div className="rounded-full bg-[var(--glass-bg-surface)] px-2.5 py-1 text-xs text-[var(--glass-text-secondary)]">
-          Runs {String(data.snapshot.activeRunCount)}
+          {t('cards.runs', { count: data.snapshot.activeRunCount })}
         </div>
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-[var(--glass-text-secondary)]">
-        <div className="rounded-xl bg-[var(--glass-bg-muted)]/70 px-3 py-2">Clips {String(data.snapshot.progress.clipCount)}</div>
-        <div className="rounded-xl bg-[var(--glass-bg-muted)]/70 px-3 py-2">Screenplays {String(data.snapshot.progress.screenplayClipCount)}</div>
-        <div className="rounded-xl bg-[var(--glass-bg-muted)]/70 px-3 py-2">Storyboards {String(data.snapshot.progress.storyboardCount)}</div>
-        <div className="rounded-xl bg-[var(--glass-bg-muted)]/70 px-3 py-2">Voice {String(data.snapshot.progress.voiceLineCount)}</div>
+        <div className="rounded-xl bg-[var(--glass-bg-muted)]/70 px-3 py-2">{t('cards.clips', { count: data.snapshot.progress.clipCount })}</div>
+        <div className="rounded-xl bg-[var(--glass-bg-muted)]/70 px-3 py-2">{t('cards.screenplays', { count: data.snapshot.progress.screenplayClipCount })}</div>
+        <div className="rounded-xl bg-[var(--glass-bg-muted)]/70 px-3 py-2">{t('cards.storyboards', { count: data.snapshot.progress.storyboardCount })}</div>
+        <div className="rounded-xl bg-[var(--glass-bg-muted)]/70 px-3 py-2">{t('cards.voice', { count: data.snapshot.progress.voiceLineCount })}</div>
       </div>
     </div>
   )
 }
 
 export function AgentStopDataCard({ data }: DataMessagePartProps<ProjectAgentStopPartData>) {
+  const t = useTranslations('assistantAgent')
   return (
     <div className="rounded-2xl border border-[var(--glass-tone-warn-fg)]/30 bg-[var(--glass-bg-muted)]/70 p-3 text-xs text-[var(--glass-text-secondary)]">
-      <div className="text-sm font-medium text-[var(--glass-text-primary)]">已达到最大步数</div>
-      <div className="mt-1">当前步数 {String(data.stepCount)} / 上限 {String(data.maxSteps)}</div>
-      <div className="mt-2 text-[var(--glass-text-tertiary)]">原因：{data.reason}</div>
+      <div className="text-sm font-medium text-[var(--glass-text-primary)]">{t('cards.maxSteps')}</div>
+      <div className="mt-1">{t('cards.stepUsage', { stepCount: data.stepCount, maxSteps: data.maxSteps })}</div>
+      <div className="mt-2 text-[var(--glass-text-tertiary)]">{t('cards.reason', { reason: data.reason })}</div>
     </div>
   )
 }
@@ -140,11 +144,12 @@ export function ApprovalCard(props: {
   approvePending: boolean
   rejectPending: boolean
 }) {
+  const t = useTranslations('assistantAgent')
   const [note, setNote] = useState('')
 
   return (
     <div className="rounded-2xl border border-[var(--glass-tone-warn-fg)]/30 bg-[var(--glass-bg-muted)]/70 p-3">
-      <div className="text-sm font-medium text-[var(--glass-text-primary)]">Approval Required</div>
+      <div className="text-sm font-medium text-[var(--glass-text-primary)]">{t('cards.approvalRequired')}</div>
       <div className="mt-1 text-xs text-[var(--glass-text-secondary)]">{props.summary}</div>
       {props.reasons.length > 0 ? (
         <div className="mt-3 max-h-32 space-y-1 overflow-y-auto text-xs text-[var(--glass-tone-warn-fg)]">
@@ -156,7 +161,7 @@ export function ApprovalCard(props: {
       <textarea
         value={note}
         onChange={(event) => setNote(event.target.value)}
-        placeholder="拒绝说明（可选）"
+        placeholder={t('cards.rejectNotePlaceholder')}
         className="mt-3 min-h-20 w-full rounded-2xl border border-[var(--glass-stroke-base)] bg-[var(--glass-bg-surface)] px-3 py-2 text-sm text-[var(--glass-text-primary)] outline-none"
       />
       <div className="mt-3 flex gap-2">
@@ -166,7 +171,7 @@ export function ApprovalCard(props: {
           onClick={() => { void props.onApprove(props.planId) }}
           disabled={props.approvePending}
         >
-          批准
+          {t('cards.approve')}
         </button>
         <button
           type="button"
@@ -174,7 +179,7 @@ export function ApprovalCard(props: {
           onClick={() => { void props.onReject({ planId: props.planId, note }) }}
           disabled={props.rejectPending}
         >
-          拒绝
+          {t('cards.reject')}
         </button>
       </div>
     </div>
@@ -186,9 +191,10 @@ export function HiddenApprovalRequestDataCard(_: DataMessagePartProps<ApprovalRe
 }
 
 function ConfirmationRequestDataCard({ data }: DataMessagePartProps<ConfirmationRequestPartData>) {
+  const t = useTranslations('assistantAgent')
   return (
     <div className="rounded-2xl border border-[var(--glass-tone-warn-fg)]/30 bg-[var(--glass-bg-muted)]/70 p-3 text-xs text-[var(--glass-text-secondary)]">
-      <div className="text-sm font-medium text-[var(--glass-text-primary)]">需要确认</div>
+      <div className="text-sm font-medium text-[var(--glass-text-primary)]">{t('cards.confirmationRequired')}</div>
       <div className="mt-1">{data.summary}</div>
       <div className="mt-2 rounded-xl bg-[var(--glass-bg-surface)]/70 px-3 py-2 font-mono text-[10px] text-[var(--glass-text-tertiary)]">
         operation: {data.operationId}
@@ -198,19 +204,20 @@ function ConfirmationRequestDataCard({ data }: DataMessagePartProps<Confirmation
 }
 
 function TaskSubmittedDataCard({ data }: DataMessagePartProps<TaskSubmittedPartData>) {
+  const t = useTranslations('assistantAgent')
   const revertMutationBatch = useRevertMutationBatch()
   const [undoResult, setUndoResult] = useState<{ ok: boolean; message?: string } | null>(null)
 
   const handleUndo = async () => {
     if (!data.mutationBatchId) return
-    if (!window.confirm('确认撤回这次变更？这可能会覆盖/删除刚生成的内容。')) return
+    if (!window.confirm(t('cards.undoConfirmSingle'))) return
     setUndoResult(null)
     try {
       const result = await revertMutationBatch.mutateAsync(data.mutationBatchId)
       if (result.ok) {
-        setUndoResult({ ok: true, message: `已撤回（reverted=${String(result.reverted)}）` })
+        setUndoResult({ ok: true, message: t('cards.undoSucceeded', { count: result.reverted }) })
       } else {
-        setUndoResult({ ok: false, message: result.error || '撤回失败' })
+        setUndoResult({ ok: false, message: result.error || t('cards.undoFailed') })
       }
     } catch (error) {
       setUndoResult({ ok: false, message: error instanceof Error ? error.message : String(error) })
@@ -219,7 +226,7 @@ function TaskSubmittedDataCard({ data }: DataMessagePartProps<TaskSubmittedPartD
 
   return (
     <div className="rounded-2xl border border-[var(--glass-stroke-base)] bg-[var(--glass-bg-surface)]/70 p-3 text-xs text-[var(--glass-text-secondary)]">
-      <div className="text-sm font-medium text-[var(--glass-text-primary)]">Task Submitted</div>
+      <div className="text-sm font-medium text-[var(--glass-text-primary)]">{t('cards.taskSubmitted')}</div>
       <div className="mt-2">operation: {data.operationId}</div>
       <div>taskId: {data.taskId}</div>
       <div>status: {data.status}</div>
@@ -234,7 +241,7 @@ function TaskSubmittedDataCard({ data }: DataMessagePartProps<TaskSubmittedPartD
             onClick={() => { void handleUndo() }}
             disabled={revertMutationBatch.isPending}
           >
-            {revertMutationBatch.isPending ? '撤回中...' : '撤回本次修改'}
+            {revertMutationBatch.isPending ? t('cards.undoRunning') : t('cards.undoCurrentChange')}
           </button>
           {undoResult ? (
             <div className={undoResult.ok ? 'text-[var(--glass-tone-success-fg)]' : 'text-[var(--glass-tone-warn-fg)]'}>
@@ -248,19 +255,20 @@ function TaskSubmittedDataCard({ data }: DataMessagePartProps<TaskSubmittedPartD
 }
 
 function TaskBatchSubmittedDataCard({ data }: DataMessagePartProps<TaskBatchSubmittedPartData>) {
+  const t = useTranslations('assistantAgent')
   const revertMutationBatch = useRevertMutationBatch()
   const [undoResult, setUndoResult] = useState<{ ok: boolean; message?: string } | null>(null)
 
   const handleUndo = async () => {
     if (!data.mutationBatchId) return
-    if (!window.confirm('确认撤回这次批量变更？这可能会覆盖/删除刚生成的内容。')) return
+    if (!window.confirm(t('cards.undoConfirmBatch'))) return
     setUndoResult(null)
     try {
       const result = await revertMutationBatch.mutateAsync(data.mutationBatchId)
       if (result.ok) {
-        setUndoResult({ ok: true, message: `已撤回（reverted=${String(result.reverted)}）` })
+        setUndoResult({ ok: true, message: t('cards.undoSucceeded', { count: result.reverted }) })
       } else {
-        setUndoResult({ ok: false, message: result.error || '撤回失败' })
+        setUndoResult({ ok: false, message: result.error || t('cards.undoFailed') })
       }
     } catch (error) {
       setUndoResult({ ok: false, message: error instanceof Error ? error.message : String(error) })
@@ -269,7 +277,7 @@ function TaskBatchSubmittedDataCard({ data }: DataMessagePartProps<TaskBatchSubm
 
   return (
     <div className="rounded-2xl border border-[var(--glass-stroke-base)] bg-[var(--glass-bg-surface)]/70 p-3 text-xs text-[var(--glass-text-secondary)]">
-      <div className="text-sm font-medium text-[var(--glass-text-primary)]">Tasks Submitted</div>
+      <div className="text-sm font-medium text-[var(--glass-text-primary)]">{t('cards.batchTaskSubmitted')}</div>
       <div className="mt-2">operation: {data.operationId}</div>
       <div>total: {String(data.total)}</div>
       <div className="mt-2 space-y-1 rounded-xl bg-[var(--glass-bg-muted)]/70 px-3 py-2 font-mono text-[10px] text-[var(--glass-text-tertiary)]">
@@ -287,7 +295,7 @@ function TaskBatchSubmittedDataCard({ data }: DataMessagePartProps<TaskBatchSubm
             onClick={() => { void handleUndo() }}
             disabled={revertMutationBatch.isPending}
           >
-            {revertMutationBatch.isPending ? '撤回中...' : '撤回本次批量修改'}
+            {revertMutationBatch.isPending ? t('cards.undoRunning') : t('cards.undoCurrentBatch')}
           </button>
           {undoResult ? (
             <div className={undoResult.ok ? 'text-[var(--glass-tone-success-fg)]' : 'text-[var(--glass-tone-warn-fg)]'}>
@@ -450,6 +458,14 @@ export function useWorkspaceAssistantMessagePartComponents({
   }), [scriptToStoryboardStream, storyToScriptStream])
 }
 
+function HiddenConversationSummaryMessage(props: {
+  children: React.ReactNode
+}) {
+  const isSummary = useMessage((state) => state.metadata.custom?.projectAgentConversationSummary === true)
+  if (isSummary) return null
+  return <>{props.children}</>
+}
+
 export function WorkspaceAssistantThreadMessage(props: {
   messagePartComponents: MessagePartComponents
 }) {
@@ -468,9 +484,11 @@ export function WorkspaceAssistantThreadMessage(props: {
       </MessagePrimitive.If>
 
       <MessagePrimitive.If system>
-        <MessagePrimitive.Root className="space-y-3 rounded-2xl border border-[var(--glass-stroke-base)] bg-[var(--glass-bg-surface)]/70 px-3 py-3 text-sm text-[var(--glass-text-primary)]">
-          <MessagePrimitive.Parts components={props.messagePartComponents} />
-        </MessagePrimitive.Root>
+        <HiddenConversationSummaryMessage>
+          <MessagePrimitive.Root className="space-y-3 rounded-2xl border border-[var(--glass-stroke-base)] bg-[var(--glass-bg-surface)]/70 px-3 py-3 text-sm text-[var(--glass-text-primary)]">
+            <MessagePrimitive.Parts components={props.messagePartComponents} />
+          </MessagePrimitive.Root>
+        </HiddenConversationSummaryMessage>
       </MessagePrimitive.If>
     </>
   )
