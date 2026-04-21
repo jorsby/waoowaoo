@@ -2,6 +2,10 @@ import type { NextRequest } from 'next/server'
 import { ApiError } from '@/lib/api-errors'
 import { createProjectAgentOperationRegistryForApi } from '@/lib/operations/registry'
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
 function toMessage(error: unknown): string {
   if (error instanceof Error) return error.message?.trim() || 'OPERATION_FAILED'
   if (typeof error === 'string') return error.trim() || 'OPERATION_FAILED'
@@ -12,6 +16,14 @@ function toMessage(error: unknown): string {
   } catch {
     return 'OPERATION_FAILED'
   }
+}
+
+function extractPrismaMissingColumn(error: unknown): string | null {
+  if (!isRecord(error)) return null
+  if (error.code !== 'P2022') return null
+  const meta = isRecord(error.meta) ? error.meta : null
+  const column = typeof meta?.column === 'string' ? meta.column.trim() : ''
+  return column || null
 }
 
 function inferApiErrorCodeFromMessage(message: string): 'NOT_FOUND' | 'INVALID_PARAMS' | 'FORBIDDEN' | 'UNAUTHORIZED' | 'CONFLICT' | null {
@@ -77,6 +89,14 @@ export async function executeProjectAgentOperationFromApi(params: {
     return outputParsed.data
   } catch (error) {
     if (error instanceof ApiError) throw error
+    const missingColumn = extractPrismaMissingColumn(error)
+    if (missingColumn) {
+      throw new ApiError('EXTERNAL_ERROR', {
+        code: 'DATABASE_SCHEMA_MISMATCH',
+        field: missingColumn,
+        message: `database schema mismatch: missing column ${missingColumn}; run the latest Prisma migration before starting the app`,
+      })
+    }
     const message = toMessage(error)
     const inferred = inferApiErrorCodeFromMessage(message)
     if (inferred) {

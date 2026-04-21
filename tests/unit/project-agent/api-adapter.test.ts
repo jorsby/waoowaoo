@@ -207,4 +207,44 @@ describe('executeProjectAgentOperationFromApi', () => {
       }),
     })
   })
+
+  it('[execution throws prisma missing column] -> throws ApiError EXTERNAL_ERROR with schema-mismatch code', async () => {
+    registryState.registry = {
+      prisma_schema_mismatch: {
+        id: 'prisma_schema_mismatch',
+        description: 'prisma schema mismatch',
+        scope: 'project',
+        sideEffects: { mode: 'act', risk: 'low' },
+        inputSchema: z.object({}),
+        outputSchema: z.object({ ok: z.boolean() }),
+        execute: vi.fn(async () => {
+          throw {
+            code: 'P2022',
+            meta: {
+              column: 'directorStylePresetId',
+            },
+          }
+        }),
+      },
+    }
+
+    const promise = executeProjectAgentOperationFromApi({
+      request: buildRequest(),
+      operationId: 'prisma_schema_mismatch',
+      projectId: 'project-1',
+      userId: 'user-1',
+      input: {},
+      source: 'project-ui',
+    })
+
+    await expect(promise).rejects.toBeInstanceOf(ApiError)
+    await expect(promise).rejects.toMatchObject({
+      code: 'EXTERNAL_ERROR',
+      details: expect.objectContaining({
+        code: 'DATABASE_SCHEMA_MISMATCH',
+        field: 'directorStylePresetId',
+        message: 'database schema mismatch: missing column directorStylePresetId; run the latest Prisma migration before starting the app',
+      }),
+    })
+  })
 })
