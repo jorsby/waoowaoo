@@ -136,7 +136,7 @@ describe('selectProjectAgentTools', () => {
       maxTools: 5,
     })
 
-    expect(selection.operationIds[0]).toBe('asset_hub_picker')
+    expect(selection.operationIds).toContain('asset_hub_picker')
   })
 
   it('[panel media] keeps likely-needed media tools instead of aggressive exclusion', () => {
@@ -176,6 +176,149 @@ describe('selectProjectAgentTools', () => {
     })
 
     expect(selection.operationIds).toContain('regenerate_panel_image')
+  })
+
+  it('[storyboard edit] keeps high-risk storyboard act tools and relies on confirmation at execution time', () => {
+    const operations: ProjectAgentOperationRegistry = {
+      delete_storyboard_panel: {
+        id: 'delete_storyboard_panel',
+        description: 'delete storyboard panel',
+        scope: 'storyboard',
+        sideEffects: { mode: 'act', risk: 'high', requiresConfirmation: true, destructive: true },
+        channels: { tool: true, api: true },
+        tool: {
+          defaultVisibility: 'extended',
+          tags: ['storyboard', 'panel', 'edit', 'delete'],
+          groups: ['edit'],
+          selectable: true,
+          requiresEpisode: true,
+        },
+        selection: { baseWeight: 60, costHint: 'low' },
+        inputSchema: z.object({}),
+        outputSchema: z.unknown(),
+        execute: async () => ({}),
+      },
+      get_project_phase: {
+        id: 'get_project_phase',
+        description: 'phase',
+        scope: 'project',
+        sideEffects: { mode: 'query', risk: 'low' },
+        channels: { tool: true, api: true },
+        tool: { defaultVisibility: 'core', tags: ['read', 'project'], groups: ['read'], selectable: true },
+        selection: { baseWeight: 10, costHint: 'low' },
+        inputSchema: z.object({}),
+        outputSchema: z.unknown(),
+        execute: async () => ({}),
+      },
+    }
+
+    const selection = selectProjectAgentTools({
+      operations,
+      context: { episodeId: 'ep-1' },
+      phase: buildPhaseSnapshot(),
+      route: buildRoute({ intent: 'act', domains: ['storyboard'], toolCategories: ['storyboard-edit'] }),
+      maxTools: 5,
+    })
+
+    expect(selection.operationIds).toContain('delete_storyboard_panel')
+  })
+
+  it('[always-on] keeps foundational tools injected even when hidden from normal scoring', () => {
+    const operations: ProjectAgentOperationRegistry = {
+      get_project_phase: {
+        id: 'get_project_phase',
+        description: 'phase',
+        scope: 'project',
+        sideEffects: { mode: 'query', risk: 'low' },
+        channels: { tool: true, api: true },
+        tool: { defaultVisibility: 'hidden', tags: ['read', 'project'], groups: ['read'], selectable: false },
+        selection: { baseWeight: 1, costHint: 'low' },
+        inputSchema: z.object({}),
+        outputSchema: z.unknown(),
+        execute: async () => ({}),
+      },
+      list_tasks: {
+        id: 'list_tasks',
+        description: 'tasks',
+        scope: 'task',
+        sideEffects: { mode: 'query', risk: 'low' },
+        channels: { tool: true, api: true },
+        tool: { defaultVisibility: 'hidden', tags: ['task'], groups: ['task'], selectable: false },
+        selection: { baseWeight: 1, costHint: 'low' },
+        inputSchema: z.object({}),
+        outputSchema: z.unknown(),
+        execute: async () => ({}),
+      },
+      get_billing_summary: {
+        id: 'get_billing_summary',
+        description: 'billing',
+        scope: 'project',
+        sideEffects: { mode: 'query', risk: 'low' },
+        channels: { tool: true, api: true },
+        tool: { defaultVisibility: 'extended', tags: ['billing'], groups: ['billing'], selectable: true },
+        selection: { baseWeight: 100, costHint: 'low' },
+        inputSchema: z.object({}),
+        outputSchema: z.unknown(),
+        execute: async () => ({}),
+      },
+    }
+
+    const selection = selectProjectAgentTools({
+      operations,
+      context: {},
+      phase: buildPhaseSnapshot(),
+      route: buildRoute({ intent: 'query', domains: ['billing'], toolCategories: ['billing'] }),
+      maxTools: 5,
+    })
+
+    expect(selection.operationIds).toContain('get_project_phase')
+    expect(selection.operationIds).toContain('list_tasks')
+    expect(selection.operationIds).toContain('get_billing_summary')
+  })
+
+  it('[asset voice] keeps high-risk voice act tools and relies on confirmation at execution time', () => {
+    const operations: ProjectAgentOperationRegistry = {
+      voice_generate: {
+        id: 'voice_generate',
+        description: 'voice generate',
+        scope: 'episode',
+        sideEffects: { mode: 'act', risk: 'high', requiresConfirmation: true, billable: true },
+        channels: { tool: true, api: true },
+        tool: {
+          defaultVisibility: 'scenario',
+          tags: ['asset', 'read', 'edit'],
+          groups: ['voice'],
+          selectable: true,
+          requiresEpisode: true,
+        },
+        selection: { baseWeight: 60, costHint: 'high' },
+        inputSchema: z.object({}),
+        outputSchema: z.unknown(),
+        execute: async () => ({}),
+      },
+      get_project_phase: {
+        id: 'get_project_phase',
+        description: 'phase',
+        scope: 'project',
+        sideEffects: { mode: 'query', risk: 'low' },
+        channels: { tool: true, api: true },
+        tool: { defaultVisibility: 'core', tags: ['read', 'project'], groups: ['read'], selectable: true },
+        selection: { baseWeight: 10, costHint: 'low' },
+        inputSchema: z.object({}),
+        outputSchema: z.unknown(),
+        execute: async () => ({}),
+      },
+    }
+
+    const selection = selectProjectAgentTools({
+      operations,
+      context: { episodeId: 'ep-1' },
+      phase: buildPhaseSnapshot(),
+      route: buildRoute({ intent: 'act', domains: ['voice'], toolCategories: ['asset-voice'] }),
+      maxTools: 5,
+    })
+
+    expect(selection.operationIds).toContain('voice_generate')
   })
 
   it('[plan interaction mode] excludes act tools but keeps plan tools available for confirmation flow', () => {

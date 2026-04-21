@@ -151,13 +151,37 @@ function buildRealisticRegistry(): ProjectAgentOperationRegistry {
       tool: { defaultVisibility: 'core', tags: ['task'], groups: ['task'], selectable: true },
       selection: { baseWeight: 55, costHint: 'low' },
     }),
-    mutate_storyboard: op('mutate_storyboard', {
-      description: 'Edit storyboard: add/update/delete panel fields, prompts, or panels.',
+    delete_storyboard_panel: op('delete_storyboard_panel', {
+      description: 'Delete a storyboard panel.',
       scope: 'storyboard',
-      sideEffects: { mode: 'act', risk: 'medium' },
+      sideEffects: { mode: 'act', risk: 'high', requiresConfirmation: true, destructive: true, overwrite: true, bulk: true },
       channels: { tool: true, api: true },
-      tool: { defaultVisibility: 'extended', tags: ['edit', 'asset', 'storyboard'], groups: ['edit'], selectable: true, requiresEpisode: true },
-      selection: { baseWeight: 20, costHint: 'low' },
+      tool: { defaultVisibility: 'extended', tags: ['storyboard', 'panel', 'edit', 'delete'], groups: ['edit'], selectable: true, requiresEpisode: true },
+      selection: { baseWeight: 20, costHint: 'high' },
+    }),
+    update_storyboard_panel_prompt: op('update_storyboard_panel_prompt', {
+      description: 'Update prompt fields for a storyboard panel.',
+      scope: 'storyboard',
+      sideEffects: { mode: 'act', risk: 'high', requiresConfirmation: true, overwrite: true },
+      channels: { tool: true, api: true },
+      tool: { defaultVisibility: 'extended', tags: ['storyboard', 'panel', 'edit', 'prompt'], groups: ['edit'], selectable: true, requiresEpisode: true },
+      selection: { baseWeight: 24, costHint: 'medium' },
+    }),
+    reorder_storyboard_panels: op('reorder_storyboard_panels', {
+      description: 'Reorder storyboard panels.',
+      scope: 'storyboard',
+      sideEffects: { mode: 'act', risk: 'high', requiresConfirmation: true, destructive: true },
+      channels: { tool: true, api: true },
+      tool: { defaultVisibility: 'extended', tags: ['storyboard', 'panel', 'edit', 'reorder'], groups: ['edit'], selectable: true, requiresEpisode: true },
+      selection: { baseWeight: 18, costHint: 'medium' },
+    }),
+    mutate_storyboard: op('mutate_storyboard', {
+      description: 'Legacy storyboard mutation facade.',
+      scope: 'storyboard',
+      sideEffects: { mode: 'act', risk: 'high', requiresConfirmation: true, destructive: true, overwrite: true, bulk: true },
+      channels: { tool: false, api: true },
+      tool: { defaultVisibility: 'hidden', tags: ['storyboard', 'panel', 'edit'], groups: ['internal'], selectable: false, requiresEpisode: true },
+      selection: { baseWeight: -100, costHint: 'high' },
     }),
     regenerate_panel_image: op('regenerate_panel_image', {
       description: 'Regenerate a panel image by submitting an async task.',
@@ -258,7 +282,7 @@ describe('tool-policy real-world scenarios', () => {
       },
     })
 
-    expect(result.operationIds).toContain('mutate_storyboard')
+    expect(result.operationIds).toContain('delete_storyboard_panel')
     expect(result.operationIds).toContain('regenerate_panel_image')
     expect(result.operationIds).toContain('get_project_phase')
   })
@@ -353,6 +377,32 @@ describe('tool-policy real-world scenarios', () => {
     expect(result.operationIds).not.toContain('mutate_storyboard')
     expect(result.operationIds).not.toContain('regenerate_panel_image')
     expect(result.operationIds).toContain('get_project_phase')
+  })
+
+  it('risk: storyboard-edit allows high-risk storyboard mutations when confirmation is required downstream', () => {
+    const result = select({
+      operations: registry,
+      route: {
+        intent: 'act',
+        domains: ['storyboard'],
+        toolCategories: ['storyboard-edit'],
+      },
+    })
+
+    expect(result.operationIds).toContain('delete_storyboard_panel')
+  })
+
+  it('risk: asset-voice allows high-risk voice actions when confirmation is required downstream', () => {
+    const result = select({
+      operations: registry,
+      route: {
+        intent: 'act',
+        domains: ['voice'],
+        toolCategories: ['asset-voice'],
+      },
+    })
+
+    expect(result.operationIds).toContain('voice_generate')
   })
 
   it('risk: governance category allows high-risk guarded tools', () => {
@@ -462,7 +512,7 @@ describe('tool-policy real-world scenarios', () => {
     })
 
     expect(result.operationIds).toContain('get_project_phase')
-    expect(result.operationIds).toContain('mutate_storyboard')
+    expect(result.operationIds).toContain('delete_storyboard_panel')
     expect(result.operationIds).toContain('regenerate_panel_image')
   })
 

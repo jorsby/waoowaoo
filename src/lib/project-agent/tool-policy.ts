@@ -28,16 +28,16 @@ interface CategoryPolicy {
 
 const CATEGORY_POLICIES: Record<ProjectAgentToolCategory, CategoryPolicy> = {
   'project-overview': { desiredTags: ['project', 'read'], desiredScopes: ['project', 'episode', 'command', 'task'], riskBudget: 'allow-medium', allowGuardedTools: false },
-  'workflow-plan': { desiredTags: ['workflow'], desiredScopes: ['plan', 'command', 'project'], riskBudget: 'allow-medium', allowGuardedTools: false },
-  'workflow-run': { desiredTags: ['workflow', 'run'], desiredScopes: ['command', 'task', 'project'], riskBudget: 'allow-medium', allowGuardedTools: false },
-  'run-manage': { desiredTags: ['run'], desiredScopes: ['command', 'task', 'project'], riskBudget: 'allow-medium', allowGuardedTools: false },
-  'task-manage': { desiredTags: ['task'], desiredScopes: ['task', 'command', 'project'], riskBudget: 'allow-medium', allowGuardedTools: false },
+  'workflow-plan': { desiredTags: ['workflow'], desiredScopes: ['plan', 'command', 'project'], riskBudget: 'allow-high-with-confirm', allowGuardedTools: false },
+  'workflow-run': { desiredTags: ['workflow', 'run'], desiredScopes: ['command', 'task', 'project'], riskBudget: 'allow-high-with-confirm', allowGuardedTools: false },
+  'run-manage': { desiredTags: ['run'], desiredScopes: ['command', 'task', 'project'], riskBudget: 'allow-high-with-confirm', allowGuardedTools: false },
+  'task-manage': { desiredTags: ['task'], desiredScopes: ['task', 'command', 'project'], riskBudget: 'allow-high-with-confirm', allowGuardedTools: false },
   'storyboard-read': { desiredTags: ['storyboard', 'panel', 'read'], desiredScopes: ['storyboard', 'panel', 'project'], riskBudget: 'low-only', allowGuardedTools: false },
-  'storyboard-edit': { desiredTags: ['storyboard', 'panel', 'edit'], desiredScopes: ['storyboard', 'panel', 'project'], riskBudget: 'allow-medium', allowGuardedTools: false },
+  'storyboard-edit': { desiredTags: ['storyboard', 'panel', 'edit'], desiredScopes: ['storyboard', 'panel', 'project'], riskBudget: 'allow-high-with-confirm', allowGuardedTools: false },
   'panel-media': { desiredTags: ['media', 'panel', 'storyboard'], desiredScopes: ['panel', 'storyboard', 'task', 'asset', 'project'], riskBudget: 'allow-high-with-confirm', allowGuardedTools: true },
-  'asset-character': { desiredTags: ['asset', 'read', 'edit'], desiredScopes: ['asset', 'project'], riskBudget: 'allow-medium', allowGuardedTools: false },
-  'asset-location': { desiredTags: ['asset', 'read', 'edit'], desiredScopes: ['asset', 'project'], riskBudget: 'allow-medium', allowGuardedTools: false },
-  'asset-voice': { desiredTags: ['asset', 'read', 'edit'], desiredScopes: ['asset', 'project', 'episode'], riskBudget: 'allow-medium', allowGuardedTools: false },
+  'asset-character': { desiredTags: ['asset', 'read', 'edit'], desiredScopes: ['asset', 'project'], riskBudget: 'allow-high-with-confirm', allowGuardedTools: false },
+  'asset-location': { desiredTags: ['asset', 'read', 'edit'], desiredScopes: ['asset', 'project'], riskBudget: 'allow-high-with-confirm', allowGuardedTools: false },
+  'asset-voice': { desiredTags: ['asset', 'read', 'edit'], desiredScopes: ['asset', 'project', 'episode'], riskBudget: 'allow-high-with-confirm', allowGuardedTools: false },
   'asset-hub': { desiredTags: ['asset-hub', 'read'], desiredScopes: ['system', 'asset', 'project'], riskBudget: 'low-only', allowGuardedTools: false },
   config: { desiredTags: ['config'], desiredScopes: ['system', 'user', 'project'], riskBudget: 'allow-medium', allowGuardedTools: false },
   billing: { desiredTags: ['billing'], desiredScopes: ['project', 'system'], riskBudget: 'low-only', allowGuardedTools: false },
@@ -45,6 +45,15 @@ const CATEGORY_POLICIES: Record<ProjectAgentToolCategory, CategoryPolicy> = {
   download: { desiredTags: ['download'], desiredScopes: ['project', 'task', 'command'], riskBudget: 'allow-medium', allowGuardedTools: false },
   debug: { desiredTags: ['debug'], desiredScopes: ['system', 'project', 'task', 'command'], riskBudget: 'allow-high-with-confirm', allowGuardedTools: true },
 }
+
+const ALWAYS_ON_OPERATION_IDS = [
+  'get_project_phase',
+  'get_project_snapshot',
+  'get_project_context',
+  'list_storyboards',
+  'list_runs',
+  'list_tasks',
+] as const
 
 function readBudgetRank(budget: ToolRiskBudget): number {
   if (budget === 'low-only') return 0
@@ -126,6 +135,21 @@ function shouldAllowInInteractionMode(
   if (mode === 'act') return false
   if (operation.tool?.allowInPlanMode === false) return false
   return mode === 'query' || mode === 'plan'
+}
+
+function shouldIncludeAsAlwaysOn(params: {
+  operationId: string
+  operation: ProjectAgentOperationDefinition
+  context: ProjectAgentContext
+}): boolean {
+  if (!ALWAYS_ON_OPERATION_IDS.includes(params.operationId as typeof ALWAYS_ON_OPERATION_IDS[number])) {
+    return false
+  }
+  const channels = params.operation.channels ?? { tool: true, api: true }
+  if (!channels.tool) return false
+  if (!shouldAllowInInteractionMode(params.operation, params.context.interactionMode)) return false
+  if (requiresEpisode(params.operation) && !params.context.episodeId) return false
+  return true
 }
 
 function mergeCategoryPolicies(categories: ProjectAgentToolCategory[]): CategoryPolicy {
@@ -235,10 +259,19 @@ export function selectProjectAgentTools(params: {
 
   const policy = mergeCategoryPolicies(params.route.toolCategories)
   const candidates: Array<{ operationId: string; score: number }> = []
+  const alwaysOnOperationIds: string[] = []
 
   for (const [operationId, operation] of Object.entries(params.operations)) {
     const channels = operation.channels ?? { tool: true, api: true }
     if (!channels.tool) continue
+    if (shouldIncludeAsAlwaysOn({
+      operationId,
+      operation,
+      context: params.context,
+    })) {
+      alwaysOnOperationIds.push(operationId)
+      continue
+    }
     const visibility = readVisibility(operation)
     if (visibility === 'hidden') continue
     if (!shouldAllowInIntent(operation, params.route.intent)) continue
@@ -264,16 +297,21 @@ export function selectProjectAgentTools(params: {
     return a.operationId.localeCompare(b.operationId)
   })
 
+  const alwaysOnUnique = uniqueSorted(alwaysOnOperationIds)
   const selected = candidates
     .slice(0, Math.trunc(params.maxTools))
     .map((candidate) => candidate.operationId)
+  const mergedSelection = [
+    ...alwaysOnUnique,
+    ...selected.filter((operationId) => !alwaysOnUnique.includes(operationId)),
+  ].slice(0, Math.trunc(params.maxTools))
 
-  if (selected.length === 0) {
+  if (mergedSelection.length === 0) {
     throw new Error('PROJECT_AGENT_NO_TOOLS_AVAILABLE')
   }
 
   return {
-    operationIds: uniqueSorted(selected),
+    operationIds: mergedSelection,
     route: {
       intent: params.route.intent,
       domains: params.route.domains,
@@ -281,6 +319,6 @@ export function selectProjectAgentTools(params: {
       confidence: params.route.confidence,
       reasoning: params.route.reasoning,
     },
-    totalCandidates: candidates.length,
+    totalCandidates: candidates.length + alwaysOnUnique.length,
   }
 }
