@@ -1,9 +1,9 @@
 'use client'
 
-import { ChevronDown } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import type { ProjectAgentInteractionMode } from '@/lib/project-agent/types'
+import { AppIcon } from '@/components/ui/icons'
 
 const VIEWPORT_EDGE_GAP = 12
 const PANEL_WIDTH = 320
@@ -93,7 +93,7 @@ export function WorkspaceAssistantModePicker(props: WorkspaceAssistantModePicker
           </span>
           <span className="truncate font-medium">{selectedOption?.label}</span>
         </span>
-        <ChevronDown className={`h-4 w-4 shrink-0 text-[var(--glass-text-tertiary)] transition-transform ${open ? 'rotate-180' : ''}`} />
+        <AppIcon name="chevronDown" className={`h-4 w-4 shrink-0 text-[var(--glass-text-tertiary)] transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && typeof document !== 'undefined'
