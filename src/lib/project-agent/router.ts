@@ -157,6 +157,7 @@ function buildRouterPrompt(params: {
 }): { system: string; prompt: string } {
   const episodeId = params.context.episodeId || 'none'
   const stage = params.context.currentStage || 'unknown'
+  const interactionMode = params.context.interactionMode || 'auto'
 
   const categoryList = [
     'project-overview',
@@ -192,6 +193,7 @@ function buildRouterPrompt(params: {
       prompt: [
         `episodeId=${episodeId}`,
         `currentStage=${stage}`,
+        `interactionMode=${interactionMode}`,
         '',
         'Phase summary:',
         params.phaseSummary,
@@ -218,6 +220,7 @@ function buildRouterPrompt(params: {
     prompt: [
       `episodeId=${episodeId}`,
       `currentStage=${stage}`,
+      `interactionMode=${interactionMode}`,
       '',
       '阶段摘要：',
       params.phaseSummary,

@@ -51,7 +51,7 @@ export function createReadOperations(): ProjectAgentOperationRegistry {
   return {
     get_project_phase: {
       id: 'get_project_phase',
-      description: 'Resolve the current project phase, progress and available next actions.',
+      description: 'Resolve the current project phase, progress counts, active runs, failed items, stale artifacts, and available next actions. Always call this before acting to understand the project state.',
       sideEffects: { mode: 'query', risk: 'none' },
       scope: 'project',
       inputSchema: z.object({}),
@@ -72,7 +72,7 @@ export function createReadOperations(): ProjectAgentOperationRegistry {
     },
     get_project_snapshot: {
       id: 'get_project_snapshot',
-      description: 'Load a project snapshot projection suitable for planning. Use detail=full to inspect panel-level state.',
+      description: 'Load a project snapshot projection with progress, active runs, latest artifacts, and approvals. Use detail=full to inspect panel-level state including descriptions, prompts, and media URLs.',
       sideEffects: { mode: 'query', risk: 'low' },
       scope: 'project',
       inputSchema: z.object({

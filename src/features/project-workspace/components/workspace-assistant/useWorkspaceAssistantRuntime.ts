@@ -20,11 +20,13 @@ import {
   buildWorkflowTimelineMessages,
   removeWorkflowStatusParts,
 } from './workflow-timeline'
+import type { ProjectAgentInteractionMode } from '@/lib/project-agent/types'
 
 interface UseWorkspaceAssistantRuntimeParams {
   projectId: string
   episodeId?: string
   currentStage: string
+  interactionMode: ProjectAgentInteractionMode
 }
 
 interface UseWorkspaceAssistantRuntimeResult {
@@ -41,13 +43,27 @@ interface UseWorkspaceAssistantRuntimeResult {
   appendMessages: (messages: UIMessage[]) => void
 }
 
+export function buildWorkspaceAssistantChatId(params: {
+  projectId: string
+  episodeId?: string
+  interactionMode: ProjectAgentInteractionMode
+}): string {
+  return `workspace-command:${params.projectId}:${params.episodeId || 'global'}:${params.interactionMode}`
+}
+
 export function useWorkspaceAssistantRuntime({
   projectId,
   episodeId,
   currentStage,
+  interactionMode,
 }: UseWorkspaceAssistantRuntimeParams): UseWorkspaceAssistantRuntimeResult {
   const locale = useLocale()
   const threadKey = `${projectId}:${episodeId || 'global'}`
+  const chatId = buildWorkspaceAssistantChatId({
+    projectId,
+    episodeId,
+    interactionMode,
+  })
   const assistantThread = useProjectAssistantThread(projectId, episodeId)
   const { save: saveAssistantThread } = useProjectAssistantThreadSync(projectId, episodeId, locale)
   const contextPayload = useMemo(() => ({
@@ -55,7 +71,8 @@ export function useWorkspaceAssistantRuntime({
     projectId,
     episodeId,
     currentStage,
-  }), [currentStage, episodeId, locale, projectId])
+    interactionMode,
+  }), [currentStage, episodeId, interactionMode, locale, projectId])
   const transport = useMemo(() => new AssistantChatTransport({
     api: `/api/projects/${projectId}/assistant/chat`,
     body: {
@@ -63,11 +80,11 @@ export function useWorkspaceAssistantRuntime({
     },
   }), [contextPayload, projectId])
   const chat = useChat({
-    id: `workspace-command:${threadKey}`,
+    id: chatId,
     transport,
   })
   const runtime = useAISDKRuntime(chat)
-  const hydratedThreadKeyRef = useRef<string | null>(null)
+  const hydratedSessionKeyRef = useRef<string | null>(null)
   const lastPersistedSignatureRef = useRef('[]')
   const persistQueueRef = useRef<Promise<void>>(Promise.resolve())
   const persistTimerRef = useRef<number | null>(null)
@@ -84,18 +101,18 @@ export function useWorkspaceAssistantRuntime({
 
   useEffect(() => {
     if (assistantThread.isLoading) return
-    if (hydratedThreadKeyRef.current === threadKey) return
+    if (hydratedSessionKeyRef.current === chatId) return
     const persistedMessages = assistantThread.data?.messages || []
     const mergedMessages = chat.messages.length > 0
       ? [...persistedMessages, ...chat.messages.filter((message) => !persistedMessages.some((item) => item.id === message.id))]
       : persistedMessages
     replaceMessages(mergedMessages)
-    hydratedThreadKeyRef.current = threadKey
+    hydratedSessionKeyRef.current = chatId
     lastPersistedSignatureRef.current = JSON.stringify(persistedMessages)
-  }, [assistantThread.data, assistantThread.isLoading, chat.messages, replaceMessages, threadKey])
+  }, [assistantThread.data, assistantThread.isLoading, chat.messages, chatId, replaceMessages])
 
   useEffect(() => {
-    if (hydratedThreadKeyRef.current !== threadKey) return
+    if (hydratedSessionKeyRef.current !== chatId) return
     const signature = JSON.stringify(chat.messages)
     if (signature === lastPersistedSignatureRef.current) return
     if (persistTimerRef.current !== null) {
@@ -123,7 +140,7 @@ export function useWorkspaceAssistantRuntime({
         persistTimerRef.current = null
       }
     }
-  }, [chat.messages, saveAssistantThread, threadKey])
+  }, [chat.messages, chatId, saveAssistantThread])
 
   useEffect(() => {
     function onWorkflowEvent(event: Event) {

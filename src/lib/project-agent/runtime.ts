@@ -22,6 +22,13 @@ import { buildProjectAgentSystemPrompt } from './copy'
 import { normalizeProjectAgentLocale } from './locale'
 import { compressMessages } from './message-compression'
 import { resolveProjectAgentLanguageModel } from './model'
+import type { ProjectAgentInteractionMode } from './types'
+import { resolveProjectAgentExecutionMode } from './execution-mode'
+
+function normalizeInteractionMode(value: unknown): ProjectAgentInteractionMode | undefined {
+  if (value !== 'auto' && value !== 'plan' && value !== 'fast') return undefined
+  return value
+}
 
 function normalizeProjectAgentContext(raw: unknown): ProjectAgentContext {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
@@ -29,10 +36,12 @@ function normalizeProjectAgentContext(raw: unknown): ProjectAgentContext {
   const locale = typeof record.locale === 'string' ? record.locale.trim() : ''
   const episodeId = typeof record.episodeId === 'string' ? record.episodeId.trim() : ''
   const currentStage = typeof record.currentStage === 'string' ? record.currentStage.trim() : ''
+  const interactionMode = normalizeInteractionMode(record.interactionMode)
   return {
     ...(locale ? { locale } : {}),
     ...(episodeId ? { episodeId } : {}),
     ...(currentStage ? { currentStage } : {}),
+    ...(interactionMode ? { interactionMode } : {}),
   }
 }
 
@@ -101,6 +110,10 @@ export async function createProjectAgentChatResponse(input: {
         context,
         model: resolved.languageModel,
       })
+      const executionMode = resolveProjectAgentExecutionMode({
+        interactionMode: context.interactionMode,
+        routedIntent: route.intent,
+      })
       if (route.needsClarification && route.clarifyingQuestion) {
         writer.write({ type: 'start' })
         writer.write({ type: 'start-step' })
@@ -115,7 +128,15 @@ export async function createProjectAgentChatResponse(input: {
         operations,
         context,
         phase,
-        route,
+        route: {
+          ...route,
+          intent: executionMode.effectiveIntent,
+          reasoning: [
+            ...route.reasoning,
+            `interactionMode=${executionMode.interactionMode}`,
+            `effectiveIntent=${executionMode.effectiveIntent}`,
+          ],
+        },
         maxTools: 45,
       })
       const tools = Object.fromEntries(
@@ -151,23 +172,7 @@ export async function createProjectAgentChatResponse(input: {
           projectId: input.projectId,
           episodeId: context.episodeId || 'unknown',
           stage: context.currentStage || 'unknown',
-          phaseSummary: [
-            `phase=${phase.phase}`,
-            `activeRuns=${String(phase.activeRunCount)}`,
-            `failedItems=${phase.failedItems.join(';') || '-'}`,
-            `staleArtifacts=${phase.staleArtifacts?.join(',') || '-'}`,
-            `progress=clips:${String(phase.progress.clipCount)},screenplays:${String(phase.progress.screenplayClipCount)},storyboards:${String(phase.progress.storyboardCount)},panels:${String(phase.progress.panelCount)},voices:${String(phase.progress.voiceLineCount)}`,
-            `actions.plan=${phase.availableActions.planMode.join(',') || '-'}`,
-            `actions.act=${phase.availableActions.actMode.join(',') || '-'}`,
-          ].join(' | '),
-          toolSummary: [
-            `intent=${selection.route.intent}`,
-            `domains=${selection.route.domains.join(',')}`,
-            `categories=${selection.route.toolCategories.join(',')}`,
-            `tools=${String(selection.operationIds.length)}/${String(selection.totalCandidates)}`,
-            `confidence=${String(selection.route.confidence)}`,
-            `reasoning=${selection.route.reasoning.join(';') || '-'}`,
-          ].join(','),
+          interactionMode: executionMode.interactionMode,
         }),
         messages: await toModelMessages(runtimeMessages),
         tools,

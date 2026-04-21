@@ -7,10 +7,13 @@ import type { WorkflowPackageId, WorkflowSkillId } from '@/lib/skill-system/type
 
 export type ProjectAssistantId = 'workspace-command'
 
+export type ProjectAgentInteractionMode = 'auto' | 'plan' | 'fast'
+
 export interface ProjectAgentContext {
   locale?: string
   episodeId?: string | null
   currentStage?: string | null
+  interactionMode?: ProjectAgentInteractionMode
 }
 
 export interface WorkflowPlanPartData {

@@ -117,6 +117,17 @@ function shouldAllowInIntent(operation: ProjectAgentOperationDefinition, intent:
   return true
 }
 
+function shouldAllowInInteractionMode(
+  operation: ProjectAgentOperationDefinition,
+  interactionMode: ProjectAgentContext['interactionMode'],
+): boolean {
+  if (interactionMode !== 'plan') return true
+  const mode = readOperationMode(operation)
+  if (mode === 'act') return false
+  if (operation.tool?.allowInPlanMode === false) return false
+  return mode === 'query' || mode === 'plan'
+}
+
 function mergeCategoryPolicies(categories: ProjectAgentToolCategory[]): CategoryPolicy {
   let desiredTags: string[] = []
   let desiredScopes: OperationScope[] = []
@@ -231,6 +242,7 @@ export function selectProjectAgentTools(params: {
     const visibility = readVisibility(operation)
     if (visibility === 'hidden') continue
     if (!shouldAllowInIntent(operation, params.route.intent)) continue
+    if (!shouldAllowInInteractionMode(operation, params.context.interactionMode)) continue
     if (requiresEpisode(operation) && !params.context.episodeId) continue
     if (!isRiskAllowed(readOperationRisk(operation), policy.riskBudget)) continue
 

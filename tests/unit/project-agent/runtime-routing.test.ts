@@ -189,7 +189,7 @@ describe('project agent runtime tool routing', () => {
     expect(response.status).toBe(200)
     expect(streamState.capturedToolNames).toContain('get_character_detail')
     expect(streamState.capturedToolNames).not.toContain('regenerate_panel_image')
-    expect(streamState.capturedSystem).toContain('categories=asset-character')
+    expect(streamState.capturedSystem).toContain('get_project_phase')
   })
 
   it('injects panel media tools when router returns panel-media category', async () => {
@@ -216,7 +216,7 @@ describe('project agent runtime tool routing', () => {
     await flushAsyncWork()
 
     expect(streamState.capturedToolNames).toContain('regenerate_panel_image')
-    expect(streamState.capturedSystem).toContain('categories=panel-media')
+    expect(streamState.capturedSystem).toContain('get_project_phase')
   })
 
   it('returns clarification stream without selecting tools when router requires clarification', async () => {
@@ -246,5 +246,57 @@ describe('project agent runtime tool routing', () => {
     expect(streamState.writerEvents).toEqual(expect.arrayContaining([
       expect.objectContaining({ type: 'text-delta', delta: 'Please clarify which part of the project you want me to inspect.' }),
     ]))
+  })
+
+  it('does not inject act tools in plan interaction mode', async () => {
+    streamState.routeResult = {
+      intent: 'act',
+      domains: ['storyboard'],
+      toolCategories: ['panel-media', 'workflow-plan'],
+      confidence: 0.95,
+      needsClarification: false,
+      clarifyingQuestion: null,
+      reasoning: ['user wants a plan before acting'],
+      latestUserText: 'plan this storyboard change',
+    }
+
+    await createProjectAgentChatResponse({
+      request: buildRequest(),
+      userId: 'user-1',
+      projectId: 'project-1',
+      context: { episodeId: 'ep-1', currentStage: 'storyboard', interactionMode: 'plan' },
+      messages: [
+        { id: 'u1', role: 'user', parts: [{ type: 'text', text: 'plan this storyboard change' }] },
+      ],
+    })
+    await flushAsyncWork()
+
+    expect(streamState.capturedToolNames).not.toContain('regenerate_panel_image')
+  })
+
+  it('keeps act-capable routing in auto interaction mode', async () => {
+    streamState.routeResult = {
+      intent: 'act',
+      domains: ['storyboard'],
+      toolCategories: ['panel-media'],
+      confidence: 0.95,
+      needsClarification: false,
+      clarifyingQuestion: null,
+      reasoning: ['auto mode should honor act intent'],
+      latestUserText: 'regenerate panel image',
+    }
+
+    await createProjectAgentChatResponse({
+      request: buildRequest(),
+      userId: 'user-1',
+      projectId: 'project-1',
+      context: { episodeId: 'ep-1', currentStage: 'storyboard', interactionMode: 'auto' },
+      messages: [
+        { id: 'u1', role: 'user', parts: [{ type: 'text', text: 'regenerate panel image' }] },
+      ],
+    })
+    await flushAsyncWork()
+
+    expect(streamState.capturedToolNames).toContain('regenerate_panel_image')
   })
 })

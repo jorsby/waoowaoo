@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import {
   AssistantRuntimeProvider,
@@ -39,6 +39,7 @@ export default function WorkspaceAssistantPanel({
   scriptToStoryboardStream,
 }: WorkspaceAssistantPanelProps) {
   const t = useTranslations('assistantAgent')
+  const [interactionMode, setInteractionMode] = useState<'auto' | 'plan' | 'fast'>('auto')
   const workflowLabels = useMemo(() => ({
     'story-to-script': getWorkflowDisplayLabel('story-to-script'),
     'script-to-storyboard': getWorkflowDisplayLabel('script-to-storyboard'),
@@ -53,6 +54,7 @@ export default function WorkspaceAssistantPanel({
     projectId,
     episodeId,
     currentStage,
+    interactionMode,
   })
   const pendingApprovalActions = useMemo(
     () => collectPendingApprovalActions(assistantRuntime.messages),
@@ -105,6 +107,11 @@ export default function WorkspaceAssistantPanel({
       : assistantRuntime.storageLoading
         ? t('panel.loading')
         : t('panel.statusReady'))
+  const modeDescription = interactionMode === 'auto'
+    ? t('panel.modeDescriptionAuto')
+    : interactionMode === 'plan'
+      ? t('panel.modeDescriptionPlan')
+      : t('panel.modeDescriptionFast')
 
   return (
     <aside className="relative w-[360px] shrink-0 self-stretch">
@@ -175,7 +182,30 @@ export default function WorkspaceAssistantPanel({
                   className="min-h-20 w-full rounded-2xl border border-[var(--glass-stroke-base)] bg-[var(--glass-bg-muted)] px-3 py-3 text-sm text-[var(--glass-text-primary)] outline-none"
                 />
                 <div className="mt-3 flex items-center justify-between gap-3">
-                  <div className="text-xs text-[var(--glass-text-tertiary)]">{statusText}</div>
+                  <div className="flex min-w-0 flex-1 flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="inline-flex rounded-xl border border-[var(--glass-stroke-base)] bg-[var(--glass-bg-muted)] p-1">
+                        {(['auto', 'plan', 'fast'] as const).map((mode) => (
+                          <button
+                            key={mode}
+                            type="button"
+                            className={
+                              interactionMode === mode
+                                ? 'rounded-lg bg-[var(--glass-accent-from)] px-3 py-1.5 text-xs font-medium text-white'
+                                : 'rounded-lg px-3 py-1.5 text-xs text-[var(--glass-text-secondary)]'
+                            }
+                            onClick={() => setInteractionMode(mode)}
+                          >
+                            {mode === 'auto' ? t('panel.modeAuto') : mode === 'plan' ? t('panel.modePlan') : t('panel.modeFast')}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="text-xs text-[var(--glass-text-tertiary)]">{statusText}</div>
+                    </div>
+                    <div className="text-xs leading-relaxed text-[var(--glass-text-tertiary)]">
+                      {modeDescription}
+                    </div>
+                  </div>
                   <ComposerPrimitive.Send className="rounded-xl bg-[var(--glass-accent-from)] px-4 py-2 text-sm font-medium text-white disabled:opacity-60">
                     {assistantRuntime.pending ? t('panel.sending') : t('panel.send')}
                   </ComposerPrimitive.Send>

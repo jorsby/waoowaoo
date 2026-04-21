@@ -177,4 +177,70 @@ describe('selectProjectAgentTools', () => {
 
     expect(selection.operationIds).toContain('regenerate_panel_image')
   })
+
+  it('[plan interaction mode] excludes act tools but keeps plan tools available for confirmation flow', () => {
+    const operations: ProjectAgentOperationRegistry = {
+      create_workflow_plan: {
+        id: 'create_workflow_plan',
+        description: 'create workflow plan',
+        scope: 'plan',
+        sideEffects: { mode: 'plan', risk: 'low' },
+        channels: { tool: true, api: true },
+        tool: { defaultVisibility: 'scenario', tags: ['workflow'], groups: ['workflow'], selectable: true },
+        selection: { baseWeight: 50, costHint: 'low' },
+        inputSchema: z.object({}),
+        outputSchema: z.unknown(),
+        execute: async () => ({}),
+      },
+      approve_plan: {
+        id: 'approve_plan',
+        description: 'approve workflow plan',
+        scope: 'plan',
+        sideEffects: { mode: 'plan', risk: 'high', billable: true, requiresConfirmation: true, longRunning: true },
+        channels: { tool: true, api: true },
+        tool: { defaultVisibility: 'scenario', tags: ['workflow'], groups: ['workflow'], selectable: true },
+        selection: { baseWeight: 80, costHint: 'high' },
+        inputSchema: z.object({}),
+        outputSchema: z.unknown(),
+        execute: async () => ({}),
+      },
+      reject_plan: {
+        id: 'reject_plan',
+        description: 'reject workflow plan',
+        scope: 'plan',
+        sideEffects: { mode: 'plan', risk: 'low' },
+        channels: { tool: true, api: true },
+        tool: { defaultVisibility: 'scenario', tags: ['workflow'], groups: ['workflow'], selectable: true },
+        selection: { baseWeight: 70, costHint: 'low' },
+        inputSchema: z.object({}),
+        outputSchema: z.unknown(),
+        execute: async () => ({}),
+      },
+      regenerate_panel_image: {
+        id: 'regenerate_panel_image',
+        description: 'regenerate panel image',
+        scope: 'panel',
+        sideEffects: { mode: 'act', risk: 'medium', billable: true },
+        channels: { tool: true, api: true },
+        tool: { defaultVisibility: 'scenario', tags: ['media', 'panel', 'storyboard'], groups: ['media'], selectable: true, requiresEpisode: true },
+        selection: { baseWeight: 60, costHint: 'high' },
+        inputSchema: z.object({}),
+        outputSchema: z.unknown(),
+        execute: async () => ({}),
+      },
+    }
+
+    const selection = selectProjectAgentTools({
+      operations,
+      context: { episodeId: 'ep-1', interactionMode: 'plan' },
+      phase: buildPhaseSnapshot(),
+      route: buildRoute({ intent: 'act', domains: ['storyboard'], toolCategories: ['workflow-plan', 'panel-media'] }),
+      maxTools: 5,
+    })
+
+    expect(selection.operationIds).toContain('create_workflow_plan')
+    expect(selection.operationIds).toContain('approve_plan')
+    expect(selection.operationIds).toContain('reject_plan')
+    expect(selection.operationIds).not.toContain('regenerate_panel_image')
+  })
 })
