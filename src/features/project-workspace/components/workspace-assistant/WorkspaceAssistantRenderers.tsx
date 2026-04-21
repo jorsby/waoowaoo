@@ -30,6 +30,7 @@ import {
   getSkillDisplayLabel,
   getWorkflowDisplayLabel,
 } from '@/lib/skill-system/project-workflow-machine'
+import { MarkdownTextPart } from './MarkdownTextPart'
 
 function formatSkillLabel(skillId: string | null | undefined): string {
   return getSkillDisplayLabel(skillId)
@@ -431,6 +432,7 @@ export function useWorkspaceAssistantMessagePartComponents({
   scriptToStoryboardStream,
 }: WorkspaceAssistantMessagePartComponentsOptions): MessagePartComponents {
   return useMemo<MessagePartComponents>(() => ({
+    Text: MarkdownTextPart,
     tools: {
       Fallback: WorkspaceAssistantToolCallCard,
     },
