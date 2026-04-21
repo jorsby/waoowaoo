@@ -1,0 +1,46 @@
+'use client'
+
+import { Download, Sparkles } from 'lucide-react'
+
+interface WorkspaceAssistantPanelHeaderProps {
+  eyebrow: string
+  title: string
+  episodeLabel: string
+  stageLabel: string
+  runLabel: string
+  downloadLabel: string
+  downloadHref: string
+}
+
+export function WorkspaceAssistantPanelHeader(props: WorkspaceAssistantPanelHeaderProps) {
+  return (
+    <div className="sticky top-0 z-10 border-b border-[var(--glass-stroke-soft)] bg-[var(--glass-bg-nav)] px-5 py-4 backdrop-blur-[var(--glass-blur-nav)] saturate-110">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--glass-text-tertiary)]">
+            <Sparkles className="h-3.5 w-3.5 text-[var(--glass-accent-from)]" />
+            <span>{props.eyebrow}</span>
+          </div>
+          <h2 className="mt-2 text-base font-semibold text-[var(--glass-text-primary)]">{props.title}</h2>
+        </div>
+        <a
+          href={props.downloadHref}
+          className="inline-flex shrink-0 items-center gap-2 rounded-2xl border border-[var(--glass-stroke-base)] bg-[rgba(255,255,255,0.7)] px-3 py-2 text-xs font-medium text-[var(--glass-text-primary)] transition hover:border-[var(--glass-accent-from)]/40 hover:text-[var(--glass-accent-from)]"
+        >
+          <Download className="h-4 w-4" />
+          <span>{props.downloadLabel}</span>
+        </a>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {[props.episodeLabel, props.stageLabel, props.runLabel].map((item) => (
+          <div
+            key={item}
+            className="rounded-full border border-[var(--glass-stroke-base)] bg-[rgba(255,255,255,0.82)] px-3 py-1 text-xs text-[var(--glass-text-secondary)]"
+          >
+            {item}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}

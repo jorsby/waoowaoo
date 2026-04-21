@@ -13,6 +13,36 @@ import {
 } from '@/features/project-workspace/components/workspace-assistant/WorkspaceAssistantRenderers'
 import type { RunStreamView } from '@/lib/query/hooks/run-stream/types'
 
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string, values?: Record<string, string | number>) => {
+    const translations: Record<string, string> = {
+      'cards.approvalRequired': 'Approval Required',
+      'cards.rejectNotePlaceholder': 'Optional rejection note',
+      'cards.approve': 'Approve',
+      'cards.reject': 'Reject',
+      'cards.maxSteps': '已达到最大步数',
+      'cards.stepUsage': '当前步数 {stepCount} / 上限 {maxSteps}',
+      'cards.reason': '原因：{reason}',
+      'cards.step': 'Step {current}/{total}',
+      'cards.scopeEpisode': 'Episode {id}',
+      'cards.screenplayPreview': 'Screenplay Preview',
+      'cards.storyboardPreview': 'Storyboard Preview',
+      'cards.voiceLinesLabel': 'Voice Lines',
+      'cards.scopeClip': 'Clip {id}',
+      'cards.panelsLabel': 'Panels {count}',
+      'toolCall.title': 'Tool Call',
+      'toolCall.success': 'Success',
+      'toolCall.show': 'Show',
+    }
+    const template = translations[key] || key
+    if (!values) return template
+    return Object.entries(values).reduce(
+      (result, [token, value]) => result.replace(`{${token}}`, String(value)),
+      template,
+    )
+  },
+}))
+
 function buildRunStreamView(): RunStreamView {
   return {
     runState: null,
@@ -162,7 +192,7 @@ describe('workspace assistant renderers', () => {
     expect(html).toContain('step_cap')
   })
 
-  it('renders tool cards collapsed by default', () => {
+  it('renders tool cards collapsed to a single summary row by default', () => {
     const html = renderToStaticMarkup(
       <WorkspaceAssistantToolCallCard
         type="tool-call"
@@ -177,8 +207,11 @@ describe('workspace assistant renderers', () => {
       />,
     )
 
-    expect(html).toContain('get_project_context (complete)')
-    expect(html).not.toContain('Parameters')
+    expect(html).toContain('Tool Call')
+    expect(html).toContain('get_project_context')
+    expect(html).toContain('Success')
+    expect(html).not.toContain('Arguments')
+    expect(html).not.toContain('Result')
     expect(html).not.toContain('projectName')
   })
 
