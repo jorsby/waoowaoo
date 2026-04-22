@@ -1,240 +1,317 @@
-# Project Agent Operation 收敛与强类型化重构方案
+# Project Agent Operation 收敛与强类型化重构方案（Mode/Effects + Domain Groups）
 
 ## 摘要
 
-目标是把当前“宽松 operation + 混杂 tool 元信息 + facade/显式能力混用”的结构，收敛成一套统一的、强类型的 operation 主模型。
+目标：把当前“宽松 operation + 元信息分散 + facade operation 语义混杂”的结构，收敛成一套统一、强类型、可审计、可门禁的 Operation 主模型，并以 **domain/package 分组（groups）** 组织工具注入与 Prompt 呈现。
 
-本方案同时解决两类问题：
+本次方案聚焦两件事：
 
-1. 语义问题
-   - operation 粒度过粗，模型难以稳定选择和调用
-   - tool 元信息来源不统一，catalog / selector / API 对能力的理解不一致
-2. 类型问题
-   - 不少 operation 输入输出实际上是 unknown / 宽松对象 / 类 any 语义
-   - 参数角色、目标对象、效果边界没有结构化表达，导致测试和适配层只能猜
+1. **语义收敛**：一个 operation = 一个明确动作（避免 facade 内部二次路由）。
+2. **强类型 + 门禁**：输入输出强约束、计划模式/风险/计费/破坏性操作有明确的执行门禁与确认流程。
 
-最终目标是：
+并明确弃置/迁移：
 
-- operation registry 成为唯一 truth source
-- tool catalog / tool selector / tool adapter 全部从同一套 descriptor 派生
-- operation 的输入输出可被类型系统与测试严格约束
-- 引入 always-on tool set，确保基础交互与安全门禁不依赖“候选打分”机制
+- 弃置“工具配置 UI（让用户手动启用/禁用工具）”相关逻辑。
+- 弃置“基于路由输出的类别列表 + 规则推导 + 打分排序 + 动态候选选择”的旧工具选择体系。
+
+保留并加强：
+
+- Always-on tool set：确认/选择/安全告知等 primitives 必须常驻，避免流程卡死。
+- 显式失败与零隐式回退：缺字段/缺元信息/缺上下文必须失败，不允许静默兜底。
 
 ## 原则与硬约束
 
 - 本仓库禁止 `any`。新增与重构不得引入任何 `any`。
-- 禁止隐式兜底与静默回退：缺元信息就失败，缺字段就失败，选择器不做“猜测补全”。
+- 禁止隐式兜底与静默回退：缺字段就失败、缺上下文就失败、缺确认就失败。
 - route 只做鉴权、参数校验、提交任务与返回响应；复杂业务下沉到 `src/lib/**`。
-- 高风险操作（删除/覆盖/不可逆修改）必须有显式确认 gate。
+- 高风险/计费/不可逆操作必须有显式确认 gate（未来可引入配额后允许 agent 在预算内自主执行，但也必须是显式策略）。
 
-## 当前问题归因（需要被彻底消除）
+## 背景问题（需要被彻底消除）
 
-### 1) Operation 粒度与语义混杂
-
-典型表现：
-
-- `mutate_storyboard` 这类 operation 同时包含多个动作（删除、重排、更新提示词、批量更新等）。
-- UI/selector 很难稳定判断“用户当前想做哪一种动作”，导致工具选择不稳、调用参数不稳、失败率增高。
-
-本质原因：
-
-- operation 不是“一个动作”，而是“一个 mutation facade”，模型需要在一个 tool 内再做二次路由与解释。
-
-### 2) Tool 元信息来源混乱
-
-现状倾向于：
-
-- registry 里大量 operation 依赖 pack 级默认元信息兜底
-- 少数手写 operation 的元信息不充分（描述、风险、参数定义不完整）
-- 选择器是“纯候选打分”，缺少基础工具常驻层
-
-本质结果：
-
-- catalog、selector、API adapter 各自对 tool 能力的理解不一致，测试也很难覆盖稳定行为。
-
-### 3) 类型系统形同虚设
+### 1) Facade operation 语义混杂
 
 典型表现：
 
-- operation 的 input/output 在 TS 层面是 unknown / 宽松对象
-- adapter 与测试只能靠“猜字段”与运行时断言兜底
+- 诸如 `mutate_storyboard` 之类 operation 承载多个动作（删除、重排、更新提示词、批量更新等）。
+- 需要模型在一个 tool 内再做二次路由与解释，导致选择不稳、参数不稳、失败率高。
 
-本质原因：
+目标：
 
-- operation 没有像函数声明一样：输入参数、效果边界、返回结构都被强类型与 runtime 校验严格约束。
+- 拆分成多个原子 operation（一个 operation 对应一个动作 + 明确效果边界）。
+
+### 2) “能不能执行”与“工具归属意图”混在一起
+
+过去常见做法是把 plan/act/query 混作“权限判定”，导致：
+
+- plan 模式下某些只读但计费的操作无法表达。
+- plan 模式下是否允许执行，与操作归属（意图）耦合过深。
+
+目标：
+
+- 用 **intent(mode)** 表达“工具归属/用途”，用 **effects + confirmation** 表达“执行门禁/授权”。
 
 ## 目标架构（目标态）
 
-### 核心对象：Operation Primary Model
+### 核心对象：Operation Primary Model（短小精悍）
 
-建立单一的 operation 主模型（以下简称 OperationModel），它同时承载：
+Operation 主模型以“函数签名 + 可判定语义”为中心，不再承载工具配置 UI 与打分选择器的元信息。
 
-- 语义：一个 operation 对应一个用户可感知的动作
-- 安全：风险级别、确认策略、幂等语义（如适用）
-- 类型：输入/输出结构（强类型 + runtime 校验）
-- 适配：映射到 tool 的 descriptor（同源派生）
+建议字段（概念结构，字段名可调整，但语义必须一致）：
 
-所有 tool 元信息必须从 OperationModel 派生，禁止出现“descriptor 作为另一套并行模型”的情况。
+- `id`：稳定标识（也作为 tool/function name；必须满足兼容性约束，建议 `snake_case`）。
+- `summary`：命令式简述（给模型/日志/审阅用）。
+- `intent`：`'query' | 'plan' | 'act'`（归属意图/用途，不是权限）。
+- `groupPath`：`string[]`（domain/package 分组路径，用于注入与 Prompt 呈现；例如 `['workflow', 'plan']`）。
+- `channels`：`{ tool: boolean; api: boolean }`（暴露面）。
+- `prerequisites`：统一的上下文前置条件（例如 `episodeId required/optional/forbidden`；不要在每个 operation 上散落 `requiresEpisode`）。
+- `effects`：可判定的副作用维度（替代 risk 档位）。
+  - `writes`：会写入 DB / 状态变更
+  - `billable`：会计费/消耗额度
+  - `destructive`：不可逆/覆盖/删除
+  - `bulk`：批量影响
+  - `externalSideEffects`：外部系统副作用（生成/支付/调用第三方等）
+- `confirmation`：确认策略（何时需要确认、确认摘要、确认参数协议）。
+- `inputSchema` / `outputSchema`：强类型 + runtime 校验（zod）。
+- `execute(ctx, input)`：实现函数。
 
-### Descriptor 的定位
+关键点：
 
-descriptor 是 operation 的“可暴露给 LLM/UI 的视图”，但它不是第二套真相源。
+- **“是否允许执行”必须由执行入口统一强制检查**（而非仅依赖注入/选择器）。
+- **plan 交互模式下允许 billable**：但必须通过确认 gate；是否允许 writes 可作为硬规则或显式策略（推荐硬规则：plan mode 禁止 `effects.writes`）。
+
+### Intent（mode）与 Effects（执行门禁）的关系
+
+- `intent` 用于表达“工具属于什么阶段”，便于组织注入与 Prompt。
+- `effects` 用于表达“调用会发生什么”，便于执行门禁与确认。
+
+例：
+
+- `intent='plan'` 且 `effects.billable=true`：计划阶段也可能要做付费推理/分析；允许执行，但必须确认。
+- `intent='query'` 且 `effects.billable=true`：只读但计费；允许执行，但必须确认/预算策略明确。
+
+### Groups（domain/package 分组）与目录结构
+
+本方案采用 **“领域/包”** 作为 groups 命名主轴（而非资源+动作混合命名），例如：
+
+- `['ui']`
+- `['workflow', 'plan']`
+- `['storyboard', 'read']`
+- `['storyboard', 'edit']`
+- `['asset', 'character']`
+- `['media']`
+- `['billing']`
+
+groups 的用途：
+
+- **工具注入策略**：上层显式指定注入哪些 group（替代旧的“类别推导 + 规则”注入方式）。
+- **Prompt 呈现**：把可用 tools 按 group 分段注入，降低模型困惑。
+
+#### groups 的“双来源一致性”要求（内部参数 + 文件夹）
+
+期望：groups 分为两部分来源：
+
+1. **内部显式定义的 groupPath**（用于运行时注入与 Prompt）。
+2. **文件所在子目录的 folderGroup**（用于代码组织与人类定位）。
+
+原则：二者必须一致；不一致必须失败（测试/guard）。
+
+推荐实现方式（显式 + 可测试，禁止隐式从文件路径推导）：
+
+- 每个 domain 子目录定义 `FOLDER_GROUP` 常量（例如 `['workflow', 'plan']`）。
+- 该目录的 `index.ts`/pack 构造器通过 helper 给所有 operation 注入 `groupPath=FOLDER_GROUP`（或以其为前缀）。
+- 单测/guard 遍历 registry，断言每个 operation 的 `groupPath` 与其所属 pack 声明一致。
+
+这样目录移动会强制同步更新 `FOLDER_GROUP`，避免“重构目录导致语义漂移”的隐式风险。
+
+## 代码组织（Step 1.5：先按域分目录）
+
+先按 domain/package 聚合，不强制“一 operation 一文件”，避免样板爆炸与高 churn。
+
+建议目录形态（示意）：
+
+```
+src/lib/operations/
+  registry.ts                 # 对外稳定入口
+  project-agent.ts            # registry 组装（避免堆业务）
+  confirmation.ts             # 统一确认协议（如已存在则复用）
+  ui/
+    always-on-ops.ts          # ui_confirm/ui_single_select/...（always-on）
+  workflow/
+    plan-ops.ts
+  storyboard/
+    read-ops.ts
+    edit-ops.ts
+  asset/
+    character-ops.ts
+    location-ops.ts
+  media/
+    media-ops.ts
+    video-ops.ts
+    download-ops.ts
+  billing/
+    billing-ops.ts
+  api-only/
+    ...
+```
+
+说明：
+
+- folderGroup 与 groupPath 命名保持一致（领域/包主轴）。
+- `project-agent.ts` 只负责拼装与 defaults 注入，复杂业务必须下沉 `src/lib/**`。
+
+## 工具注入与执行门禁（替代旧选择器/类别体系）
+
+### 注入策略（Injection Policy）
+
+不再使用“类别 -> 规则 -> tags/scopes -> score”的旧选择器。
+
+改为：上层显式指定要注入的 group（领域/包），再加 always-on。
+
+概念：
+
+- `alwaysOnGroups`: `['ui']`（或固定 always-on operation id 集合）
+- `requestedGroups`: 由上层决策直接给出（例如当前 workflow 场景：`['workflow', 'plan']`、`['storyboard', 'edit']`）
+- 注入集合 = always-on + requestedGroups 对应的 operations
+
+注：上层“如何决定 requestedGroups”不在本方案强制范围内；可以是显式 UI 场景、显式工作流步骤、或后续再引入最小规则。
+
+### 执行门禁（Execution Gate，必须在执行入口强制）
+
+核心规则（建议作为硬规则写入执行入口，避免绕过）：
+
+1. **上下文前置条件**：缺 prerequisite 直接失败（或拒绝执行并提示缺少上下文）。
+2. **plan 交互模式**：
+   - 禁止 `effects.writes === true` 的 operation 执行（推荐硬规则）。
+   - 允许 `effects.billable === true` 的 operation 执行，但必须确认 gate。
+3. **确认 gate**：
+   - `effects.destructive/billable/externalSideEffects/bulk/overwrite` 等触发确认。
+   - 未确认（例如缺 `confirmed=true`）则拒绝执行并输出 confirmation request part。
+
+## Always-on Tool Set
+
+always-on 目的：保证基础交互 primitives 永远可用，避免流程卡死。
+
+建议集合（示意）：
+
+- `ui_confirm`
+- `ui_cancel`
+- `ui_single_select`
+- `ui_multi_select`
+- `ui_safety_ack`
+
+原则：
+
+- always-on 不依赖分组注入策略（永远注入）。
+- always-on 本身必须是低副作用（通常 `effects.writes=false` 且 `billable=false`）。
+
+## 收敛策略（迁移步骤）
+
+### Step 0：盘点与冻结范围
+
+- 输出 operation 清单（id、输入输出 schema、effects、prerequisites、groupPath）。
+- 标记 facade operation（例如 storyboard mutation 类）。
+
+### Step 1：落地 Operation 主模型（intent + effects + prerequisites + groupPath）
+
+目标：让 registry 成为唯一 truth source，并且具备执行门禁所需的最小可判定语义。
 
 要求：
 
-- descriptor 是可生成的派生物
-- operation 的核心语义与类型约束必须先在 OperationModel 定义清楚
+- input/output schema 强约束；禁止 `any`。
+- effects/prerequisites/confirmation 必须显式可判定，不允许隐式猜测。
 
-换句话说：
+### Step 1.5：目录结构按域收敛 + folderGroup 一致性校验
 
-- descriptor 可以作为 OperationModel 的一个字段或派生函数结果
-- 但 descriptor 不能替代 OperationModel 的输入/输出类型契约
+- 文件迁移到 domain 子目录。
+- 每个 domain pack 声明 `FOLDER_GROUP`，通过 helper 注入 `groupPath`。
+- 增加测试：folderGroup 与 operation.groupPath 不一致即失败。
 
-### Always-on Tool Set
+### Step 2：拆解 facade operation
 
-定义一组“基础常驻工具”，不参与候选打分、不随 pack/phase 隐式消失，用于：
+- 一个 operation = 一个动作 + 明确效果边界。
+- 删除/覆盖/不可逆修改必须显式 confirmation gate。
 
-- 显式确认（confirm / cancel / acknowledge）
-- 单选、多选与结构化选择（single_select / multi_select）
-- 需要时的解释型工具（如 show_help / explain_plan），但必须保持最小集合
+### Step 3：移除旧选择器/类别体系，改为 group-based 注入
 
-always-on 的目的：
+- 移除旧的“类别推导 + tags/scopes/score”选择器与相关数据结构。
+- 引入显式 `requestedGroups`（或等价结构）作为注入输入。
+- Prompt 按 groupPath 分段注入工具说明。
 
-- 防止纯打分选择器在关键交互中漏掉必要工具，导致流程卡死
-- 把“交互 primitives”与“业务动作 operation”分离，避免每个业务工具都内置确认逻辑
+### Step 4：测试与导出
 
-## 收敛策略（如何从现状迁移）
+- 单测覆盖：
+  - always-on 常驻
+  - plan 交互模式禁写 + 付费需确认
+  - prerequisites 缺失显式失败
+  - folderGroup/groupPath 一致性
+- 导出全局 registry snapshot 到 `docs/agent/artifacts/**` 供审阅。
 
-### Step 0: 盘点与冻结范围
+## 执行计划（M0/M1…）
 
-输出一份现状清单：
+为降低 churn，按里程碑推进（每个里程碑都必须可测试/可回滚）：
 
-- operation registry 中的所有 operation id
-- 每个 operation 当前的输入/输出形态与元信息来源（pack default 或手写）
-- 哪些 operation 属于 facade（混合多个语义动作）
+- **M0：对齐新设计与迁移边界**
+  - 文档与命名规范对齐（`id` 统一 `snake_case`；groups 为 domain/package）
+  - 明确弃置：工具配置 UI、旧选择器/类别打分体系
+- **M1：Always-on 常驻 + 执行入口门禁**
+  - always-on primitives 常驻
+  - 执行入口强制：confirmation gate、plan 禁写、billable 需确认、prerequisites 缺失失败
+- **M2：Operation 主模型落地（intent/effects/prerequisites/groupPath）**
+  - registry 成为 truth source
+  - 统一导出 snapshot（供审阅）
+- **M3：Group-based 注入替代旧选择器/类别体系**
+  - 注入输入改为显式 requestedGroups
+  - Prompt 按 groupPath 分段呈现
+  - 注入输入改为显式 requestedGroups
+  - Prompt 按 groupPath 分段呈现
+- **M4：Step 1.5 目录收敛**
+  - operations 文件迁移到 domain 目录
+  - folderGroup/groupPath 一致性测试落地
+- **M5：Facade 拆解**
+  - 拆 `mutate_storyboard` 等 facade
+- **M6：远期评估“单 operation 单文件”**
+  - 满足评估标准再做，避免机械拆分
 
-注意本次重构的范围是 operation 模型与相关适配层，目标是把所有存在问题的 operation 都纳入重构计划，不要求一次性完成所有 operation 的重构，但是要多轮迭代推进，并恰当记录commit,最后交付结果是达成全覆盖。
-
-### Step 1: 定义 OperationModel（强类型 + runtime 校验）
-
-为 OperationModel 定义统一结构（建议在 `src/lib/operations/**` 或 `src/lib/project-agent/**` 中建立单一入口），至少包含：
-
-- `id`: string literal union（或通过注册表导出 union）
-- `summary`: 简短、命令式语义
-- `risk`: 明确风险分级与是否需要确认
-- `scopes`: 影响对象域（project/episode/clip/storyboard/panel/asset 等）
-- `input`: 强类型输入 schema（含 runtime 校验）
-- `output`: 强类型输出 schema（含 runtime 校验）
-- `descriptor`: tool 视图（可从上述字段派生）
-- `execute`: 具体执行函数
-
-强制要求：
-
-- input/output 不能出现 loose object；禁止 `Record<string, unknown>` 作为“万能入参”
-- 对象定位必须结构化：例如 storyboard 的 panel 应使用明确标识（panelId 或稳定 index 语义），禁止“第几个分镜”这种自然语言入参
-
-### Step 2: 拆解 facade operation（以 mutate_storyboard 为代表）
-
-把单个 facade operation 拆为多个显式 operation：
-
-示例（仅示意，最终以代码与域模型为准）：
-
-- `storyboard.panel.delete`
-- `storyboard.panel.update_prompt`
-- `storyboard.panel.regenerate_image`
-- `storyboard.panel.reorder`
-
-拆解规则：
-
-- 一个 operation = 一个明确动作 + 明确效果边界
-- 每个 operation 的风险与确认策略独立定义（删除/覆盖必须确认）
-- operation 的输入输出必须与 action 对齐（避免“大而全”的 payload）
-
-### Step 3: 统一 tool 元信息生成与注册逻辑
-
-建立单一导出路径：
-
-- tool catalog 仅从 OperationModel 列表派生
-- selector 的候选集来自：always-on tool set +（按 phase/policy 裁剪后的 operations）
-
-禁止：
-
-- pack default metadata 对手写 operation 进行“补齐兜底”
-- selector 对 metadata 缺失进行猜测修复
-
-### Step 4: 引入 Always-on Tool Set，并落到 selector
-
-要求 selector 具备两层：
-
-- base layer: always-on tools（确认/选择等 primitives）
-- candidate layer: 当前上下文可见 operations（基于 policy/phase/risk 过滤）
-
-### Step 5: 收紧类型并补齐测试
-
-对每个被触达的 operation：
-
-- 用 TS 类型与 runtime schema 双重约束输入输出
-- 写最小必要测试，至少覆盖：
-  - registry 导出是否包含预期的 descriptor 与 schema 元信息
-  - selector 是否始终包含 always-on 工具
-  - 拆分后的 operation 是否可被稳定选择（contract/route 层按需）
-
-## 交付物（本方案完成后必须产出）
+## 交付物
 
 ### 1) 代码与测试
 
-- 新的 OperationModel 定义与注册表
-- facade operation 的拆解与调用方适配
-- selector 的 always-on layer
-- 补齐的 contract/integration/unit/regression 测试
+- Operation 主模型与 registry（truth source）
+- always-on primitives
+- 执行入口门禁（plan 禁写、确认 gate、prerequisites）
+- group-based 注入与 Prompt 分组
+- 拆解 facade operation 的实现与测试
 
-### 2) 全局 Operation 结构化导出 JSON（用于人工审阅）
-
-在重构完成后，必须把最终的全局 operation registry 结构化导出并写入仓库，供审阅。
+### 2) 全局 registry 导出（用于人工审阅）
 
 建议路径：
 
 - `docs/agent/artifacts/operation-registry.export.json`
 
-导出文件必须包含以下信息（示意结构，不要求字段名完全一致，但语义必须完备）：
+导出结构建议包含：
 
-```json
-{
-  "generatedAt": "2026-04-21T00:00:00.000Z",
-  "schemaVersion": 1,
-  "operations": [
-    {
-      "id": "storyboard.panel.delete",
-      "summary": "Delete a storyboard panel",
-      "risk": { "level": "high", "requiresConfirmation": true },
-      "scopes": ["project", "episode", "storyboard", "panel"],
-      "input": { "jsonSchema": {}, "example": {} },
-      "output": { "jsonSchema": {}, "example": {} },
-      "descriptor": {
-        "toolName": "storyboard.panel.delete",
-        "uiLabelKey": "tool.storyboard.panel.delete",
-        "descriptionKey": "tool.storyboard.panel.delete.desc"
-      }
-    }
-  ],
-  "alwaysOnTools": [
-    { "id": "ui.confirm" },
-    { "id": "ui.single_select" }
-  ]
-}
-```
+- `id` / `summary`
+- `intent`
+- `groupPath`
+- `prerequisites`
+- `effects`
+- `confirmation`（如果存在）
+- `channels`
+- `input/output` jsonSchema（可选 example）
+- `alwaysOnOperationIds`
 
 导出要求：
 
-- 内容来自真实 registry，不允许手写伪造
-- 所有 operation 必须无 `any`/unknown 语义的 schema 表达
-- 如果某 operation 无法导出 schema，必须在构建/测试时失败
+- 内容来自真实 registry，不允许手写伪造。
+- schema 不允许 `any` 语义；对无法表达/无法导出的 schema 必须在构建/测试时失败（显式失败）。
 
 ## 验收口径
 
-- tool catalog 与 selector 的来源统一，且 selector 永远包含 always-on 工具。
-- operation 拆解后，模型选择稳定性提升：
-  - tool 只显示成功/失败时仍可折叠查看详情（UI 层）
-  - operation 的参数更像“函数签名”，不再依赖自然语言猜测
-- 类型与测试能提前阻止“缺字段/字段语义变化/元信息缺失”的线上问题。
-
+- always-on primitives 永远可用。
+- 执行入口门禁可靠：
+  - plan 交互模式禁止写入类 operation
+  - 计费/破坏性/外部副作用必须确认后才能执行
+  - prerequisites 缺失显式失败
+- 旧的“类别 + 规则 + 打分”工具选择体系被移除，注入改为显式 group-based。
+- 旧的“类别 + 规则 + 打分”工具选择体系被移除，注入改为显式 group-based。
+- `src/lib/operations/` 目录按 domain 可定位；folderGroup 与 groupPath 一致性可测试。

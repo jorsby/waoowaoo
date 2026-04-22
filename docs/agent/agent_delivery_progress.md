@@ -50,7 +50,7 @@ UI / API route
   -> resolveProjectPhase (project-phase.ts)
   -> routeProjectAgentRequest (router.ts)
   -> resolveProjectAgentExecutionMode (execution-mode.ts)
-  -> selectProjectAgentTools (tool-policy.ts)
+  -> selectProjectAgentOperationsByGroups (operation-injection.ts)
   -> streamText (AI SDK)
   -> executeProjectAgentOperationFromTool (tool adapter)
   -> structured result / confirmation / task / workflow data parts
@@ -76,7 +76,7 @@ UI / API route
 - [runtime.ts](/home/deng-shengxi/文档/videogen/waoowaoo/src/lib/project-agent/runtime.ts)
 - [router.ts](/home/deng-shengxi/文档/videogen/waoowaoo/src/lib/project-agent/router.ts)
 - [execution-mode.ts](/home/deng-shengxi/文档/videogen/waoowaoo/src/lib/project-agent/execution-mode.ts)
-- [tool-policy.ts](/home/deng-shengxi/文档/videogen/waoowaoo/src/lib/project-agent/tool-policy.ts)
+- [operation-injection.ts](/home/deng-shengxi/文档/videogen/waoowaoo/src/lib/project-agent/operation-injection.ts)
 
 ### 4.2 interactionMode
 
@@ -119,7 +119,7 @@ runtime 已写出工具选择日志，包含：
 - effectiveIntent
 - confidence
 - domains
-- toolCategories
+- requestedGroups
 - selected operationIds
 - clarification branch
 
@@ -147,11 +147,11 @@ runtime 已写出工具选择日志，包含：
 - `runtime-routing.test.ts`
 - `router.test.ts`
 - `execution-mode.test.ts`
-- `tool-policy.test.ts`
-- `tool-policy-scenarios.test.ts`
+- `operation-injection.test.ts`
 - `message-compression.test.ts`
 - `persistence.test.ts`
 - `tool-adapter.test.ts`
+- `tool-adapter-gates.test.ts`
 - `api-adapter.test.ts`
 - `presentation.test.ts`
 - `stop-conditions.test.ts`
