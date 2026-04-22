@@ -36,9 +36,7 @@ export const POST = apiHandler(async (
     source: 'project-ui',
   })
 
-  return NextResponse.json({
-    ...result,
-  })
+  return NextResponse.json(result)
 })
 
 /**

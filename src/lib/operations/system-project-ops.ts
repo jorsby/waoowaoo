@@ -11,7 +11,8 @@ import {
   validateProjectDraft,
   type ProjectDraftInput,
 } from '@/lib/projects/validation'
-import type { ProjectAgentOperationRegistry } from './types'
+import type { ProjectAgentOperationRegistryDraft } from './types'
+import { defineOperation } from './define-operation'
 
 function readProjectDraftBody(body: unknown): ProjectDraftInput {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
@@ -26,13 +27,33 @@ function readProjectDraftBody(body: unknown): ProjectDraftInput {
   }
 }
 
-export function createSystemProjectOperations(): ProjectAgentOperationRegistry {
+const EFFECTS_QUERY = {
+  writes: false,
+  billable: false,
+  destructive: false,
+  overwrite: false,
+  bulk: false,
+  externalSideEffects: false,
+  longRunning: false,
+} as const
+
+const EFFECTS_WRITE = {
+  writes: true,
+  billable: false,
+  destructive: false,
+  overwrite: false,
+  bulk: false,
+  externalSideEffects: false,
+  longRunning: false,
+} as const
+
+export function createSystemProjectOperations(): ProjectAgentOperationRegistryDraft {
   return {
-    list_projects: {
+    list_projects: defineOperation({
       id: 'list_projects',
-      description: 'List user projects with pagination, cost and basic stats.',
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'system',
+      summary: 'List user projects with pagination, cost and basic stats.',
+      intent: 'query',
+      effects: EFFECTS_QUERY,
       inputSchema: z.object({
         page: z.number().int().positive().max(10000).optional(),
         pageSize: z.number().int().positive().max(200).optional(),
@@ -178,13 +199,13 @@ export function createSystemProjectOperations(): ProjectAgentOperationRegistry {
           },
         }
       },
-    },
+    }),
 
-    create_project: {
+    create_project: defineOperation({
       id: 'create_project',
-      description: 'Create a new project for the current user.',
-      sideEffects: { mode: 'act', risk: 'low' },
-      scope: 'system',
+      summary: 'Create a new project for the current user.',
+      intent: 'act',
+      effects: EFFECTS_WRITE,
       inputSchema: z.object({
         name: z.string().min(1),
         description: z.string().optional().nullable(),
@@ -254,6 +275,6 @@ export function createSystemProjectOperations(): ProjectAgentOperationRegistry {
 
         return { project }
       },
-    },
+    }),
   }
 }

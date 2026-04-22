@@ -64,6 +64,21 @@ export async function executeProjectAgentOperationFromTool(params: {
     }
   }
 
+  if (params.context.interactionMode === 'plan' && operation.effects.writes) {
+    return {
+      ok: false,
+      error: buildToolError({
+        code: 'OPERATION_NOT_ALLOWED',
+        message: 'PROJECT_AGENT_OPERATION_NOT_ALLOWED_IN_PLAN_MODE',
+        operationId: params.operationId,
+        details: {
+          interactionMode: 'plan',
+          effects: operation.effects,
+        },
+      }),
+    }
+  }
+
   const parsed = operation.inputSchema.safeParse(params.input)
   if (!parsed.success) {
     return {
@@ -77,21 +92,66 @@ export async function executeProjectAgentOperationFromTool(params: {
     }
   }
 
-  const requiresConfirmation = shouldRequireAssistantConfirmation(operation.sideEffects)
+  const contextEpisodeId = typeof params.context.episodeId === 'string' ? params.context.episodeId.trim() : ''
+  const inputEpisodeId = (() => {
+    const data = parsed.data
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return ''
+    const record = data as Record<string, unknown>
+    const value = record.episodeId
+    return typeof value === 'string' ? value.trim() : ''
+  })()
+  const effectiveEpisodeId = contextEpisodeId || inputEpisodeId
+  const hasEpisodeId = effectiveEpisodeId.length > 0
+
+  if (operation.prerequisites.episodeId === 'required' && !hasEpisodeId) {
+    return {
+      ok: false,
+      error: buildToolError({
+        code: 'OPERATION_PREREQUISITE_MISSING',
+        message: 'PROJECT_AGENT_OPERATION_PREREQUISITE_EPISODE_REQUIRED',
+        operationId: params.operationId,
+        details: {
+          prerequisite: 'episodeId',
+          required: 'required',
+          actual: null,
+        },
+      }),
+    }
+  }
+
+  if (operation.prerequisites.episodeId === 'forbidden' && hasEpisodeId) {
+    return {
+      ok: false,
+      error: buildToolError({
+        code: 'OPERATION_PREREQUISITE_MISSING',
+        message: 'PROJECT_AGENT_OPERATION_PREREQUISITE_EPISODE_FORBIDDEN',
+        operationId: params.operationId,
+        details: {
+          prerequisite: 'episodeId',
+          required: 'forbidden',
+          actual: effectiveEpisodeId,
+          source: contextEpisodeId ? 'context' : 'input',
+        },
+      }),
+    }
+  }
+
+  const requiresConfirmation = shouldRequireAssistantConfirmation(operation.confirmation)
   if (requiresConfirmation) {
     if (!isConfirmedOperationInput(params.input)) {
-      const budgetKey = operation.sideEffects?.budgetKey
-      const estimatedCostUnits = operation.sideEffects?.estimatedCostUnits
+      const budgetKey = operation.confirmation?.budget?.key
+      const estimatedCostUnits = operation.confirmation?.budget?.estimatedCostUnits
       const budget = !budgetKey && estimatedCostUnits === undefined
         ? null
         : {
             ...(budgetKey ? { key: budgetKey } : {}),
             ...(estimatedCostUnits !== undefined ? { estimatedCostUnits } : {}),
           }
+      const summary = operation.confirmation?.summary
+        || `执行 ${params.operationId} 会产生写入或计费等副作用。请在确认后重试，并在参数中带 confirmed=true。`
       writeOperationDataPart<ConfirmationRequestPartData>(params.writer, 'data-confirmation-request', {
         operationId: params.operationId,
-        summary: operation.sideEffects?.confirmationSummary
-          || `执行 ${params.operationId} 会产生写入或计费副作用。请在确认后重试，并在参数中带 confirmed=true。`,
+        summary,
         argsHint: {
           ...(parsed.data && typeof parsed.data === 'object' && !Array.isArray(parsed.data) ? parsed.data as Record<string, unknown> : {}),
           confirmed: true,
@@ -103,8 +163,7 @@ export async function executeProjectAgentOperationFromTool(params: {
         confirmationRequired: true,
         error: buildToolError({
           code: 'CONFIRMATION_REQUIRED',
-          message: operation.sideEffects?.confirmationSummary
-            || `执行 ${params.operationId} 会产生写入或计费副作用。请在确认后重试，并在参数中带 confirmed=true。`,
+          message: summary,
           operationId: params.operationId,
           details: budget ? { budget } : null,
         }),

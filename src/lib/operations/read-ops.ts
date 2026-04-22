@@ -16,14 +16,25 @@ import type {
   ScriptPreviewPartData,
   StoryboardPreviewPartData,
 } from '@/lib/project-agent/types'
-import type { ProjectAgentOperationRegistry } from './types'
+import type { ProjectAgentOperationRegistryDraft } from './types'
 import { writeOperationDataPart } from './types'
+import { defineOperation } from './define-operation'
 
 const taskTargetSchema = z.object({
   targetType: z.string().min(1),
   targetId: z.string().min(1),
   types: z.array(z.string().min(1)).optional(),
 })
+
+const EFFECTS_NONE = {
+  writes: false,
+  billable: false,
+  destructive: false,
+  overwrite: false,
+  bulk: false,
+  externalSideEffects: false,
+  longRunning: false,
+} as const
 
 function normalizeString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
@@ -47,13 +58,13 @@ function parseProjectionScope(scopeRef: string | undefined): { clipId?: string |
   return null
 }
 
-export function createReadOperations(): ProjectAgentOperationRegistry {
+export function createReadOperations(): ProjectAgentOperationRegistryDraft {
   return {
-    get_project_phase: {
+    get_project_phase: defineOperation({
       id: 'get_project_phase',
-      description: 'Resolve the current project phase, progress counts, active runs, failed items, stale artifacts, and available next actions. Always call this before acting to understand the project state.',
-      sideEffects: { mode: 'query', risk: 'none' },
-      scope: 'project',
+      summary: 'Resolve the current project phase, progress counts, active runs, failed items, stale artifacts, and available next actions. Always call this before acting to understand the project state.',
+      intent: 'query',
+      effects: EFFECTS_NONE,
       inputSchema: z.object({}),
       outputSchema: z.unknown(),
       execute: async (ctx) => {
@@ -69,12 +80,12 @@ export function createReadOperations(): ProjectAgentOperationRegistry {
         })
         return snapshot
       },
-    },
-    get_project_snapshot: {
+    }),
+    get_project_snapshot: defineOperation({
       id: 'get_project_snapshot',
-      description: 'Load a project snapshot projection with progress, active runs, latest artifacts, and approvals. Use detail=full to inspect panel-level state including descriptions, prompts, and media URLs.',
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'project',
+      summary: 'Load a project snapshot projection with progress, active runs, latest artifacts, and approvals. Use detail=full to inspect panel-level state including descriptions, prompts, and media URLs.',
+      intent: 'query',
+      effects: EFFECTS_NONE,
       inputSchema: z.object({
         detail: z.enum(['lite', 'full']).optional(),
         panelLimit: z.number().int().positive().max(1000).optional(),
@@ -96,12 +107,12 @@ export function createReadOperations(): ProjectAgentOperationRegistry {
             episodeId: ctx.context.episodeId || null,
             currentStage: ctx.context.currentStage || null,
           })),
-    },
-    get_project_context: {
+    }),
+    get_project_context: defineOperation({
       id: 'get_project_context',
-      description: 'Load the current project and episode context snapshot.',
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'project',
+      summary: 'Load the current project and episode context snapshot.',
+      intent: 'query',
+      effects: EFFECTS_NONE,
       inputSchema: z.object({
         detail: z.enum(['snapshot', 'full']).optional(),
         selectedScopeRef: z.string().optional(),
@@ -122,12 +133,12 @@ export function createReadOperations(): ProjectAgentOperationRegistry {
         if (input.detail === 'full') return projectContext
         return snapshot
       },
-    },
-    list_workflow_packages: {
+    }),
+    list_workflow_packages: defineOperation({
       id: 'list_workflow_packages',
-      description: 'List available workflow packages and skill catalog entries.',
-      sideEffects: { mode: 'query', risk: 'none' },
-      scope: 'system',
+      summary: 'List available workflow packages and skill catalog entries.',
+      intent: 'query',
+      effects: EFFECTS_NONE,
       inputSchema: z.object({
         documentPath: z.string().min(1).optional(),
         maxChars: z.number().int().positive().max(20000).optional(),
@@ -159,12 +170,12 @@ export function createReadOperations(): ProjectAgentOperationRegistry {
           },
         }
       },
-    },
-    list_saved_skills: {
+    }),
+    list_saved_skills: defineOperation({
       id: 'list_saved_skills',
-      description: 'List saved skills (plan templates) for the current user within this project.',
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'project',
+      summary: 'List saved skills (plan templates) for the current user within this project.',
+      intent: 'query',
+      effects: EFFECTS_NONE,
       inputSchema: z.object({
         limit: z.number().int().positive().max(50).optional(),
       }),
@@ -185,12 +196,12 @@ export function createReadOperations(): ProjectAgentOperationRegistry {
           updatedAt: item.updatedAt.toISOString(),
         }))
       },
-    },
-    fetch_workflow_preview: {
+    }),
+    fetch_workflow_preview: defineOperation({
       id: 'fetch_workflow_preview',
-      description: 'Load a rendered preview for the latest workflow artifacts.',
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'episode',
+      summary: 'Load a rendered preview for the latest workflow artifacts.',
+      intent: 'query',
+      effects: EFFECTS_NONE,
       inputSchema: z.object({
         workflowId: z.enum(['story-to-script', 'script-to-storyboard']),
         episodeId: z.string().optional(),
@@ -210,12 +221,12 @@ export function createReadOperations(): ProjectAgentOperationRegistry {
         writeOperationDataPart<StoryboardPreviewPartData>(ctx.writer, 'data-storyboard-preview', preview)
         return preview
       },
-    },
-    get_task_status: {
+    }),
+    get_task_status: defineOperation({
       id: 'get_task_status',
-      description: 'Query task target states for one or more project targets.',
-      sideEffects: { mode: 'query', risk: 'none' },
-      scope: 'project',
+      summary: 'Query task target states for one or more project targets.',
+      intent: 'query',
+      effects: EFFECTS_NONE,
       inputSchema: z.object({
         targets: z.array(taskTargetSchema).min(1).max(500),
       }),
@@ -229,12 +240,12 @@ export function createReadOperations(): ProjectAgentOperationRegistry {
           })
         ),
       }),
-    },
-    list_recent_commands: {
+    }),
+    list_recent_commands: defineOperation({
       id: 'list_recent_commands',
-      description: 'List recent command and run status for the current project or episode.',
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'project',
+      summary: 'List recent command and run status for the current project or episode.',
+      intent: 'query',
+      effects: EFFECTS_NONE,
       inputSchema: z.object({
         limit: z.number().int().positive().max(50).optional(),
         syncRunning: z.boolean().optional(),
@@ -264,12 +275,12 @@ export function createReadOperations(): ProjectAgentOperationRegistry {
           limit,
         })
       },
-    },
-    get_project_command: {
+    }),
+    get_project_command: defineOperation({
       id: 'get_project_command',
-      description: 'Get a single command by id (optionally sync status from its linked run).',
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'command',
+      summary: 'Get a single command by id (optionally sync status from its linked run).',
+      intent: 'query',
+      effects: EFFECTS_NONE,
       inputSchema: z.object({
         commandId: z.string().min(1),
         sync: z.boolean().optional(),
@@ -286,6 +297,6 @@ export function createReadOperations(): ProjectAgentOperationRegistry {
         const command = commands.find((item) => item.commandId === input.commandId) || null
         return { command }
       },
-    },
+    }),
   }
 }

@@ -15,7 +15,8 @@ import { cancelTask } from '@/lib/task/service'
 import { resolveRequiredTaskLocale } from '@/lib/task/resolve-locale'
 import { submitTask } from '@/lib/task/submitter'
 import { TASK_TYPE, type TaskType } from '@/lib/task/types'
-import type { ProjectAgentOperationRegistry } from './types'
+import type { ProjectAgentOperationRegistryDraft } from './types'
+import { defineOperation } from './define-operation'
 
 const RETRY_SUPPORTED_TASK_TYPES: ReadonlySet<string> = new Set<string>([
   TASK_TYPE.STORY_TO_SCRIPT_RUN,
@@ -80,13 +81,21 @@ function resolveRetryTaskType(run: {
   return candidate as TaskType
 }
 
-export function createRunOperations(): ProjectAgentOperationRegistry {
+export function createRunOperations(): ProjectAgentOperationRegistryDraft {
   return {
-    list_runs: {
+    list_runs: defineOperation({
       id: 'list_runs',
-      description: 'List runs for the current user with optional filters.',
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'system',
+      summary: 'List runs for the current user with optional filters.',
+      intent: 'query',
+      effects: {
+        writes: false,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({}).passthrough(),
       outputSchema: z.unknown(),
       execute: async (ctx, input) => {
@@ -121,13 +130,25 @@ export function createRunOperations(): ProjectAgentOperationRegistry {
 
         return { runs }
       },
-    },
+    }),
 
-    create_run: {
+    create_run: defineOperation({
       id: 'create_run',
-      description: 'Create a run record for a workflow and target.',
-      sideEffects: { mode: 'act', risk: 'medium', requiresConfirmation: true, confirmationSummary: '将创建并提交一个新的 run（包含写入）。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'system',
+      summary: 'Create a run record for a workflow and target.',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: true,
+        longRunning: false,
+      },
+      confirmation: {
+        required: true,
+        summary: '将创建并提交一个新的 run（包含写入）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({}).passthrough(),
       outputSchema: z.unknown(),
       execute: async (ctx, input) => {
@@ -165,13 +186,21 @@ export function createRunOperations(): ProjectAgentOperationRegistry {
           run,
         }
       },
-    },
+    }),
 
-    get_run_snapshot: {
+    get_run_snapshot: defineOperation({
       id: 'get_run_snapshot',
-      description: 'Get run snapshot detail for the current user.',
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'system',
+      summary: 'Get run snapshot detail for the current user.',
+      intent: 'query',
+      effects: {
+        writes: false,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({
         runId: z.string().min(1),
       }),
@@ -183,13 +212,21 @@ export function createRunOperations(): ProjectAgentOperationRegistry {
         }
         return snapshot
       },
-    },
+    }),
 
-    list_run_events: {
+    list_run_events: defineOperation({
       id: 'list_run_events',
-      description: 'List run events after a given sequence number.',
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'system',
+      summary: 'List run events after a given sequence number.',
+      intent: 'query',
+      effects: {
+        writes: false,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({}).passthrough(),
       outputSchema: z.unknown(),
       execute: async (ctx, input) => {
@@ -220,14 +257,27 @@ export function createRunOperations(): ProjectAgentOperationRegistry {
           events,
         }
       },
-    },
+    }),
 
-    cancel_run: {
+    cancel_run: defineOperation({
       id: 'cancel_run',
-      description: 'Cancel a run and cancel the linked task (best effort).',
-      sideEffects: { mode: 'act', risk: 'medium', requiresConfirmation: true, confirmationSummary: '将取消该 run 及其关联 task（如果存在）。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'system',
+      summary: 'Cancel a run and cancel the linked task (best effort).',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: true,
+        bulk: false,
+        externalSideEffects: true,
+        longRunning: false,
+      },
+      confirmation: {
+        required: true,
+        summary: '将取消该 run 及其关联 task（如果存在）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
+        confirmed: z.boolean().optional(),
         runId: z.string().min(1),
       }),
       outputSchema: z.unknown(),
@@ -269,13 +319,25 @@ export function createRunOperations(): ProjectAgentOperationRegistry {
           run: cancelledRun,
         }
       },
-    },
+    }),
 
-    retry_run_step: {
+    retry_run_step: defineOperation({
       id: 'retry_run_step',
-      description: 'Retry a failed run step by submitting a new task tied to an existing run.',
-      sideEffects: { mode: 'act', risk: 'high', billable: true, longRunning: true, requiresConfirmation: true, confirmationSummary: '将提交一次重试任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'system',
+      summary: 'Retry a failed run step by submitting a new task tied to an existing run.',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: true,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: true,
+        longRunning: true,
+      },
+      confirmation: {
+        required: true,
+        summary: '将提交一次重试任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({}).passthrough(),
       outputSchema: z.unknown(),
       execute: async (ctx, input) => {
@@ -367,7 +429,6 @@ export function createRunOperations(): ProjectAgentOperationRegistry {
           async: true,
         }
       },
-    },
+    }),
   }
 }
-

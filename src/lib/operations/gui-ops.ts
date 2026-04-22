@@ -37,7 +37,38 @@ import { resolveBuiltinCapabilitiesByModelKey } from '@/lib/model-capabilities/l
 import { composeModelKey, parseModelKeyStrict } from '@/lib/model-config-contract'
 import { resolveProjectModelCapabilityGenerationOptions } from '@/lib/config-service'
 import { resolveBuiltinCapabilitiesByModelKey as _resolveCaps } from '@/lib/model-capabilities/lookup'
-import type { ProjectAgentOperationRegistry } from './types'
+import type { ProjectAgentOperationRegistryDraft } from './types'
+import { defineOperation } from './define-operation'
+
+const EFFECTS_QUERY = {
+  writes: false,
+  billable: false,
+  destructive: false,
+  overwrite: false,
+  bulk: false,
+  externalSideEffects: false,
+  longRunning: false,
+} as const
+
+const EFFECTS_WRITE = {
+  writes: true,
+  billable: false,
+  destructive: false,
+  overwrite: false,
+  bulk: false,
+  externalSideEffects: false,
+  longRunning: false,
+} as const
+
+const EFFECTS_WRITE_OVERWRITE = {
+  ...EFFECTS_WRITE,
+  overwrite: true,
+} as const
+
+const EFFECTS_WRITE_DESTRUCTIVE = {
+  ...EFFECTS_WRITE,
+  destructive: true,
+} as const
 
 function toObject(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
@@ -114,13 +145,17 @@ async function withVoiceLineMedia<T extends Record<string, unknown>>(line: T) {
   }
 }
 
-export function createGuiOperations(): ProjectAgentOperationRegistry {
+export function createGuiOperations(): ProjectAgentOperationRegistryDraft {
   return {
-    create_character: {
+    create_character: defineOperation({
       id: 'create_character',
-      description: 'Create a project character and its primary appearance; optionally trigger reference-to-character background generation.',
-      sideEffects: { mode: 'act', risk: 'medium', overwrite: false, longRunning: true },
-      scope: 'asset',
+      summary: 'Create a project character and its primary appearance; optionally trigger reference-to-character background generation.',
+      intent: 'act',
+      effects: {
+        ...EFFECTS_WRITE,
+        externalSideEffects: true,
+        longRunning: true,
+      },
       inputSchema: z.object({
         name: z.string().min(1),
         description: z.string().optional(),
@@ -219,27 +254,27 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
                 ...bodyMeta,
                 locale: taskLocale || bodyMeta.locale || undefined,
               },
-            }),
-          }).catch(() => undefined)
-        }
+	            }),
+	          }).catch(() => undefined)
+	        }
 
         const characterWithAppearances = await prisma.projectCharacter.findUnique({
           where: { id: character.id },
           include: { appearances: true },
         })
 
-        return { success: true, character: characterWithAppearances }
-      },
-    },
-    update_character: {
-      id: 'update_character',
-      description: 'Update a character name/introduction.',
-      sideEffects: { mode: 'act', risk: 'low', overwrite: true },
-      scope: 'asset',
-      inputSchema: z.object({
-        characterId: z.string().min(1),
-        name: z.string().optional(),
-        introduction: z.string().optional().nullable(),
+	        return { success: true, character: characterWithAppearances }
+	      },
+	    }),
+	    update_character: defineOperation({
+	      id: 'update_character',
+	      summary: 'Update a character name/introduction.',
+	      intent: 'act',
+	      effects: EFFECTS_WRITE_OVERWRITE,
+	      inputSchema: z.object({
+	        characterId: z.string().min(1),
+	        name: z.string().optional(),
+	        introduction: z.string().optional().nullable(),
       }),
       outputSchema: z.unknown(),
       execute: async (ctx, input) => {
@@ -257,19 +292,26 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
         const updated = await prisma.projectCharacter.update({
           where: { id: input.characterId },
           data: updateData,
-        })
-        return { success: true, character: updated }
-      },
-    },
-    delete_character: {
-      id: 'delete_character',
-      description: 'Delete a project character and cascade appearances; also cleanup unreferenced managed voices.',
-      sideEffects: { mode: 'plan', risk: 'high', destructive: true, requiresConfirmation: true, confirmationSummary: '将删除角色及其形象数据。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'asset',
-      inputSchema: z.object({
-        confirmed: z.boolean().optional(),
-        characterId: z.string().min(1),
-      }),
+	        })
+	        return { success: true, character: updated }
+	      },
+	    }),
+	    delete_character: defineOperation({
+	      id: 'delete_character',
+	      summary: 'Delete a project character and cascade appearances; also cleanup unreferenced managed voices.',
+	      intent: 'act',
+	      effects: {
+	        ...EFFECTS_WRITE_DESTRUCTIVE,
+	        externalSideEffects: true,
+	      },
+	      confirmation: {
+	        required: true,
+	        summary: '将删除角色及其形象数据。确认继续后请重新调用并传入 confirmed=true。',
+	      },
+	      inputSchema: z.object({
+	        confirmed: z.boolean().optional(),
+	        characterId: z.string().min(1),
+	      }),
       outputSchema: z.object({ success: z.boolean() }),
       execute: async (ctx, input) => {
         const character = await prisma.projectCharacter.findFirst({
@@ -299,21 +341,21 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
           },
         })
 
-        await prisma.projectCharacter.delete({
-          where: { id: input.characterId },
-        })
-        return { success: true }
-      },
-    },
-    create_character_appearance: {
-      id: 'create_character_appearance',
-      description: 'Add a new character appearance record.',
-      sideEffects: { mode: 'act', risk: 'medium', overwrite: false },
-      scope: 'asset',
-      inputSchema: z.object({
-        characterId: z.string().min(1),
-        changeReason: z.string().min(1),
-        description: z.string().min(1),
+	        await prisma.projectCharacter.delete({
+	          where: { id: input.characterId },
+	        })
+	        return { success: true }
+	      },
+	    }),
+	    create_character_appearance: defineOperation({
+	      id: 'create_character_appearance',
+	      summary: 'Add a new character appearance record.',
+	      intent: 'act',
+	      effects: EFFECTS_WRITE,
+	      inputSchema: z.object({
+	        characterId: z.string().min(1),
+	        changeReason: z.string().min(1),
+	        description: z.string().min(1),
       }),
       outputSchema: z.unknown(),
       execute: async (ctx, input) => {
@@ -341,19 +383,19 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
           },
         })
 
-        return { success: true, appearance }
-      },
-    },
-    update_character_appearance: {
-      id: 'update_character_appearance',
-      description: 'Update a character appearance description list.',
-      sideEffects: { mode: 'act', risk: 'low', overwrite: true },
-      scope: 'asset',
-      inputSchema: z.object({
-        characterId: z.string().min(1),
-        appearanceId: z.string().min(1),
-        description: z.string().min(1),
-        descriptionIndex: z.number().int().min(0).optional(),
+	        return { success: true, appearance }
+	      },
+	    }),
+	    update_character_appearance: defineOperation({
+	      id: 'update_character_appearance',
+	      summary: 'Update a character appearance description list.',
+	      intent: 'act',
+	      effects: EFFECTS_WRITE_OVERWRITE,
+	      inputSchema: z.object({
+	        characterId: z.string().min(1),
+	        appearanceId: z.string().min(1),
+	        description: z.string().min(1),
+	        descriptionIndex: z.number().int().min(0).optional(),
       }),
       outputSchema: z.object({ success: z.boolean() }),
       execute: async (ctx, input) => {
@@ -386,19 +428,31 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
             description: trimmedDesc,
             descriptions: JSON.stringify(descriptions),
           },
-        })
-        return { success: true }
-      },
-    },
-    delete_character_appearance: {
-      id: 'delete_character_appearance',
-      description: 'Delete a character appearance and cleanup stored images; then reindex appearanceIndex.',
-      sideEffects: { mode: 'plan', risk: 'high', destructive: true, requiresConfirmation: true, confirmationSummary: '将删除该角色形象及其图片。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'asset',
-      inputSchema: z.object({
-        confirmed: z.boolean().optional(),
-        characterId: z.string().min(1),
-        appearanceId: z.string().min(1),
+	        })
+	        return { success: true }
+	      },
+	    }),
+	    delete_character_appearance: defineOperation({
+	      id: 'delete_character_appearance',
+	      summary: 'Delete a character appearance and cleanup stored images; then reindex appearanceIndex.',
+	      intent: 'act',
+	      effects: {
+	        writes: true,
+	        billable: false,
+	        destructive: true,
+	        overwrite: true,
+	        bulk: true,
+	        externalSideEffects: true,
+	        longRunning: false,
+	      },
+	      confirmation: {
+	        required: true,
+	        summary: '将删除该角色形象及其图片。确认继续后请重新调用并传入 confirmed=true。',
+	      },
+	      inputSchema: z.object({
+	        confirmed: z.boolean().optional(),
+	        characterId: z.string().min(1),
+	        appearanceId: z.string().min(1),
       }),
       outputSchema: z.unknown(),
       execute: async (ctx, input) => {
@@ -454,18 +508,30 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
           }
         }
 
-        return { success: true, deletedImages: deletedKeys.size }
-      },
-    },
-    confirm_character_appearance_selection: {
-      id: 'confirm_character_appearance_selection',
-      description: 'Confirm a chosen character appearance image selection and delete other candidates.',
-      sideEffects: { mode: 'plan', risk: 'high', destructive: true, requiresConfirmation: true, confirmationSummary: '将确认角色形象选择并删除未选中的候选图片。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'asset',
-      inputSchema: z.object({
-        confirmed: z.boolean().optional(),
-        characterId: z.string().min(1),
-        appearanceId: z.string().min(1),
+	        return { success: true, deletedImages: deletedKeys.size }
+	      },
+	    }),
+	    confirm_character_appearance_selection: defineOperation({
+	      id: 'confirm_character_appearance_selection',
+	      summary: 'Confirm a chosen character appearance image selection and delete other candidates.',
+	      intent: 'act',
+	      effects: {
+	        writes: true,
+	        billable: false,
+	        destructive: true,
+	        overwrite: true,
+	        bulk: true,
+	        externalSideEffects: true,
+	        longRunning: false,
+	      },
+	      confirmation: {
+	        required: true,
+	        summary: '将确认角色形象选择并删除未选中的候选图片。确认继续后请重新调用并传入 confirmed=true。',
+	      },
+	      inputSchema: z.object({
+	        confirmed: z.boolean().optional(),
+	        characterId: z.string().min(1),
+	        appearanceId: z.string().min(1),
       }),
       outputSchema: z.unknown(),
       execute: async (ctx, input) => {
@@ -518,18 +584,18 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
           },
         })
 
-        return { success: true, message: '已确认选择，其他候选图片已删除', deletedCount }
-      },
-    },
-    patch_character_voice: {
-      id: 'patch_character_voice',
-      description: 'Update character voice settings (voiceType/voiceId/customVoiceUrl).',
-      sideEffects: { mode: 'act', risk: 'low', overwrite: true },
-      scope: 'asset',
-      inputSchema: z.object({
-        characterId: z.string().min(1),
-        voiceType: z.string().optional().nullable(),
-        voiceId: z.string().optional().nullable(),
+	        return { success: true, message: '已确认选择，其他候选图片已删除', deletedCount }
+	      },
+	    }),
+	    patch_character_voice: defineOperation({
+	      id: 'patch_character_voice',
+	      summary: 'Update character voice settings (voiceType/voiceId/customVoiceUrl).',
+	      intent: 'act',
+	      effects: EFFECTS_WRITE_OVERWRITE,
+	      inputSchema: z.object({
+	        characterId: z.string().min(1),
+	        voiceType: z.string().optional().nullable(),
+	        voiceId: z.string().optional().nullable(),
         customVoiceUrl: z.string().optional().nullable(),
       }),
       outputSchema: z.unknown(),
@@ -547,19 +613,23 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
             voiceId: input.voiceId || null,
             customVoiceUrl: input.customVoiceUrl || null,
           },
-        })
-        return { success: true, character: updated }
-      },
-    },
-    upload_character_voice_audio: {
-      id: 'upload_character_voice_audio',
-      description: 'Upload custom character voice audio (base64) or save AI designed voice sample.',
-      sideEffects: { mode: 'act', risk: 'medium', overwrite: true, longRunning: true },
-      scope: 'asset',
-      inputSchema: z.object({
-        characterId: z.string().min(1),
-        voiceId: z.string().optional(),
-        voiceType: z.string().optional(),
+	        })
+	        return { success: true, character: updated }
+	      },
+	    }),
+	    upload_character_voice_audio: defineOperation({
+	      id: 'upload_character_voice_audio',
+	      summary: 'Upload custom character voice audio (base64) or save AI designed voice sample.',
+	      intent: 'act',
+	      effects: {
+	        ...EFFECTS_WRITE_OVERWRITE,
+	        externalSideEffects: true,
+	        longRunning: true,
+	      },
+	      inputSchema: z.object({
+	        characterId: z.string().min(1),
+	        voiceId: z.string().optional(),
+	        voiceType: z.string().optional(),
         audioBase64: z.string().min(1),
         ext: z.string().optional(),
       }),
@@ -592,19 +662,19 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
           character: {
             ...updated,
             customVoiceUrl: signedAudioUrl,
-          },
-        }
-      },
-    },
-    create_location: {
-      id: 'create_location',
-      description: 'Create a project location and its initial locationImage records.',
-      sideEffects: { mode: 'act', risk: 'medium', overwrite: false },
-      scope: 'asset',
-      inputSchema: z.object({
-        name: z.string().min(1),
-        description: z.string().min(1),
-        summary: z.string().optional(),
+	          },
+	        }
+	      },
+	    }),
+	    create_location: defineOperation({
+	      id: 'create_location',
+	      summary: 'Create a project location and its initial locationImage records.',
+	      intent: 'act',
+	      effects: EFFECTS_WRITE,
+	      inputSchema: z.object({
+	        name: z.string().min(1),
+	        description: z.string().min(1),
+	        summary: z.string().optional(),
         availableSlots: z.unknown().optional(),
         count: z.number().int().positive().max(6).optional(),
         artStyle: z.string().optional(),
@@ -656,18 +726,18 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
           include: { images: true },
         })
 
-        return { success: true, location: locationWithImages }
-      },
-    },
-    patch_location: {
-      id: 'patch_location',
-      description: 'Update a location name/summary or update locationImage description/availableSlots.',
-      sideEffects: { mode: 'act', risk: 'low', overwrite: true },
-      scope: 'asset',
-      inputSchema: z.object({
-        locationId: z.string().min(1),
-        name: z.string().optional(),
-        summary: z.string().optional().nullable(),
+	        return { success: true, location: locationWithImages }
+	      },
+	    }),
+	    patch_location: defineOperation({
+	      id: 'patch_location',
+	      summary: 'Update a location name/summary or update locationImage description/availableSlots.',
+	      intent: 'act',
+	      effects: EFFECTS_WRITE_OVERWRITE,
+	      inputSchema: z.object({
+	        locationId: z.string().min(1),
+	        name: z.string().optional(),
+	        summary: z.string().optional().nullable(),
         imageIndex: z.number().int().min(0).max(50).optional(),
         description: z.string().optional(),
         availableSlots: z.unknown().optional(),
@@ -711,18 +781,22 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
           return { success: true, image }
         }
 
-        throw new ApiError('INVALID_PARAMS')
-      },
-    },
-    delete_location: {
-      id: 'delete_location',
-      description: 'Delete a project location (cascades images).',
-      sideEffects: { mode: 'plan', risk: 'high', destructive: true, requiresConfirmation: true, confirmationSummary: '将删除场景及其图片记录。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'asset',
-      inputSchema: z.object({
-        confirmed: z.boolean().optional(),
-        locationId: z.string().min(1),
-      }),
+	        throw new ApiError('INVALID_PARAMS')
+	      },
+	    }),
+	    delete_location: defineOperation({
+	      id: 'delete_location',
+	      summary: 'Delete a project location (cascades images).',
+	      intent: 'act',
+	      effects: EFFECTS_WRITE_DESTRUCTIVE,
+	      confirmation: {
+	        required: true,
+	        summary: '将删除场景及其图片记录。确认继续后请重新调用并传入 confirmed=true。',
+	      },
+	      inputSchema: z.object({
+	        confirmed: z.boolean().optional(),
+	        locationId: z.string().min(1),
+	      }),
       outputSchema: z.object({ success: z.boolean() }),
       execute: async (ctx, input) => {
         const location = await prisma.projectLocation.findFirst({
@@ -730,21 +804,30 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
           select: { id: true },
         })
         if (!location) throw new ApiError('NOT_FOUND')
-        await prisma.projectLocation.delete({
-          where: { id: input.locationId },
-        })
-        return { success: true }
-      },
-    },
-    confirm_location_selection: {
-      id: 'confirm_location_selection',
-      description: 'Confirm selected location image and delete other candidates.',
-      sideEffects: { mode: 'plan', risk: 'high', destructive: true, requiresConfirmation: true, confirmationSummary: '将确认场景选择并删除未选中的候选图片。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'asset',
-      inputSchema: z.object({
-        confirmed: z.boolean().optional(),
-        locationId: z.string().min(1),
-      }),
+	        await prisma.projectLocation.delete({
+	          where: { id: input.locationId },
+	        })
+	        return { success: true }
+	      },
+	    }),
+	    confirm_location_selection: defineOperation({
+	      id: 'confirm_location_selection',
+	      summary: 'Confirm selected location image and delete other candidates.',
+	      intent: 'act',
+	      effects: {
+	        ...EFFECTS_WRITE_DESTRUCTIVE,
+	        overwrite: true,
+	        bulk: true,
+	        externalSideEffects: true,
+	      },
+	      confirmation: {
+	        required: true,
+	        summary: '将确认场景选择并删除未选中的候选图片。确认继续后请重新调用并传入 confirmed=true。',
+	      },
+	      inputSchema: z.object({
+	        confirmed: z.boolean().optional(),
+	        locationId: z.string().min(1),
+	      }),
       outputSchema: z.unknown(),
       execute: async (ctx, input) => {
         const location = await prisma.projectLocation.findFirst({
@@ -793,18 +876,18 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
           })
         })
 
-        return { success: true, message: '已确认选择，其他候选图片已删除', deletedCount }
-      },
-    },
-    update_clip: {
-      id: 'update_clip',
-      description: 'Update a clip fields (characters/location/props/content/screenplay).',
-      sideEffects: { mode: 'act', risk: 'low', overwrite: true },
-      scope: 'episode',
-      inputSchema: z.object({
-        clipId: z.string().min(1),
-        characters: z.string().nullable().optional(),
-        location: z.string().nullable().optional(),
+	        return { success: true, message: '已确认选择，其他候选图片已删除', deletedCount }
+	      },
+	    }),
+	    update_clip: defineOperation({
+	      id: 'update_clip',
+	      summary: 'Update a clip fields (characters/location/props/content/screenplay).',
+	      intent: 'act',
+	      effects: EFFECTS_WRITE_OVERWRITE,
+	      inputSchema: z.object({
+	        clipId: z.string().min(1),
+	        characters: z.string().nullable().optional(),
+	        location: z.string().nullable().optional(),
         props: z.string().nullable().optional(),
         content: z.string().optional(),
         screenplay: z.string().nullable().optional(),
@@ -827,18 +910,18 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
         const updated = await prisma.projectClip.update({
           where: { id: input.clipId },
           data: updateData,
-        })
-        return { success: true, clip: updated }
-      },
-    },
-    get_video_editor_project: {
-      id: 'get_video_editor_project',
-      description: 'Get video editor project data for an episode.',
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'episode',
-      inputSchema: z.object({
-        episodeId: z.string().min(1),
-      }),
+	        })
+	        return { success: true, clip: updated }
+	      },
+	    }),
+	    get_video_editor_project: defineOperation({
+	      id: 'get_video_editor_project',
+	      summary: 'Get video editor project data for an episode.',
+	      intent: 'query',
+	      effects: EFFECTS_QUERY,
+	      inputSchema: z.object({
+	        episodeId: z.string().min(1),
+	      }),
       outputSchema: z.unknown(),
       execute: async (ctx, input) => {
         const episode = await prisma.projectEpisode.findFirst({
@@ -868,18 +951,18 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
           projectData: parsedProjectData,
           renderStatus: editorProject.renderStatus,
           outputUrl: editorProject.outputUrl,
-          updatedAt: editorProject.updatedAt,
-        }
-      },
-    },
-    save_video_editor_project: {
-      id: 'save_video_editor_project',
-      description: 'Upsert video editor project data for an episode.',
-      sideEffects: { mode: 'act', risk: 'low', overwrite: true },
-      scope: 'episode',
-      inputSchema: z.object({
-        episodeId: z.string().min(1),
-        projectData: z.unknown(),
+	          updatedAt: editorProject.updatedAt,
+	        }
+	      },
+	    }),
+	    save_video_editor_project: defineOperation({
+	      id: 'save_video_editor_project',
+	      summary: 'Upsert video editor project data for an episode.',
+	      intent: 'act',
+	      effects: EFFECTS_WRITE_OVERWRITE,
+	      inputSchema: z.object({
+	        episodeId: z.string().min(1),
+	        projectData: z.unknown(),
       }),
       outputSchema: z.unknown(),
       execute: async (ctx, input) => {
@@ -899,19 +982,26 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
             projectData: JSON.stringify(input.projectData),
             updatedAt: new Date(),
           },
-        })
-        return { success: true, id: editorProject.id, updatedAt: editorProject.updatedAt }
-      },
-    },
-    delete_video_editor_project: {
-      id: 'delete_video_editor_project',
-      description: 'Delete video editor project data for an episode.',
-      sideEffects: { mode: 'act', risk: 'medium', destructive: true, overwrite: true, requiresConfirmation: true, confirmationSummary: '将删除该剧集的编辑器工程数据。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'episode',
-      inputSchema: z.object({
-        confirmed: z.boolean().optional(),
-        episodeId: z.string().min(1),
-      }),
+	        })
+	        return { success: true, id: editorProject.id, updatedAt: editorProject.updatedAt }
+	      },
+	    }),
+	    delete_video_editor_project: defineOperation({
+	      id: 'delete_video_editor_project',
+	      summary: 'Delete video editor project data for an episode.',
+	      intent: 'act',
+	      effects: {
+	        ...EFFECTS_WRITE_DESTRUCTIVE,
+	        overwrite: true,
+	      },
+	      confirmation: {
+	        required: true,
+	        summary: '将删除该剧集的编辑器工程数据。确认继续后请重新调用并传入 confirmed=true。',
+	      },
+	      inputSchema: z.object({
+	        confirmed: z.boolean().optional(),
+	        episodeId: z.string().min(1),
+	      }),
       outputSchema: z.object({ success: z.boolean() }),
       execute: async (ctx, input) => {
         const episode = await prisma.projectEpisode.findFirst({
@@ -920,20 +1010,20 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
         })
         if (!episode) throw new ApiError('NOT_FOUND')
 
-        await prisma.videoEditorProject.delete({
-          where: { episodeId: input.episodeId },
-        })
-        return { success: true }
-      },
-    },
-    clear_storyboard_error: {
-      id: 'clear_storyboard_error',
-      description: 'Clear storyboard lastError field.',
-      sideEffects: { mode: 'act', risk: 'low', overwrite: true },
-      scope: 'storyboard',
-      inputSchema: z.object({
-        storyboardId: z.string().min(1),
-      }),
+	        await prisma.videoEditorProject.delete({
+	          where: { episodeId: input.episodeId },
+	        })
+	        return { success: true }
+	      },
+	    }),
+	    clear_storyboard_error: defineOperation({
+	      id: 'clear_storyboard_error',
+	      summary: 'Clear storyboard lastError field.',
+	      intent: 'act',
+	      effects: EFFECTS_WRITE_OVERWRITE,
+	      inputSchema: z.object({
+	        storyboardId: z.string().min(1),
+	      }),
       outputSchema: z.object({ success: z.boolean() }),
       execute: async (ctx, input) => {
         const storyboard = await prisma.projectStoryboard.findFirst({
@@ -944,15 +1034,15 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
         await prisma.projectStoryboard.update({
           where: { id: input.storyboardId },
           data: { lastError: null },
-        })
-        return { success: true }
-      },
-    },
-    list_storyboards: {
+	        })
+	        return { success: true }
+	      },
+	    }),
+    list_storyboards: defineOperation({
       id: 'list_storyboards',
-      description: 'List storyboards (clip + panels) for an episode.',
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'episode',
+      summary: 'List storyboards (clip + panels) for an episode.',
+      intent: 'query',
+      effects: EFFECTS_QUERY,
       inputSchema: z.object({
         episodeId: z.string().min(1),
       }),
@@ -977,12 +1067,12 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
         const processedStoryboards = withMedia.storyboards || storyboards
         return { storyboards: processedStoryboards }
       },
-    },
-    create_storyboard_group: {
+    }),
+    create_storyboard_group: defineOperation({
       id: 'create_storyboard_group',
-      description: 'Create a storyboard group (clip + storyboard + initial panel) for an episode at an insert index.',
-      sideEffects: { mode: 'act', risk: 'medium', overwrite: false },
-      scope: 'episode',
+      summary: 'Create a storyboard group (clip + storyboard + initial panel) for an episode at an insert index.',
+      intent: 'act',
+      effects: EFFECTS_WRITE,
       inputSchema: z.object({
         episodeId: z.string().min(1),
         insertIndex: z.number().int().min(0).optional(),
@@ -1048,12 +1138,12 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
 
         return { success: true, ...result }
       },
-    },
-    move_storyboard_group: {
+    }),
+    move_storyboard_group: defineOperation({
       id: 'move_storyboard_group',
-      description: 'Move storyboard group up/down by swapping clip createdAt ordering.',
-      sideEffects: { mode: 'act', risk: 'medium', overwrite: true },
-      scope: 'episode',
+      summary: 'Move storyboard group up/down by swapping clip createdAt ordering.',
+      intent: 'act',
+      effects: EFFECTS_WRITE_OVERWRITE,
       inputSchema: z.object({
         episodeId: z.string().min(1),
         clipId: z.string().min(1),
@@ -1097,12 +1187,20 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
 
         return { success: true }
       },
-    },
-    delete_storyboard_group: {
+    }),
+    delete_storyboard_group: defineOperation({
       id: 'delete_storyboard_group',
-      description: 'Delete a storyboard group (panels + storyboard + clip).',
-      sideEffects: { mode: 'plan', risk: 'high', destructive: true, requiresConfirmation: true, confirmationSummary: '将删除整个分镜组（Clip/Storyboard/Panels）。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'storyboard',
+      summary: 'Delete a storyboard group (panels + storyboard + clip).',
+      intent: 'act',
+      effects: {
+        ...EFFECTS_WRITE_DESTRUCTIVE,
+        overwrite: true,
+        bulk: true,
+      },
+      confirmation: {
+        required: true,
+        summary: '将删除整个分镜组（Clip/Storyboard/Panels）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         storyboardId: z.string().min(1),
@@ -1131,12 +1229,19 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
 
         return { success: true }
       },
-    },
-    revert_asset_render: {
+    }),
+    revert_asset_render: defineOperation({
       id: 'revert_asset_render',
-      description: 'Revert an asset render (undo regenerate) for character/location assets.',
-      sideEffects: { mode: 'act', risk: 'medium', overwrite: true, destructive: true, requiresConfirmation: true, confirmationSummary: '将撤回一次资产渲染选择/变更。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'asset',
+      summary: 'Revert an asset render (undo regenerate) for character/location assets.',
+      intent: 'act',
+      effects: {
+        ...EFFECTS_WRITE_DESTRUCTIVE,
+        overwrite: true,
+      },
+      confirmation: {
+        required: true,
+        summary: '将撤回一次资产渲染选择/变更。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         type: z.enum(['character', 'location']),
@@ -1153,12 +1258,12 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
           projectId: ctx.projectId,
         },
       }),
-    },
-    create_voice_line: {
+    }),
+    create_voice_line: defineOperation({
       id: 'create_voice_line',
-      description: 'Create a voice line for an episode.',
-      sideEffects: { mode: 'act', risk: 'medium', overwrite: false },
-      scope: 'episode',
+      summary: 'Create a voice line for an episode.',
+      intent: 'act',
+      effects: EFFECTS_WRITE,
       inputSchema: z.object({
         episodeId: z.string().min(1),
         content: z.string().min(1),
@@ -1208,12 +1313,12 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
 
         return { success: true, voiceLine: await withVoiceLineMedia(created as unknown as Record<string, unknown>) }
       },
-    },
-    list_voice_line_speakers: {
+    }),
+    list_voice_line_speakers: defineOperation({
       id: 'list_voice_line_speakers',
-      description: 'List distinct speakers that appear in voice lines for this project.',
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'project',
+      summary: 'List distinct speakers that appear in voice lines for this project.',
+      intent: 'query',
+      effects: EFFECTS_QUERY,
       inputSchema: z.object({}).passthrough(),
       outputSchema: z.unknown(),
       execute: async (ctx) => {
@@ -1236,12 +1341,12 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
           speakers: speakerRows.map((item) => item.speaker).filter(Boolean),
         }
       },
-    },
-    list_voice_lines: {
+    }),
+    list_voice_lines: defineOperation({
       id: 'list_voice_lines',
-      description: 'List voice lines for an episode including matched panel info and normalized media fields.',
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'episode',
+      summary: 'List voice lines for an episode including matched panel info and normalized media fields.',
+      intent: 'query',
+      effects: EFFECTS_QUERY,
       inputSchema: z.object({
         episodeId: z.string().min(1),
       }),
@@ -1280,12 +1385,12 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
           speakerStats,
         }
       },
-    },
-    update_voice_line: {
+    }),
+    update_voice_line: defineOperation({
       id: 'update_voice_line',
-      description: 'Update a voice line fields including media refs and matched panel mapping.',
-      sideEffects: { mode: 'act', risk: 'low', overwrite: true },
-      scope: 'episode',
+      summary: 'Update a voice line fields including media refs and matched panel mapping.',
+      intent: 'act',
+      effects: EFFECTS_WRITE_OVERWRITE,
       inputSchema: z.object({
         lineId: z.string().min(1),
         voicePresetId: z.string().optional().nullable(),
@@ -1342,12 +1447,15 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
 
         return { success: true, voiceLine: await withVoiceLineMedia(updated as unknown as Record<string, unknown>) }
       },
-    },
-    bulk_update_speaker_voice_preset: {
+    }),
+    bulk_update_speaker_voice_preset: defineOperation({
       id: 'bulk_update_speaker_voice_preset',
-      description: 'Batch update voicePresetId for a speaker within an episode.',
-      sideEffects: { mode: 'act', risk: 'medium', overwrite: true, bulk: true },
-      scope: 'episode',
+      summary: 'Batch update voicePresetId for a speaker within an episode.',
+      intent: 'act',
+      effects: {
+        ...EFFECTS_WRITE_OVERWRITE,
+        bulk: true,
+      },
       inputSchema: z.object({
         episodeId: z.string().min(1),
         speaker: z.string().min(1),
@@ -1368,12 +1476,20 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
 
         return { success: true, updatedCount: result.count, speaker: input.speaker, voicePresetId: input.voicePresetId ?? null }
       },
-    },
-    delete_voice_line: {
+    }),
+    delete_voice_line: defineOperation({
       id: 'delete_voice_line',
-      description: 'Delete a voice line and reindex remaining lineIndex.',
-      sideEffects: { mode: 'plan', risk: 'high', destructive: true, requiresConfirmation: true, confirmationSummary: '将删除该台词并重排 lineIndex。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'episode',
+      summary: 'Delete a voice line and reindex remaining lineIndex.',
+      intent: 'act',
+      effects: {
+        ...EFFECTS_WRITE_DESTRUCTIVE,
+        overwrite: true,
+        bulk: true,
+      },
+      confirmation: {
+        required: true,
+        summary: '将删除该台词并重排 lineIndex。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         lineId: z.string().min(1),
@@ -1402,12 +1518,12 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
 
         return { success: true, deletedId: input.lineId, remainingCount: remaining.length }
       },
-    },
-    set_speaker_voice: {
+    }),
+    set_speaker_voice: defineOperation({
       id: 'set_speaker_voice',
-      description: 'Set speaker voice entry for an episode (writes episode.speakerVoices JSON).',
-      sideEffects: { mode: 'act', risk: 'medium', overwrite: true },
-      scope: 'episode',
+      summary: 'Set speaker voice entry for an episode (writes episode.speakerVoices JSON).',
+      intent: 'act',
+      effects: EFFECTS_WRITE_OVERWRITE,
       inputSchema: z.object({
         episodeId: z.string().min(1),
         speaker: z.string().min(1),
@@ -1456,12 +1572,12 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
         })
         return { success: true }
       },
-    },
-    get_speaker_voices: {
+    }),
+    get_speaker_voices: defineOperation({
       id: 'get_speaker_voices',
-      description: 'Get speaker voice map for an episode with signed preview urls.',
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'episode',
+      summary: 'Get speaker voice map for an episode with signed preview urls.',
+      intent: 'query',
+      effects: EFFECTS_QUERY,
       inputSchema: z.object({
         episodeId: z.string().min(1),
       }),
@@ -1499,12 +1615,12 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
 
         return { speakerVoices }
       },
-    },
-    create_episode: {
+    }),
+    create_episode: defineOperation({
       id: 'create_episode',
-      description: 'Create a new episode in a project and update lastEpisodeId.',
-      sideEffects: { mode: 'act', risk: 'medium', overwrite: true },
-      scope: 'project',
+      summary: 'Create a new episode in a project and update lastEpisodeId.',
+      intent: 'act',
+      effects: EFFECTS_WRITE_OVERWRITE,
       inputSchema: z.object({
         name: z.string().min(1),
         description: z.string().optional().nullable(),
@@ -1541,12 +1657,12 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
         })
         return { episode }
       },
-    },
-    list_episodes: {
+    }),
+    list_episodes: defineOperation({
       id: 'list_episodes',
-      description: 'List episodes for a project ordered by episodeNumber.',
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'project',
+      summary: 'List episodes for a project ordered by episodeNumber.',
+      intent: 'query',
+      effects: EFFECTS_QUERY,
       inputSchema: z.object({}).passthrough(),
       outputSchema: z.unknown(),
       execute: async (ctx) => {
@@ -1557,12 +1673,12 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
 
         return { episodes }
       },
-    },
-    get_episode_detail: {
+    }),
+    get_episode_detail: defineOperation({
       id: 'get_episode_detail',
-      description: 'Get full episode data with storyboards/clips/shots/voice lines and update project.lastEpisodeId.',
-      sideEffects: { mode: 'act', risk: 'low', overwrite: true },
-      scope: 'episode',
+      summary: 'Get full episode data with storyboards/clips/shots/voice lines and update project.lastEpisodeId.',
+      intent: 'act',
+      effects: EFFECTS_WRITE_OVERWRITE,
       inputSchema: z.object({
         episodeId: z.string().min(1),
       }),
@@ -1593,12 +1709,12 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
         const episodeWithSignedUrls = await attachMediaFieldsToProject(episode)
         return { episode: episodeWithSignedUrls }
       },
-    },
-    update_episode: {
+    }),
+    update_episode: defineOperation({
       id: 'update_episode',
-      description: 'Update an episode fields including audio media ref.',
-      sideEffects: { mode: 'act', risk: 'low', overwrite: true },
-      scope: 'project',
+      summary: 'Update an episode fields including audio media ref.',
+      intent: 'act',
+      effects: EFFECTS_WRITE_OVERWRITE,
       inputSchema: z.object({
         episodeId: z.string().min(1),
         name: z.string().optional(),
@@ -1634,12 +1750,20 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
         })
         return { episode: updated }
       },
-    },
-    delete_episode: {
+    }),
+    delete_episode: defineOperation({
       id: 'delete_episode',
-      description: 'Delete an episode and update lastEpisodeId if needed.',
-      sideEffects: { mode: 'plan', risk: 'high', destructive: true, requiresConfirmation: true, confirmationSummary: '将删除剧集及其关联数据。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'project',
+      summary: 'Delete an episode and update lastEpisodeId if needed.',
+      intent: 'act',
+      effects: {
+        ...EFFECTS_WRITE_DESTRUCTIVE,
+        overwrite: true,
+        bulk: true,
+      },
+      confirmation: {
+        required: true,
+        summary: '将删除剧集及其关联数据。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         episodeId: z.string().min(1),
@@ -1671,12 +1795,20 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
 
         return { success: true }
       },
-    },
-    batch_create_episodes: {
+    }),
+    batch_create_episodes: defineOperation({
       id: 'batch_create_episodes',
-      description: 'Batch create episodes, optionally clearing existing ones; also updates importStatus/lastEpisodeId.',
-      sideEffects: { mode: 'plan', risk: 'high', destructive: true, bulk: true, requiresConfirmation: true, confirmationSummary: '将批量导入剧集（可选清空现有剧集）。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'project',
+      summary: 'Batch create episodes, optionally clearing existing ones; also updates importStatus/lastEpisodeId.',
+      intent: 'act',
+      effects: {
+        ...EFFECTS_WRITE_DESTRUCTIVE,
+        overwrite: true,
+        bulk: true,
+      },
+      confirmation: {
+        required: true,
+        summary: '将批量导入剧集（可选清空现有剧集）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         episodes: z.array(z.object({
@@ -1749,6 +1881,6 @@ export function createGuiOperations(): ProjectAgentOperationRegistry {
           })),
         }
       },
-    },
+    }),
   }
 }

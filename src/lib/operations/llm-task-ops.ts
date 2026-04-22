@@ -3,16 +3,31 @@ import { prisma } from '@/lib/prisma'
 import { ApiError } from '@/lib/api-errors'
 import { getProjectModelConfig } from '@/lib/config-service'
 import { TASK_TYPE } from '@/lib/task/types'
-import type { ProjectAgentOperationRegistry } from './types'
+import type { ProjectAgentOperationRegistryDraft } from './types'
+import { defineOperation } from './define-operation'
 import { normalizeString, submitOperationTask } from './submit-operation-task'
 
-export function createLlmTaskOperations(): ProjectAgentOperationRegistry {
+const EFFECTS_BILLABLE_LONG_RUNNING = {
+  writes: true,
+  billable: true,
+  destructive: false,
+  overwrite: false,
+  bulk: false,
+  externalSideEffects: true,
+  longRunning: true,
+} as const
+
+export function createLlmTaskOperations(): ProjectAgentOperationRegistryDraft {
   return {
-    analyze_novel: {
+    analyze_novel: defineOperation({
       id: 'analyze_novel',
-      description: 'Submit novel analysis task (ANALYZE_NOVEL).',
-      sideEffects: { mode: 'act', risk: 'high', billable: true, requiresConfirmation: true, longRunning: true, confirmationSummary: '将提交文本分析任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'project',
+      summary: 'Submit novel analysis task (ANALYZE_NOVEL).',
+      intent: 'act',
+      effects: EFFECTS_BILLABLE_LONG_RUNNING,
+      confirmation: {
+        required: true,
+        summary: '将提交文本分析任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         episodeId: z.string().optional(),
@@ -43,12 +58,16 @@ export function createLlmTaskOperations(): ProjectAgentOperationRegistry {
           priority: 1,
         })
       },
-    },
-    analyze_global: {
+    }),
+    analyze_global: defineOperation({
       id: 'analyze_global',
-      description: 'Submit global asset analysis task (ANALYZE_GLOBAL).',
-      sideEffects: { mode: 'act', risk: 'high', billable: true, requiresConfirmation: true, longRunning: true, confirmationSummary: '将提交全局资产分析任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'project',
+      summary: 'Submit global asset analysis task (ANALYZE_GLOBAL).',
+      intent: 'act',
+      effects: EFFECTS_BILLABLE_LONG_RUNNING,
+      confirmation: {
+        required: true,
+        summary: '将提交全局资产分析任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
       }).passthrough(),
@@ -75,12 +94,16 @@ export function createLlmTaskOperations(): ProjectAgentOperationRegistry {
           priority: 1,
         })
       },
-    },
-    analyze_shot_variants: {
+    }),
+    analyze_shot_variants: defineOperation({
       id: 'analyze_shot_variants',
-      description: 'Submit shot variants analysis task (ANALYZE_SHOT_VARIANTS).',
-      sideEffects: { mode: 'act', risk: 'high', billable: true, requiresConfirmation: true, longRunning: true, confirmationSummary: '将提交镜头变体分析任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'panel',
+      summary: 'Submit shot variants analysis task (ANALYZE_SHOT_VARIANTS).',
+      intent: 'act',
+      effects: EFFECTS_BILLABLE_LONG_RUNNING,
+      confirmation: {
+        required: true,
+        summary: '将提交镜头变体分析任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         panelId: z.string().min(1),
@@ -111,12 +134,16 @@ export function createLlmTaskOperations(): ProjectAgentOperationRegistry {
           priority: 1,
         })
       },
-    },
-    screenplay_convert: {
+    }),
+    screenplay_convert: defineOperation({
       id: 'screenplay_convert',
-      description: 'Submit screenplay conversion task (SCREENPLAY_CONVERT).',
-      sideEffects: { mode: 'act', risk: 'high', billable: true, requiresConfirmation: true, longRunning: true, confirmationSummary: '将提交 clips→screenplay 转换任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'episode',
+      summary: 'Submit screenplay conversion task (SCREENPLAY_CONVERT).',
+      intent: 'act',
+      effects: EFFECTS_BILLABLE_LONG_RUNNING,
+      confirmation: {
+        required: true,
+        summary: '将提交 clips→screenplay 转换任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         episodeId: z.string().min(1),
@@ -145,12 +172,16 @@ export function createLlmTaskOperations(): ProjectAgentOperationRegistry {
           priority: 2,
         })
       },
-    },
-    story_to_script_run: {
+    }),
+    story_to_script_run: defineOperation({
       id: 'story_to_script_run',
-      description: 'Submit story-to-script run task (STORY_TO_SCRIPT_RUN) for internal streaming/observe flows.',
-      sideEffects: { mode: 'act', risk: 'high', billable: true, requiresConfirmation: true, longRunning: true, confirmationSummary: '将提交 story-to-script 运行任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'episode',
+      summary: 'Submit story-to-script run task (STORY_TO_SCRIPT_RUN) for internal streaming/observe flows.',
+      intent: 'act',
+      effects: EFFECTS_BILLABLE_LONG_RUNNING,
+      confirmation: {
+        required: true,
+        summary: '将提交 story-to-script 运行任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         episodeId: z.string().min(1),
@@ -180,12 +211,16 @@ export function createLlmTaskOperations(): ProjectAgentOperationRegistry {
           priority: 2,
         })
       },
-    },
-    script_to_storyboard_run: {
+    }),
+    script_to_storyboard_run: defineOperation({
       id: 'script_to_storyboard_run',
-      description: 'Submit script-to-storyboard run task (SCRIPT_TO_STORYBOARD_RUN) for internal streaming/observe flows.',
-      sideEffects: { mode: 'act', risk: 'high', billable: true, requiresConfirmation: true, longRunning: true, confirmationSummary: '将提交 script-to-storyboard 运行任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'episode',
+      summary: 'Submit script-to-storyboard run task (SCRIPT_TO_STORYBOARD_RUN) for internal streaming/observe flows.',
+      intent: 'act',
+      effects: EFFECTS_BILLABLE_LONG_RUNNING,
+      confirmation: {
+        required: true,
+        summary: '将提交 script-to-storyboard 运行任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         episodeId: z.string().min(1),
@@ -214,12 +249,16 @@ export function createLlmTaskOperations(): ProjectAgentOperationRegistry {
           priority: 2,
         })
       },
-    },
-    voice_analyze: {
+    }),
+    voice_analyze: defineOperation({
       id: 'voice_analyze',
-      description: 'Submit voice analysis task (VOICE_ANALYZE).',
-      sideEffects: { mode: 'act', risk: 'high', billable: true, requiresConfirmation: true, longRunning: true, confirmationSummary: '将提交台词分析任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'episode',
+      summary: 'Submit voice analysis task (VOICE_ANALYZE).',
+      intent: 'act',
+      effects: EFFECTS_BILLABLE_LONG_RUNNING,
+      confirmation: {
+        required: true,
+        summary: '将提交台词分析任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         episodeId: z.string().min(1),
@@ -248,12 +287,16 @@ export function createLlmTaskOperations(): ProjectAgentOperationRegistry {
           priority: 1,
         })
       },
-    },
-    ai_modify_appearance: {
+    }),
+    ai_modify_appearance: defineOperation({
       id: 'ai_modify_appearance',
-      description: 'Submit AI modify appearance task.',
-      sideEffects: { mode: 'act', risk: 'high', billable: true, requiresConfirmation: true, longRunning: true, confirmationSummary: '将提交 AI 形象修改任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'asset',
+      summary: 'Submit AI modify appearance task.',
+      intent: 'act',
+      effects: EFFECTS_BILLABLE_LONG_RUNNING,
+      confirmation: {
+        required: true,
+        summary: '将提交 AI 形象修改任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         characterId: z.string().min(1),
@@ -273,12 +316,16 @@ export function createLlmTaskOperations(): ProjectAgentOperationRegistry {
           payload: input as unknown as Record<string, unknown>,
           dedupeKey: `ai_modify_appearance:${input.appearanceId}`,
         }),
-    },
-    ai_modify_prop: {
+    }),
+    ai_modify_prop: defineOperation({
       id: 'ai_modify_prop',
-      description: 'Submit AI modify prop task.',
-      sideEffects: { mode: 'act', risk: 'high', billable: true, requiresConfirmation: true, longRunning: true, confirmationSummary: '将提交 AI 道具修改任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'asset',
+      summary: 'Submit AI modify prop task.',
+      intent: 'act',
+      effects: EFFECTS_BILLABLE_LONG_RUNNING,
+      confirmation: {
+        required: true,
+        summary: '将提交 AI 道具修改任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         propId: z.string().min(1),
@@ -322,12 +369,16 @@ export function createLlmTaskOperations(): ProjectAgentOperationRegistry {
           dedupeKey: `ai_modify_prop:${propId}:${variantId || 'default'}`,
         })
       },
-    },
-    ai_modify_shot_prompt: {
+    }),
+    ai_modify_shot_prompt: defineOperation({
       id: 'ai_modify_shot_prompt',
-      description: 'Submit AI modify shot prompt task.',
-      sideEffects: { mode: 'act', risk: 'high', billable: true, requiresConfirmation: true, longRunning: true, confirmationSummary: '将提交 AI 镜头提示词修改任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'panel',
+      summary: 'Submit AI modify shot prompt task.',
+      intent: 'act',
+      effects: EFFECTS_BILLABLE_LONG_RUNNING,
+      confirmation: {
+        required: true,
+        summary: '将提交 AI 镜头提示词修改任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         panelId: z.string().optional(),
@@ -352,7 +403,6 @@ export function createLlmTaskOperations(): ProjectAgentOperationRegistry {
           dedupeKey: panelId ? `ai_modify_shot_prompt:${panelId}` : `ai_modify_shot_prompt:${ctx.projectId}`,
         })
       },
-    },
+    }),
   }
 }
-

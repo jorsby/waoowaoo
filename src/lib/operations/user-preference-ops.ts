@@ -2,7 +2,8 @@ import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { ApiError } from '@/lib/api-errors'
 import { isArtStyleValue } from '@/lib/constants'
-import type { ProjectAgentOperationRegistry } from './types'
+import type { ProjectAgentOperationRegistryDraft } from './types'
+import { defineOperation } from './define-operation'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
@@ -40,13 +41,21 @@ const ALLOWED_FIELDS: ReadonlyArray<string> = [
   'artStyle',
 ]
 
-export function createUserPreferenceOperations(): ProjectAgentOperationRegistry {
+export function createUserPreferenceOperations(): ProjectAgentOperationRegistryDraft {
   return {
-    get_user_preference: {
+    get_user_preference: defineOperation({
       id: 'get_user_preference',
-      description: 'Get or initialize the current user preference record.',
-      sideEffects: { mode: 'act', risk: 'low', overwrite: false },
-      scope: 'system',
+      summary: 'Get or initialize the current user preference record.',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({}).passthrough(),
       outputSchema: z.unknown(),
       execute: async (ctx) => {
@@ -58,13 +67,25 @@ export function createUserPreferenceOperations(): ProjectAgentOperationRegistry 
 
         return { preference }
       },
-    },
+    }),
 
-    update_user_preference: {
+    update_user_preference: defineOperation({
       id: 'update_user_preference',
-      description: 'Update allowed fields of the current user preference record.',
-      sideEffects: { mode: 'act', risk: 'low', overwrite: true },
-      scope: 'system',
+      summary: 'Update allowed fields of the current user preference record.',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: true,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
+      confirmation: {
+        required: true,
+        summary: '将覆盖更新用户偏好设置（例如模型与画风等）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({}).passthrough(),
       outputSchema: z.unknown(),
       execute: async (ctx, input) => {
@@ -94,7 +115,6 @@ export function createUserPreferenceOperations(): ProjectAgentOperationRegistry 
 
         return { preference }
       },
-    },
+    }),
   }
 }
-

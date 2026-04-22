@@ -6,19 +6,40 @@ import { updateAssetRenderLabel } from '@/lib/assets/services/asset-label'
 import { deleteObject } from '@/lib/storage'
 import { decodeImageUrlsFromDb, encodeImageUrls } from '@/lib/contracts/image-urls-contract'
 import { resolveStorageKeyFromMediaValue } from '@/lib/media/service'
-import type { ProjectAgentOperationRegistry } from './types'
+import type { ProjectAgentOperationRegistryDraft } from './types'
+import { defineOperation } from './define-operation'
+
+const EFFECTS_OVERWRITE = {
+  writes: true,
+  billable: false,
+  destructive: false,
+  overwrite: false,
+  bulk: false,
+  externalSideEffects: false,
+  longRunning: false,
+} as const
+
+const EFFECTS_DESTRUCTIVE_BULK_LONG_RUNNING = {
+  writes: true,
+  billable: false,
+  destructive: true,
+  overwrite: false,
+  bulk: true,
+  externalSideEffects: true,
+  longRunning: true,
+} as const
 
 function normalizeString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
 }
 
-export function createEditOperations(): ProjectAgentOperationRegistry {
+export function createEditOperations(): ProjectAgentOperationRegistryDraft {
   return {
-    select_asset_render: {
+    select_asset_render: defineOperation({
       id: 'select_asset_render',
-      description: 'Select an asset render (character/location) as the canonical chosen image.',
-      sideEffects: { mode: 'act', risk: 'low', overwrite: true },
-      scope: 'asset',
+      summary: 'Select an asset render (character/location) as the canonical chosen image.',
+      intent: 'act',
+      effects: EFFECTS_OVERWRITE,
       inputSchema: z.object({
         type: z.enum(['character', 'location']),
         assetId: z.string().min(1),
@@ -40,12 +61,12 @@ export function createEditOperations(): ProjectAgentOperationRegistry {
             projectId: ctx.projectId,
           },
         }),
-    },
-    update_asset_render_label: {
+    }),
+    update_asset_render_label: defineOperation({
       id: 'update_asset_render_label',
-      description: 'Update the display label watermark for a selected asset render (character/location).',
-      sideEffects: { mode: 'act', risk: 'low', overwrite: true },
-      scope: 'asset',
+      summary: 'Update the display label watermark for a selected asset render (character/location).',
+      intent: 'act',
+      effects: EFFECTS_OVERWRITE,
       inputSchema: z.object({
         type: z.enum(['character', 'location']),
         assetId: z.string().min(1),
@@ -62,12 +83,12 @@ export function createEditOperations(): ProjectAgentOperationRegistry {
         })
         return { success: true }
       },
-    },
-    update_character_appearance_description: {
+    }),
+    update_character_appearance_description: defineOperation({
       id: 'update_character_appearance_description',
-      description: 'Update a project character appearance description (supports indexed description variants).',
-      sideEffects: { mode: 'act', risk: 'low', overwrite: true },
-      scope: 'asset',
+      summary: 'Update a project character appearance description (supports indexed description variants).',
+      intent: 'act',
+      effects: EFFECTS_OVERWRITE,
       inputSchema: z.object({
         characterId: z.string().min(1),
         appearanceId: z.string().min(1),
@@ -120,12 +141,12 @@ export function createEditOperations(): ProjectAgentOperationRegistry {
 
         return { success: true }
       },
-    },
-    update_location_image_description: {
+    }),
+    update_location_image_description: defineOperation({
       id: 'update_location_image_description',
-      description: 'Update a project location image description (stored on locationImage record).',
-      sideEffects: { mode: 'act', risk: 'low', overwrite: true },
-      scope: 'asset',
+      summary: 'Update a project location image description (stored on locationImage record).',
+      intent: 'act',
+      effects: EFFECTS_OVERWRITE,
       inputSchema: z.object({
         locationId: z.string().min(1),
         imageIndex: z.number().int().min(0).max(50).optional(),
@@ -154,12 +175,12 @@ export function createEditOperations(): ProjectAgentOperationRegistry {
         })
         return { success: true }
       },
-    },
-    update_shot_prompt: {
+    }),
+    update_shot_prompt: defineOperation({
       id: 'update_shot_prompt',
-      description: 'Update a shot prompt field (imagePrompt/videoPrompt).',
-      sideEffects: { mode: 'act', risk: 'low', overwrite: true },
-      scope: 'project',
+      summary: 'Update a shot prompt field (imagePrompt/videoPrompt).',
+      intent: 'act',
+      effects: EFFECTS_OVERWRITE,
       inputSchema: z.object({
         shotId: z.string().min(1),
         field: z.enum(['imagePrompt', 'videoPrompt']),
@@ -178,20 +199,16 @@ export function createEditOperations(): ProjectAgentOperationRegistry {
           data: { [input.field]: input.value ?? null },
         })
       },
-    },
-    cleanup_unselected_images: {
+    }),
+    cleanup_unselected_images: defineOperation({
       id: 'cleanup_unselected_images',
-      description: 'Clean up unselected images for characters/locations by deleting unchosen objects and normalizing indices.',
-      sideEffects: {
-        mode: 'plan',
-        risk: 'high',
-        requiresConfirmation: true,
-        destructive: true,
-        bulk: true,
-        longRunning: true,
-        confirmationSummary: '将清理未选中的图片（会删除存储对象且不可逆）。确认继续后请重新调用并传入 confirmed=true。',
+      summary: 'Clean up unselected images for characters/locations by deleting unchosen objects and normalizing indices.',
+      intent: 'act',
+      effects: EFFECTS_DESTRUCTIVE_BULK_LONG_RUNNING,
+      confirmation: {
+        required: true,
+        summary: '将清理未选中的图片（会删除存储对象且不可逆）。确认继续后请重新调用并传入 confirmed=true。',
       },
-      scope: 'project',
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
       }),
@@ -273,7 +290,6 @@ export function createEditOperations(): ProjectAgentOperationRegistry {
 
         return { success: true, deletedCount }
       },
-    },
+    }),
   }
 }
-

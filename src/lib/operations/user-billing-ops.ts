@@ -5,7 +5,7 @@ import { ApiError } from '@/lib/api-errors'
 import { BILLING_CURRENCY } from '@/lib/billing/currency'
 import { toMoneyNumber } from '@/lib/billing/money'
 import { getUserCostSummary } from '@/lib/billing'
-import type { ProjectAgentOperationRegistry } from './types'
+import type { ProjectAgentOperationRegistryDraft } from './types'
 
 const ACTION_KEY_PATTERN = /^[a-z][a-z0-9_]*$/
 
@@ -45,13 +45,21 @@ function parseDateField(value: unknown, field: string): Date | null {
   return date
 }
 
-export function createUserBillingOperations(): ProjectAgentOperationRegistry {
+export function createUserBillingOperations(): ProjectAgentOperationRegistryDraft {
   return {
     list_user_transactions: {
       id: 'list_user_transactions',
-      description: 'List balance transactions for the current user with filters and pagination.',
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'system',
+      summary: 'List balance transactions for the current user with filters and pagination.',
+      intent: 'query',
+      effects: {
+        writes: false,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({}).passthrough(),
       outputSchema: z.unknown(),
       execute: async (ctx, input) => {
@@ -148,9 +156,17 @@ export function createUserBillingOperations(): ProjectAgentOperationRegistry {
 
     get_user_costs: {
       id: 'get_user_costs',
-      description: 'Get current user cost summary by project.',
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'system',
+      summary: 'Get current user cost summary by project.',
+      intent: 'query',
+      effects: {
+        writes: false,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({}).passthrough(),
       outputSchema: z.unknown(),
       execute: async (ctx) => {
@@ -183,4 +199,3 @@ export function createUserBillingOperations(): ProjectAgentOperationRegistry {
     },
   }
 }
-

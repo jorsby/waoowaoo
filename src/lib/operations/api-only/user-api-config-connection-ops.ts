@@ -1,15 +1,23 @@
 import { z } from 'zod'
 import { testLlmConnection } from '@/lib/user-api/llm-test-connection'
 import { testProviderConnection } from '@/lib/user-api/provider-test'
-import type { ProjectAgentOperationRegistry } from '@/lib/operations/types'
+import type { ProjectAgentOperationRegistryDraft } from '@/lib/operations/types'
 
-export function createUserApiConfigConnectionDiagnosticOperations(): ProjectAgentOperationRegistry {
+export function createUserApiConfigConnectionDiagnosticOperations(): ProjectAgentOperationRegistryDraft {
   return {
     api_user_api_config_test_connection: {
       id: 'api_user_api_config_test_connection',
-      description: 'API-only: Test LLM connection with user-provided provider/baseUrl/apiKey.',
-      sideEffects: { mode: 'act', risk: 'low', longRunning: true },
-      scope: 'user',
+      summary: 'API-only: Test LLM connection with user-provided provider/baseUrl/apiKey.',
+      intent: 'act',
+      effects: {
+        writes: false,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: true,
+        longRunning: true,
+      },
       inputSchema: z.unknown(),
       outputSchema: z.unknown(),
       execute: async (_ctx, input) => {
@@ -26,9 +34,17 @@ export function createUserApiConfigConnectionDiagnosticOperations(): ProjectAgen
 
     api_user_api_config_test_provider: {
       id: 'api_user_api_config_test_provider',
-      description: 'API-only: Run provider multi-step connection diagnostics.',
-      sideEffects: { mode: 'act', risk: 'low', longRunning: true },
-      scope: 'user',
+      summary: 'API-only: Run provider multi-step connection diagnostics.',
+      intent: 'act',
+      effects: {
+        writes: false,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: true,
+        longRunning: true,
+      },
       inputSchema: z.unknown(),
       outputSchema: z.unknown(),
       execute: async (_ctx, input) => {
@@ -43,4 +59,3 @@ export function createUserApiConfigConnectionDiagnosticOperations(): ProjectAgen
     },
   }
 }
-

@@ -3,6 +3,7 @@ import { z } from 'zod'
 import type { NextRequest } from 'next/server'
 import { ApiError } from '@/lib/api-errors'
 import type { ProjectAgentOperationRegistry } from '@/lib/operations/types'
+import { makeTestOperation, EFFECTS_NONE, EFFECTS_WRITE } from '../../helpers/project-agent-operations'
 
 const registryState = vi.hoisted(() => ({
   registry: {} as ProjectAgentOperationRegistry,
@@ -46,15 +47,15 @@ describe('executeProjectAgentOperationFromApi', () => {
 
   it('[input schema mismatch] -> throws ApiError INVALID_PARAMS with zod issues', async () => {
     registryState.registry = {
-      input_guard_op: {
+      input_guard_op: makeTestOperation({
         id: 'input_guard_op',
-        description: 'input guard',
-        scope: 'project',
-        sideEffects: { mode: 'query', risk: 'low' },
+        summary: 'input guard',
+        intent: 'query',
+        effects: EFFECTS_NONE,
         inputSchema: z.object({ projectId: z.string().min(1) }),
         outputSchema: z.object({ ok: z.boolean() }),
         execute: vi.fn(async () => ({ ok: true })),
-      },
+      }),
     }
 
     const promise = executeProjectAgentOperationFromApi({
@@ -78,15 +79,15 @@ describe('executeProjectAgentOperationFromApi', () => {
 
   it('[output schema mismatch] -> throws ApiError EXTERNAL_ERROR with output-invalid code', async () => {
     registryState.registry = {
-      output_guard_op: {
+      output_guard_op: makeTestOperation({
         id: 'output_guard_op',
-        description: 'output guard',
-        scope: 'project',
-        sideEffects: { mode: 'query', risk: 'low' },
+        summary: 'output guard',
+        intent: 'query',
+        effects: EFFECTS_NONE,
         inputSchema: z.object({}),
         outputSchema: z.object({ ok: z.boolean() }),
-        execute: vi.fn(async () => ({ value: 'unexpected-shape' })),
-      },
+        execute: vi.fn(async () => ({ value: 'unexpected-shape' } as unknown as { ok: boolean })),
+      }),
     }
 
     const promise = executeProjectAgentOperationFromApi({
@@ -110,17 +111,17 @@ describe('executeProjectAgentOperationFromApi', () => {
 
   it('[execution throws not found-like message] -> infers ApiError NOT_FOUND', async () => {
     registryState.registry = {
-      infer_not_found_op: {
+      infer_not_found_op: makeTestOperation({
         id: 'infer_not_found_op',
-        description: 'infer not found',
-        scope: 'project',
-        sideEffects: { mode: 'query', risk: 'low' },
+        summary: 'infer not found',
+        intent: 'query',
+        effects: EFFECTS_NONE,
         inputSchema: z.object({}),
         outputSchema: z.object({ ok: z.boolean() }),
         execute: vi.fn(async () => {
           throw new Error('resource not found')
         }),
-      },
+      }),
     }
 
     const promise = executeProjectAgentOperationFromApi({
@@ -144,20 +145,19 @@ describe('executeProjectAgentOperationFromApi', () => {
   it('[requiresConfirmation sideEffects] -> does not enforce confirmed gate', async () => {
     const execute = vi.fn(async () => ({ ok: true }))
     registryState.registry = {
-      confirm_semantics_op: {
+      confirm_semantics_op: makeTestOperation({
         id: 'confirm_semantics_op',
-        description: 'confirm semantics',
-        scope: 'project',
-        sideEffects: {
-          mode: 'act',
-          risk: 'high',
-          requiresConfirmation: true,
-          confirmationSummary: 'requires explicit confirmation',
+        summary: 'confirm semantics',
+        intent: 'act',
+        effects: EFFECTS_WRITE,
+        confirmation: {
+          required: true,
+          summary: 'requires explicit confirmation',
         },
         inputSchema: z.object({ confirmed: z.boolean().optional() }),
         outputSchema: z.object({ ok: z.boolean() }),
         execute,
-      },
+      }),
     }
 
     const result = await executeProjectAgentOperationFromApi({
@@ -176,17 +176,17 @@ describe('executeProjectAgentOperationFromApi', () => {
 
   it('[execution throws undefined] -> throws ApiError EXTERNAL_ERROR with fallback message', async () => {
     registryState.registry = {
-      fail_undefined: {
+      fail_undefined: makeTestOperation({
         id: 'fail_undefined',
-        description: 'fail undefined',
-        scope: 'project',
-        sideEffects: { mode: 'act', risk: 'low' },
+        summary: 'fail undefined',
+        intent: 'act',
+        effects: EFFECTS_WRITE,
         inputSchema: z.object({}),
         outputSchema: z.object({ ok: z.boolean() }),
         execute: vi.fn(async () => {
           throw undefined
         }),
-      },
+      }),
     }
 
     const promise = executeProjectAgentOperationFromApi({
@@ -210,11 +210,11 @@ describe('executeProjectAgentOperationFromApi', () => {
 
   it('[execution throws prisma missing column] -> throws ApiError EXTERNAL_ERROR with schema-mismatch code', async () => {
     registryState.registry = {
-      prisma_schema_mismatch: {
+      prisma_schema_mismatch: makeTestOperation({
         id: 'prisma_schema_mismatch',
-        description: 'prisma schema mismatch',
-        scope: 'project',
-        sideEffects: { mode: 'act', risk: 'low' },
+        summary: 'prisma schema mismatch',
+        intent: 'act',
+        effects: EFFECTS_WRITE,
         inputSchema: z.object({}),
         outputSchema: z.object({ ok: z.boolean() }),
         execute: vi.fn(async () => {
@@ -225,7 +225,7 @@ describe('executeProjectAgentOperationFromApi', () => {
             },
           }
         }),
-      },
+      }),
     }
 
     const promise = executeProjectAgentOperationFromApi({

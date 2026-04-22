@@ -10,7 +10,8 @@ import { detectEpisodeMarkers, splitByMarkers } from '@/lib/episode-marker-detec
 import { initializeFonts, createLabelSVG } from '@/lib/fonts'
 import { uploadObject, generateUniqueKey } from '@/lib/storage'
 import { decodeImageUrlsFromDb, encodeImageUrls } from '@/lib/contracts/image-urls-contract'
-import type { ProjectAgentOperationRegistry } from './types'
+import type { ProjectAgentOperationRegistryDraft } from './types'
+import { defineOperation } from './define-operation'
 import { submitOperationTask } from './submit-operation-task'
 
 function normalizeString(value: unknown): string {
@@ -26,13 +27,37 @@ function parseReferenceImages(body: Record<string, unknown>): string[] {
   return single ? [single] : []
 }
 
-export function createExtraOperations(): ProjectAgentOperationRegistry {
+const EFFECTS_QUERY = {
+  writes: false,
+  billable: false,
+  destructive: false,
+  overwrite: false,
+  bulk: false,
+  externalSideEffects: false,
+  longRunning: false,
+} as const
+
+const EFFECTS_BILLABLE_LONG_RUNNING = {
+  writes: true,
+  billable: true,
+  destructive: false,
+  overwrite: false,
+  bulk: false,
+  externalSideEffects: true,
+  longRunning: true,
+} as const
+
+export function createExtraOperations(): ProjectAgentOperationRegistryDraft {
   return {
-    ai_create_character: {
+    ai_create_character: defineOperation({
       id: 'ai_create_character',
-      description: 'Submit AI create character design task.',
-      sideEffects: { mode: 'act', risk: 'high', billable: true, requiresConfirmation: true, longRunning: true, confirmationSummary: '将提交 AI 角色设计任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'project',
+      summary: 'Submit AI create character design task.',
+      intent: 'act',
+      effects: EFFECTS_BILLABLE_LONG_RUNNING,
+      confirmation: {
+        required: true,
+        summary: '将提交 AI 角色设计任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         userInstruction: z.string().min(1),
@@ -66,12 +91,16 @@ export function createExtraOperations(): ProjectAgentOperationRegistry {
           dedupeKey: `project_ai_create_character:${dedupeDigest}`,
         })
       },
-    },
-    ai_create_location: {
+    }),
+    ai_create_location: defineOperation({
       id: 'ai_create_location',
-      description: 'Submit AI create location design task.',
-      sideEffects: { mode: 'act', risk: 'high', billable: true, requiresConfirmation: true, longRunning: true, confirmationSummary: '将提交 AI 场景设计任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'project',
+      summary: 'Submit AI create location design task.',
+      intent: 'act',
+      effects: EFFECTS_BILLABLE_LONG_RUNNING,
+      confirmation: {
+        required: true,
+        summary: '将提交 AI 场景设计任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         userInstruction: z.string().min(1),
@@ -105,12 +134,16 @@ export function createExtraOperations(): ProjectAgentOperationRegistry {
           dedupeKey: `project_ai_create_location:${dedupeDigest}`,
         })
       },
-    },
-    ai_modify_location: {
+    }),
+    ai_modify_location: defineOperation({
       id: 'ai_modify_location',
-      description: 'Submit AI modify location task.',
-      sideEffects: { mode: 'act', risk: 'high', billable: true, requiresConfirmation: true, longRunning: true, confirmationSummary: '将提交 AI 场景修改任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'asset',
+      summary: 'Submit AI modify location task.',
+      intent: 'act',
+      effects: EFFECTS_BILLABLE_LONG_RUNNING,
+      confirmation: {
+        required: true,
+        summary: '将提交 AI 场景修改任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         locationId: z.string().min(1),
@@ -135,12 +168,16 @@ export function createExtraOperations(): ProjectAgentOperationRegistry {
           dedupeKey: `ai_modify_location:${input.locationId}:${imageIndex}`,
         })
       },
-    },
-    character_profile_confirm: {
+    }),
+    character_profile_confirm: defineOperation({
       id: 'character_profile_confirm',
-      description: 'Submit character profile confirm task.',
-      sideEffects: { mode: 'act', risk: 'high', billable: true, requiresConfirmation: true, longRunning: true, confirmationSummary: '将确认角色档案并生成视觉描述（可能计费）。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'asset',
+      summary: 'Submit character profile confirm task.',
+      intent: 'act',
+      effects: EFFECTS_BILLABLE_LONG_RUNNING,
+      confirmation: {
+        required: true,
+        summary: '将确认角色档案并生成视觉描述（可能计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         characterId: z.string().min(1),
@@ -157,12 +194,16 @@ export function createExtraOperations(): ProjectAgentOperationRegistry {
           payload: input as unknown as Record<string, unknown>,
           dedupeKey: `character_profile_confirm:${input.characterId}`,
         }),
-    },
-    character_profile_batch_confirm: {
+    }),
+    character_profile_batch_confirm: defineOperation({
       id: 'character_profile_batch_confirm',
-      description: 'Submit character profile batch confirm task.',
-      sideEffects: { mode: 'act', risk: 'high', billable: true, requiresConfirmation: true, longRunning: true, confirmationSummary: '将批量确认角色档案（可能计费）。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'project',
+      summary: 'Submit character profile batch confirm task.',
+      intent: 'act',
+      effects: EFFECTS_BILLABLE_LONG_RUNNING,
+      confirmation: {
+        required: true,
+        summary: '将批量确认角色档案（可能计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
       }).passthrough(),
@@ -178,12 +219,16 @@ export function createExtraOperations(): ProjectAgentOperationRegistry {
           payload: input as unknown as Record<string, unknown>,
           dedupeKey: `character_profile_batch_confirm:${ctx.projectId}`,
         }),
-    },
-    clips_build: {
+    }),
+    clips_build: defineOperation({
       id: 'clips_build',
-      description: 'Submit clips build task for an episode.',
-      sideEffects: { mode: 'act', risk: 'high', billable: true, requiresConfirmation: true, longRunning: true, confirmationSummary: '将生成 clips（可能计费）。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'episode',
+      summary: 'Submit clips build task for an episode.',
+      intent: 'act',
+      effects: EFFECTS_BILLABLE_LONG_RUNNING,
+      confirmation: {
+        required: true,
+        summary: '将生成 clips（可能计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         episodeId: z.string().min(1),
@@ -205,12 +250,16 @@ export function createExtraOperations(): ProjectAgentOperationRegistry {
           dedupeKey: `clips_build:${input.episodeId}`,
           priority: 1,
         }),
-    },
-    episode_split_llm: {
+    }),
+    episode_split_llm: defineOperation({
       id: 'episode_split_llm',
-      description: 'Submit episode split (LLM) task.',
-      sideEffects: { mode: 'act', risk: 'high', billable: true, requiresConfirmation: true, longRunning: true, confirmationSummary: '将进行 AI 分集（可能计费）。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'project',
+      summary: 'Submit episode split (LLM) task.',
+      intent: 'act',
+      effects: EFFECTS_BILLABLE_LONG_RUNNING,
+      confirmation: {
+        required: true,
+        summary: '将进行 AI 分集（可能计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         content: z.string().min(100),
@@ -227,12 +276,16 @@ export function createExtraOperations(): ProjectAgentOperationRegistry {
           payload: { content: input.content },
           dedupeKey: `episode_split_llm:${ctx.projectId}:${input.content.length}`,
         }),
-    },
-    reference_to_character: {
+    }),
+    reference_to_character: defineOperation({
       id: 'reference_to_character',
-      description: 'Submit reference-to-character task.',
-      sideEffects: { mode: 'act', risk: 'high', billable: true, requiresConfirmation: true, longRunning: true, confirmationSummary: '将提交参考图转角色任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'asset',
+      summary: 'Submit reference-to-character task.',
+      intent: 'act',
+      effects: EFFECTS_BILLABLE_LONG_RUNNING,
+      confirmation: {
+        required: true,
+        summary: '将提交参考图转角色任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
       }).passthrough(),
@@ -267,12 +320,12 @@ export function createExtraOperations(): ProjectAgentOperationRegistry {
           dedupeKey: `reference_to_character:${targetId}:${count}`,
         })
       },
-    },
-    split_episodes_by_markers: {
+    }),
+    split_episodes_by_markers: defineOperation({
       id: 'split_episodes_by_markers',
-      description: 'Split content into episodes by detecting episode markers (no LLM).',
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'project',
+      summary: 'Split content into episodes by detecting episode markers (no LLM).',
+      intent: 'query',
+      effects: EFFECTS_QUERY,
       inputSchema: z.object({
         content: z.string().min(100),
       }),
@@ -291,12 +344,24 @@ export function createExtraOperations(): ProjectAgentOperationRegistry {
           episodes,
         }
       },
-    },
-    upload_asset_image: {
+    }),
+    upload_asset_image: defineOperation({
       id: 'upload_asset_image',
-      description: 'Upload a custom image as character/location asset (adds label bar), and update corresponding records.',
-      sideEffects: { mode: 'act', risk: 'high', overwrite: true, destructive: true, requiresConfirmation: true, longRunning: true, confirmationSummary: '将上传并覆盖/新增资产图片（可能影响当前选择）。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'asset',
+      summary: 'Upload a custom image as character/location asset (adds label bar), and update corresponding records.',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: true,
+        overwrite: true,
+        bulk: false,
+        externalSideEffects: true,
+        longRunning: true,
+      },
+      confirmation: {
+        required: true,
+        summary: '将上传并覆盖/新增资产图片（可能影响当前选择）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         type: z.enum(['character', 'location']),
@@ -421,6 +486,6 @@ export function createExtraOperations(): ProjectAgentOperationRegistry {
 
         throw new ApiError('INVALID_PARAMS')
       },
-    },
+    }),
   }
 }

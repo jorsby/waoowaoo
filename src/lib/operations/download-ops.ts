@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { ApiError } from '@/lib/api-errors'
 import { resolveStorageKeyFromMediaValue } from '@/lib/media/service'
-import type { ProjectAgentOperationRegistry } from './types'
+import type { ProjectAgentOperationRegistryDraft } from './types'
 
 function normalizeString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
@@ -100,13 +100,21 @@ async function loadImageEpisodes(params: { projectId: string; episodeId: string 
   }))
 }
 
-export function createDownloadOperations(): ProjectAgentOperationRegistry {
+export function createDownloadOperations(): ProjectAgentOperationRegistryDraft {
   return {
     list_download_images: {
       id: 'list_download_images',
-      description: 'Build a stable download plan for project images (storage keys + filenames).',
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'project',
+      summary: 'Build a stable download plan for project images (storage keys + filenames).',
+      intent: 'query',
+      effects: {
+        writes: false,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({
         episodeId: z.string().optional(),
       }).passthrough(),
@@ -189,9 +197,17 @@ export function createDownloadOperations(): ProjectAgentOperationRegistry {
 
     list_download_voices: {
       id: 'list_download_voices',
-      description: 'Build a stable download plan for project voice lines (storage keys + filenames).',
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'project',
+      summary: 'Build a stable download plan for project voice lines (storage keys + filenames).',
+      intent: 'query',
+      effects: {
+        writes: false,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({
         episodeId: z.string().optional(),
       }).passthrough(),
@@ -260,4 +276,3 @@ export function createDownloadOperations(): ProjectAgentOperationRegistry {
     },
   }
 }
-

@@ -4,9 +4,10 @@ import {
   createUIMessageStreamResponse,
   safeValidateUIMessages,
   streamText,
-  tool,
   type UIMessage,
+  type ToolSet,
 } from 'ai'
+import type { Tool } from '@ai-sdk/provider-utils'
 import type { NextRequest } from 'next/server'
 import { createProjectAgentOperationRegistry } from '@/lib/operations/registry'
 import { getUserModelConfig } from '@/lib/config-service'
@@ -19,8 +20,8 @@ import { resolveProjectPhase } from './project-phase'
 import { createProjectAgentStopController } from './stop-conditions'
 import type { ProjectAgentStopPartData } from './types'
 import { routeProjectAgentRequest } from './router'
-import { selectProjectAgentTools } from './tool-policy'
-import { buildProjectAgentSystemPrompt } from './copy'
+import { selectProjectAgentOperationsByGroups } from './operation-injection'
+import { buildProjectAgentSystemPrompt, localizeSelectableToolDescription } from './copy'
 import { normalizeProjectAgentLocale } from './locale'
 import { compressMessages } from './message-compression'
 import { resolveProjectAgentLanguageModel } from './model'
@@ -115,11 +116,19 @@ export async function createProjectAgentChatResponse(input: {
     originalMessages: runtimeMessages,
     execute: async ({ writer }) => {
       const operations = createProjectAgentOperationRegistry()
+      const allowedRequestedGroups = Array.from(new Set(
+        Object.values(operations)
+          .filter((operation) => operation.channels.tool)
+          .map((operation) => operation.groupPath.join('/')),
+      ))
+        .sort()
+        .map((serialized) => serialized.split('/').filter(Boolean))
       const route = await routeProjectAgentRequest({
         messages: runtimeMessages,
         phase,
         context,
         model: resolved.languageModel,
+        allowedRequestedGroups,
       })
       const executionMode = resolveProjectAgentExecutionMode({
         interactionMode: context.interactionMode,
@@ -138,7 +147,7 @@ export async function createProjectAgentChatResponse(input: {
           effectiveIntent: executionMode.effectiveIntent,
           confidence: route.confidence,
           domains: route.domains,
-          toolCategories: route.toolCategories,
+          requestedGroups: route.requestedGroups,
           latestUserTextPreview: buildMessagePreview(route.latestUserText),
           ...(route.needsClarification
             ? {
@@ -158,20 +167,16 @@ export async function createProjectAgentChatResponse(input: {
         writer.write({ type: 'finish', finishReason: 'stop' })
         return
       }
-      const selection = selectProjectAgentTools({
-        operations,
-        context,
-        phase,
-        route: {
-          ...route,
-          intent: executionMode.effectiveIntent,
-          reasoning: [
-            ...route.reasoning,
-            `interactionMode=${executionMode.interactionMode}`,
-            `effectiveIntent=${executionMode.effectiveIntent}`,
-          ],
-        },
+      const allowedIntents = executionMode.effectiveIntent === 'query'
+        ? (['query'] as const)
+        : executionMode.effectiveIntent === 'plan'
+          ? (['query', 'plan'] as const)
+          : (['query', 'plan', 'act'] as const)
+      const selection = selectProjectAgentOperationsByGroups({
+        registry: operations,
+        requestedGroups: route.requestedGroups,
         maxTools: 45,
+        allowedIntents,
       })
       projectAgentLogger.info({
         action: 'assistant.tool.selection.result',
@@ -183,36 +188,33 @@ export async function createProjectAgentChatResponse(input: {
           interactionMode: executionMode.interactionMode,
           routedIntent: route.intent,
           effectiveIntent: executionMode.effectiveIntent,
-          toolCategories: selection.route.toolCategories,
-          totalCandidates: selection.totalCandidates,
+          requestedGroups: selection.requestedGroups,
+          toolChannelCount: Object.values(operations).filter((operation) => operation.channels.tool).length,
           operationIds: selection.operationIds,
-          confidence: selection.route.confidence,
+          confidence: route.confidence,
         },
       })
-      const tools = Object.fromEntries(
-        selection.operationIds.map((operationId) => {
-          const operation = operations[operationId]
-          return [
-            operationId,
-            tool({
-              description: operation.description,
-              inputSchema: operation.inputSchema,
-              execute: async (args) => {
-                return executeProjectAgentOperationFromTool({
-                  request: input.request,
-                  operationId,
-                  projectId: input.projectId,
-                  userId: input.userId,
-                  context,
-                  source: 'assistant-panel',
-                  writer,
-                  input: args,
-                })
-              },
-            }),
-          ]
-        }),
-      )
+      const toolEntries = selection.operationIds.map((operationId) => {
+        const operation = operations[operationId]
+        const definition: Tool<unknown, unknown> = {
+          description: localizeSelectableToolDescription(operationId, operation.summary, locale),
+          inputSchema: operation.inputSchema,
+          execute: async (args: unknown) => {
+            return executeProjectAgentOperationFromTool({
+              request: input.request,
+              operationId,
+              projectId: input.projectId,
+              userId: input.userId,
+              context,
+              source: 'assistant-panel',
+              writer,
+              input: args,
+            })
+          },
+        }
+        return [operationId, definition] as const
+      })
+      const tools = Object.fromEntries(toolEntries) as ToolSet
       const stopController = createProjectAgentStopController(tools)
 
       const result = streamText({

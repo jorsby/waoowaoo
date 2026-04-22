@@ -16,7 +16,7 @@ import {
   validateProjectDraft,
   type ProjectDraftInput,
 } from '@/lib/projects/validation'
-import type { ProjectAgentOperationRegistry } from './types'
+import type { ProjectAgentOperationRegistryDraft } from './types'
 
 function readProjectDraftBody(body: unknown): ProjectDraftInput {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
@@ -149,13 +149,21 @@ async function collectProjectStorageKeys(projectId: string): Promise<string[]> {
   return keys
 }
 
-export function createProjectCrudOperations(): ProjectAgentOperationRegistry {
+export function createProjectCrudOperations(): ProjectAgentOperationRegistryDraft {
   return {
     get_project_basic: {
       id: 'get_project_basic',
-      description: 'Load base project info and update lastAccessedAt.',
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'project',
+      summary: 'Load base project info and update lastAccessedAt.',
+      intent: 'query',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({}),
       outputSchema: z.unknown(),
       execute: async (ctx) => {
@@ -172,9 +180,17 @@ export function createProjectCrudOperations(): ProjectAgentOperationRegistry {
 
     update_project: {
       id: 'update_project',
-      description: 'Update project name/description for the project owner.',
-      sideEffects: { mode: 'act', risk: 'low' },
-      scope: 'project',
+      summary: 'Update project name/description for the project owner.',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({
         name: z.string().optional(),
         description: z.string().optional().nullable(),
@@ -219,16 +235,21 @@ export function createProjectCrudOperations(): ProjectAgentOperationRegistry {
 
     delete_project: {
       id: 'delete_project',
-      description: 'Delete the project and cleanup storage objects (destructive).',
-      sideEffects: {
-        mode: 'act',
-        risk: 'high',
+      summary: 'Delete the project and cleanup storage objects (destructive).',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
         destructive: true,
+        overwrite: true,
         bulk: true,
-        requiresConfirmation: true,
-        confirmationSummary: '将删除整个项目及其关联数据（不可恢复）。确认继续后请重新调用并传入 confirmed=true。',
+        externalSideEffects: true,
+        longRunning: true,
       },
-      scope: 'project',
+      confirmation: {
+        required: true,
+        summary: '将删除整个项目及其关联数据（不可恢复）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
       }).passthrough(),

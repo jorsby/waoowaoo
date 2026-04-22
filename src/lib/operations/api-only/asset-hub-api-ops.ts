@@ -7,7 +7,8 @@ import { PRIMARY_APPEARANCE_INDEX, isArtStyleValue } from '@/lib/constants'
 import { buildCharacterDescriptionFields } from '@/lib/assets/description-fields'
 import { generateUniqueKey, getSignedUrl, uploadObject } from '@/lib/storage'
 import { submitAssetGenerateTask, submitAssetModifyTask, revertAssetRender, selectAssetRender } from '@/lib/assets/services/asset-actions'
-import type { ProjectAgentOperationRegistry } from '@/lib/operations/types'
+import type { ProjectAgentOperationRegistryDraft } from '@/lib/operations/types'
+import { defineOperation } from '@/lib/operations/define-operation'
 
 type UploadFileLike = {
   name: string
@@ -73,13 +74,21 @@ function isSupportedAudioUpload(file: UploadFileLike): boolean {
   return mime ? SUPPORTED_AUDIO_MIME_TYPES.has(mime) : false
 }
 
-export function createAssetHubApiOperations(): ProjectAgentOperationRegistry {
+export function createAssetHubApiOperations(): ProjectAgentOperationRegistryDraft {
   return {
-    api_asset_hub_generate_image: {
+    api_asset_hub_generate_image: defineOperation({
       id: 'api_asset_hub_generate_image',
-      description: 'API-only: Legacy /asset-hub/generate-image wrapper.',
-      sideEffects: { mode: 'act', risk: 'low', longRunning: true },
-      scope: 'system',
+      summary: 'API-only: Legacy /asset-hub/generate-image wrapper.',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: true,
+        longRunning: true,
+      },
       inputSchema: z.object({
         type: z.enum(['character', 'location']),
         id: z.string().min(1),
@@ -97,13 +106,21 @@ export function createAssetHubApiOperations(): ProjectAgentOperationRegistry {
           },
         })
       },
-    },
+    }),
 
-    api_asset_hub_modify_image: {
+    api_asset_hub_modify_image: defineOperation({
       id: 'api_asset_hub_modify_image',
-      description: 'API-only: Legacy /asset-hub/modify-image wrapper.',
-      sideEffects: { mode: 'act', risk: 'low', longRunning: true },
-      scope: 'system',
+      summary: 'API-only: Legacy /asset-hub/modify-image wrapper.',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: true,
+        longRunning: true,
+      },
       inputSchema: z.object({
         type: z.enum(['character', 'location']),
         id: z.string().min(1),
@@ -121,13 +138,21 @@ export function createAssetHubApiOperations(): ProjectAgentOperationRegistry {
           },
         })
       },
-    },
+    }),
 
-    api_asset_hub_select_image: {
+    api_asset_hub_select_image: defineOperation({
       id: 'api_asset_hub_select_image',
-      description: 'API-only: Legacy /asset-hub/select-image wrapper.',
-      sideEffects: { mode: 'act', risk: 'low', overwrite: true },
-      scope: 'system',
+      summary: 'API-only: Legacy /asset-hub/select-image wrapper.',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: true,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({
         type: z.enum(['character', 'location']),
         id: z.string().min(1),
@@ -144,13 +169,21 @@ export function createAssetHubApiOperations(): ProjectAgentOperationRegistry {
           },
         })
       },
-    },
+    }),
 
-    api_asset_hub_undo_image: {
+    api_asset_hub_undo_image: defineOperation({
       id: 'api_asset_hub_undo_image',
-      description: 'API-only: Legacy /asset-hub/undo-image wrapper.',
-      sideEffects: { mode: 'act', risk: 'low', overwrite: true },
-      scope: 'system',
+      summary: 'API-only: Legacy /asset-hub/undo-image wrapper.',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: true,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({
         type: z.enum(['character', 'location']),
         id: z.string().min(1),
@@ -167,13 +200,21 @@ export function createAssetHubApiOperations(): ProjectAgentOperationRegistry {
           },
         })
       },
-    },
+    }),
 
-    api_asset_hub_update_asset_label_disabled: {
+    api_asset_hub_update_asset_label_disabled: defineOperation({
       id: 'api_asset_hub_update_asset_label_disabled',
-      description: 'API-only: Legacy /asset-hub/update-asset-label disabled endpoint.',
-      sideEffects: { mode: 'act', risk: 'low' },
-      scope: 'system',
+      summary: 'API-only: Legacy /asset-hub/update-asset-label disabled endpoint.',
+      intent: 'act',
+      effects: {
+        writes: false,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({}).passthrough(),
       outputSchema: z.unknown(),
       execute: async () => {
@@ -182,13 +223,21 @@ export function createAssetHubApiOperations(): ProjectAgentOperationRegistry {
           message: 'Global asset images no longer support label updates',
         })
       },
-    },
+    }),
 
-    api_asset_hub_upload_temp: {
+    api_asset_hub_upload_temp: defineOperation({
       id: 'api_asset_hub_upload_temp',
-      description: 'API-only: Upload a temporary base64 blob and return signed url.',
-      sideEffects: { mode: 'act', risk: 'low' },
-      scope: 'system',
+      summary: 'API-only: Upload a temporary base64 blob and return signed url.',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: true,
+        longRunning: false,
+      },
       inputSchema: z.object({}).passthrough(),
       outputSchema: z.unknown(),
       execute: async (ctx, input) => {
@@ -217,13 +266,21 @@ export function createAssetHubApiOperations(): ProjectAgentOperationRegistry {
         const signedUrl = getSignedUrl(key, 3600)
         return { success: true, url: signedUrl, key }
       },
-    },
+    }),
 
-    api_asset_hub_character_appearances_create: {
+    api_asset_hub_character_appearances_create: defineOperation({
       id: 'api_asset_hub_character_appearances_create',
-      description: 'API-only: Create a global character appearance (legacy /asset-hub/appearances POST).',
-      sideEffects: { mode: 'act', risk: 'low' },
-      scope: 'system',
+      summary: 'API-only: Create a global character appearance (legacy /asset-hub/appearances POST).',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({
         characterId: z.string().min(1),
         changeReason: z.string().min(1),
@@ -270,13 +327,21 @@ export function createAssetHubApiOperations(): ProjectAgentOperationRegistry {
 
         return { success: true, appearance }
       },
-    },
+    }),
 
-    api_asset_hub_character_appearances_update: {
+    api_asset_hub_character_appearances_update: defineOperation({
       id: 'api_asset_hub_character_appearances_update',
-      description: 'API-only: Update a global character appearance (legacy /asset-hub/appearances PATCH).',
-      sideEffects: { mode: 'act', risk: 'low' },
-      scope: 'system',
+      summary: 'API-only: Update a global character appearance (legacy /asset-hub/appearances PATCH).',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: true,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({
         characterId: z.string().min(1),
         appearanceIndex: z.number().int().min(0),
@@ -334,13 +399,21 @@ export function createAssetHubApiOperations(): ProjectAgentOperationRegistry {
 
         return { success: true }
       },
-    },
+    }),
 
-    api_asset_hub_character_appearances_delete: {
+    api_asset_hub_character_appearances_delete: defineOperation({
       id: 'api_asset_hub_character_appearances_delete',
-      description: 'API-only: Delete a global character appearance (legacy /asset-hub/appearances DELETE).',
-      sideEffects: { mode: 'act', risk: 'low' },
-      scope: 'system',
+      summary: 'API-only: Delete a global character appearance (legacy /asset-hub/appearances DELETE).',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: true,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({
         characterId: z.string().min(1),
         appearanceIndex: z.number().int().min(0),
@@ -363,13 +436,21 @@ export function createAssetHubApiOperations(): ProjectAgentOperationRegistry {
 
         return { success: true }
       },
-    },
+    }),
 
-    api_asset_hub_upload_image: {
+    api_asset_hub_upload_image: defineOperation({
       id: 'api_asset_hub_upload_image',
-      description: 'API-only: Upload a custom image into global character appearance or global location image slots.',
-      sideEffects: { mode: 'act', risk: 'low', overwrite: true },
-      scope: 'system',
+      summary: 'API-only: Upload a custom image into global character appearance or global location image slots.',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: true,
+        bulk: false,
+        externalSideEffects: true,
+        longRunning: false,
+      },
       inputSchema: z.object({}).passthrough(),
       outputSchema: z.unknown(),
       execute: async (ctx) => {
@@ -509,13 +590,21 @@ export function createAssetHubApiOperations(): ProjectAgentOperationRegistry {
 
         throw new ApiError('INVALID_PARAMS')
       },
-    },
+    }),
 
-    api_asset_hub_character_voice_post: {
+    api_asset_hub_character_voice_post: defineOperation({
       id: 'api_asset_hub_character_voice_post',
-      description: 'API-only: Upload/update global character voice settings (legacy /asset-hub/character-voice POST).',
-      sideEffects: { mode: 'act', risk: 'low', overwrite: true },
-      scope: 'system',
+      summary: 'API-only: Upload/update global character voice settings (legacy /asset-hub/character-voice POST).',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: true,
+        bulk: false,
+        externalSideEffects: true,
+        longRunning: false,
+      },
       inputSchema: z.object({}).passthrough(),
       outputSchema: z.unknown(),
       execute: async (ctx) => {
@@ -603,13 +692,21 @@ export function createAssetHubApiOperations(): ProjectAgentOperationRegistry {
         const signedAudioUrl = getSignedUrl(storageKey, 7200)
         return { success: true, audioUrl: signedAudioUrl }
       },
-    },
+    }),
 
-    api_asset_hub_character_voice_patch: {
+    api_asset_hub_character_voice_patch: defineOperation({
       id: 'api_asset_hub_character_voice_patch',
-      description: 'API-only: Update global character voice binding fields (legacy /asset-hub/character-voice PATCH).',
-      sideEffects: { mode: 'act', risk: 'low', overwrite: true },
-      scope: 'system',
+      summary: 'API-only: Update global character voice binding fields (legacy /asset-hub/character-voice PATCH).',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: true,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({
         characterId: z.string().min(1),
         voiceType: z.string().nullable().optional(),
@@ -635,6 +732,6 @@ export function createAssetHubApiOperations(): ProjectAgentOperationRegistry {
 
         return { success: true }
       },
-    },
+    }),
   }
 }

@@ -3,6 +3,7 @@ import { z } from 'zod'
 import type { NextRequest } from 'next/server'
 import type { ProjectAgentOperationRegistry } from '@/lib/operations/types'
 import type { ProjectAgentRouteDecision } from '@/lib/project-agent/router'
+import { EFFECTS_BILLABLE, EFFECTS_NONE, makeTestOperation } from '../../helpers/project-agent-operations'
 
 const streamState = vi.hoisted(() => ({
   capturedToolNames: [] as string[],
@@ -10,7 +11,7 @@ const streamState = vi.hoisted(() => ({
   routeResult: {
     intent: 'query' as const,
     domains: ['asset'] as const,
-    toolCategories: ['asset-character'] as const,
+    requestedGroups: [['asset', 'character']] as const,
     confidence: 0.92,
     needsClarification: false,
     clarifyingQuestion: null as string | null,
@@ -144,50 +145,46 @@ describe('project agent runtime tool routing', () => {
     streamState.writerEvents = []
     loggerState.info.mockReset()
     registryState.registry = {
-      get_character_detail: {
+      get_character_detail: makeTestOperation({
         id: 'get_character_detail',
-        description: 'Get character detail',
-        scope: 'asset',
-        sideEffects: { mode: 'query', risk: 'low' },
-        channels: { tool: true, api: true },
-        tool: { selectable: true, defaultVisibility: 'core', tags: ['asset', 'read'], groups: ['asset', 'character'] },
-        selection: { baseWeight: 50, costHint: 'low' },
+        summary: 'Get character detail',
+        intent: 'query',
+        groupPath: ['asset', 'character'],
+        effects: EFFECTS_NONE,
         inputSchema: z.object({}),
         outputSchema: z.unknown(),
         execute: async () => ({}),
-      },
-      regenerate_panel_image: {
+      }),
+      regenerate_panel_image: makeTestOperation({
         id: 'regenerate_panel_image',
-        description: 'Regenerate panel image',
-        scope: 'panel',
-        sideEffects: { mode: 'act', risk: 'medium', billable: true },
-        channels: { tool: true, api: true },
-        tool: { selectable: true, defaultVisibility: 'scenario', tags: ['media', 'panel', 'storyboard'], groups: ['panel', 'media'], requiresEpisode: true },
-        selection: { baseWeight: 60, costHint: 'high' },
+        summary: 'Regenerate panel image',
+        intent: 'act',
+        groupPath: ['media'],
+        prerequisites: { episodeId: 'required' },
+        effects: EFFECTS_BILLABLE,
+        confirmation: { required: true, summary: 'billable operation' },
         inputSchema: z.object({}),
         outputSchema: z.unknown(),
         execute: async () => ({}),
-      },
-      get_project_phase: {
+      }),
+      get_project_phase: makeTestOperation({
         id: 'get_project_phase',
-        description: 'Get project phase',
-        scope: 'project',
-        sideEffects: { mode: 'query', risk: 'low' },
-        channels: { tool: true, api: true },
-        tool: { selectable: true, defaultVisibility: 'core', tags: ['project', 'read'], groups: ['project'] },
-        selection: { baseWeight: 10, costHint: 'low' },
+        summary: 'Get project phase',
+        intent: 'query',
+        groupPath: ['project', 'read'],
+        effects: EFFECTS_NONE,
         inputSchema: z.object({}),
         outputSchema: z.unknown(),
         execute: async () => ({}),
-      },
+      }),
     }
   })
 
-  it('injects asset-focused tools when router returns asset-character category', async () => {
+  it('injects asset-focused tools when router requests asset/character group', async () => {
     streamState.routeResult = {
       intent: 'query',
       domains: ['asset'],
-      toolCategories: ['asset-character'],
+      requestedGroups: [['asset', 'character']],
       confidence: 0.93,
       needsClarification: false,
       clarifyingQuestion: null,
@@ -216,16 +213,16 @@ describe('project agent runtime tool routing', () => {
       projectId: 'project-1',
       details: expect.objectContaining({
         operationIds: expect.arrayContaining(['get_character_detail']),
-        toolCategories: ['asset-character'],
+        requestedGroups: [['asset', 'character']],
       }),
     }))
   })
 
-  it('injects panel media tools when router returns panel-media category', async () => {
+  it('injects panel media tools when router requests media group', async () => {
     streamState.routeResult = {
       intent: 'act',
       domains: ['storyboard'],
-      toolCategories: ['panel-media'],
+      requestedGroups: [['media']],
       confidence: 0.91,
       needsClarification: false,
       clarifyingQuestion: null,
@@ -252,7 +249,7 @@ describe('project agent runtime tool routing', () => {
     streamState.routeResult = {
       intent: 'query',
       domains: ['unknown'],
-      toolCategories: ['project-overview'],
+      requestedGroups: [['project', 'read']],
       confidence: 0.42,
       needsClarification: true,
       clarifyingQuestion: 'Please clarify which part of the project you want me to inspect.',
@@ -281,7 +278,7 @@ describe('project agent runtime tool routing', () => {
     streamState.routeResult = {
       intent: 'act',
       domains: ['storyboard'],
-      toolCategories: ['panel-media', 'workflow-plan'],
+      requestedGroups: [['media'], ['workflow', 'plan']],
       confidence: 0.95,
       needsClarification: false,
       clarifyingQuestion: null,
@@ -307,7 +304,7 @@ describe('project agent runtime tool routing', () => {
     streamState.routeResult = {
       intent: 'act',
       domains: ['storyboard'],
-      toolCategories: ['panel-media'],
+      requestedGroups: [['media']],
       confidence: 0.95,
       needsClarification: false,
       clarifyingQuestion: null,

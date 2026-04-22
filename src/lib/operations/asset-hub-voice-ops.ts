@@ -3,27 +3,32 @@ import { createHash } from 'crypto'
 import { ApiError } from '@/lib/api-errors'
 import { TASK_TYPE } from '@/lib/task/types'
 import { validatePreviewText, validateVoicePrompt } from '@/lib/providers/bailian/voice-design'
-import type { ProjectAgentOperationRegistry } from './types'
+import type { ProjectAgentOperationRegistryDraft } from './types'
 import { submitOperationTask } from './submit-operation-task'
 
 function normalizeString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
 }
 
-export function createAssetHubVoiceOperations(): ProjectAgentOperationRegistry {
+export function createAssetHubVoiceOperations(): ProjectAgentOperationRegistryDraft {
   return {
     asset_hub_voice_design: {
       id: 'asset_hub_voice_design',
-      description: 'Submit asset hub voice design task (ASSET_HUB_VOICE_DESIGN).',
-      sideEffects: {
-        mode: 'act',
-        risk: 'high',
+      summary: 'Submit asset hub voice design task (ASSET_HUB_VOICE_DESIGN).',
+      intent: 'act',
+      effects: {
+        writes: true,
         billable: true,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: true,
         longRunning: true,
-        requiresConfirmation: true,
-        confirmationSummary: '将提交声音设计任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。',
       },
-      scope: 'system',
+      confirmation: {
+        required: true,
+        summary: '将提交声音设计任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({}).passthrough(),
       outputSchema: z.unknown(),
       execute: async (ctx, input) => {
@@ -69,4 +74,3 @@ export function createAssetHubVoiceOperations(): ProjectAgentOperationRegistry {
     },
   }
 }
-

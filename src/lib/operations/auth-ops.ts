@@ -3,7 +3,8 @@ import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 import { ApiError } from '@/lib/api-errors'
 import { logAuthAction } from '@/lib/logging/semantic'
-import type { ProjectAgentOperationRegistry } from './types'
+import type { ProjectAgentOperationRegistryDraft } from './types'
+import { defineOperation } from './define-operation'
 
 function normalizeName(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
@@ -13,13 +14,21 @@ function normalizePassword(value: unknown): string {
   return typeof value === 'string' ? value : ''
 }
 
-export function createAuthOperations(): ProjectAgentOperationRegistry {
+export function createAuthOperations(): ProjectAgentOperationRegistryDraft {
   return {
-    auth_register_user: {
+    auth_register_user: defineOperation({
       id: 'auth_register_user',
-      description: 'Register a new user and create initial balance record.',
-      sideEffects: { mode: 'act', risk: 'medium', overwrite: false },
-      scope: 'system',
+      summary: 'Register a new user and create initial balance record.',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({
         name: z.string().min(1),
         password: z.string().min(1),
@@ -79,7 +88,6 @@ export function createAuthOperations(): ProjectAgentOperationRegistry {
           },
         }
       },
-    },
+    }),
   }
 }
-

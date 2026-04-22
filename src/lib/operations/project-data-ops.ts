@@ -7,7 +7,8 @@ import { BILLING_CURRENCY } from '@/lib/billing/currency'
 import { attachMediaFieldsToProject } from '@/lib/media/attach'
 import { buildProjectReadModel } from '@/lib/projects/build-project-read-model'
 import { logError } from '@/lib/logging/core'
-import type { ProjectAgentOperationRegistry } from './types'
+import type { ProjectAgentOperationRegistryDraft } from './types'
+import { defineOperation } from './define-operation'
 
 function readAssetKind(value: unknown): string {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return 'location'
@@ -15,13 +16,21 @@ function readAssetKind(value: unknown): string {
   return typeof record.assetKind === 'string' ? record.assetKind : 'location'
 }
 
-export function createProjectDataOperations(): ProjectAgentOperationRegistry {
+export function createProjectDataOperations(): ProjectAgentOperationRegistryDraft {
   return {
-    get_project_assets: {
+    get_project_assets: defineOperation({
       id: 'get_project_assets',
-      description: 'Load project assets (characters, locations, props) with stable media URLs.',
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'project',
+      summary: 'Load project assets (characters, locations, props) with stable media URLs.',
+      intent: 'query',
+      effects: {
+        writes: false,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({}),
       outputSchema: z.unknown(),
       execute: async (ctx) => {
@@ -61,13 +70,21 @@ export function createProjectDataOperations(): ProjectAgentOperationRegistry {
           props,
         }
       },
-    },
+    }),
 
-    copy_asset_from_global: {
+    copy_asset_from_global: defineOperation({
       id: 'copy_asset_from_global',
-      description: 'Copy a global asset into the current project asset record.',
-      sideEffects: { mode: 'act', risk: 'low' },
-      scope: 'asset',
+      summary: 'Copy a global asset into the current project asset record.',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({
         type: z.enum(['character', 'location', 'voice']),
         targetId: z.string().min(1),
@@ -84,13 +101,21 @@ export function createProjectDataOperations(): ProjectAgentOperationRegistry {
             projectId: ctx.projectId,
           },
         }),
-    },
+    }),
 
-    update_storyboard_photography_plan: {
+    update_storyboard_photography_plan: defineOperation({
       id: 'update_storyboard_photography_plan',
-      description: 'Update a storyboard photography plan JSON payload.',
-      sideEffects: { mode: 'act', risk: 'low' },
-      scope: 'storyboard',
+      summary: 'Update a storyboard photography plan JSON payload.',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({
         storyboardId: z.string().min(1),
         photographyPlan: z.unknown().optional().nullable(),
@@ -128,13 +153,21 @@ export function createProjectDataOperations(): ProjectAgentOperationRegistry {
 
         return { success: true }
       },
-    },
+    }),
 
-    get_project_costs: {
+    get_project_costs: defineOperation({
       id: 'get_project_costs',
-      description: 'Load project cost breakdown for the project owner.',
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'project',
+      summary: 'Load project cost breakdown for the project owner.',
+      intent: 'query',
+      effects: {
+        writes: false,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({}),
       outputSchema: z.unknown(),
       execute: async (ctx) => {
@@ -160,13 +193,21 @@ export function createProjectDataOperations(): ProjectAgentOperationRegistry {
           ...costDetails,
         }
       },
-    },
+    }),
 
-    get_project_data: {
+    get_project_data: defineOperation({
       id: 'get_project_data',
-      description: 'Load unified project data payload for the project owner (includes workflow and assets).',
-      sideEffects: { mode: 'act', risk: 'low' },
-      scope: 'project',
+      summary: 'Load unified project data payload for the project owner (includes workflow and assets).',
+      intent: 'query',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({}),
       outputSchema: z.unknown(),
       execute: async (ctx) => {
@@ -218,6 +259,6 @@ export function createProjectDataOperations(): ProjectAgentOperationRegistry {
 
         return { project: fullProject }
       },
-    },
+    }),
   }
 }

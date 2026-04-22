@@ -3,15 +3,24 @@ import { ApiError } from '@/lib/api-errors'
 import { prisma } from '@/lib/prisma'
 import { listRecentMutationBatches } from '@/lib/mutation-batch/service'
 import { revertMutationBatch } from '@/lib/mutation-batch/revert'
-import type { ProjectAgentOperationRegistry } from './types'
+import type { ProjectAgentOperationRegistryDraft } from './types'
+import { defineOperation } from './define-operation'
 
-export function createGovernanceOperations(): ProjectAgentOperationRegistry {
+export function createGovernanceOperations(): ProjectAgentOperationRegistryDraft {
   return {
-    list_recent_mutation_batches: {
+    list_recent_mutation_batches: defineOperation({
       id: 'list_recent_mutation_batches',
-      description: 'List recent mutation batches that can be reverted (undo).',
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'mutation-batch',
+      summary: 'List recent mutation batches that can be reverted (undo).',
+      intent: 'query',
+      effects: {
+        writes: false,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({
         limit: z.number().int().positive().max(20).optional(),
       }),
@@ -40,18 +49,24 @@ export function createGovernanceOperations(): ProjectAgentOperationRegistry {
           })),
         }))
       },
-    },
-    revert_mutation_batch: {
+    }),
+    revert_mutation_batch: defineOperation({
       id: 'revert_mutation_batch',
-      description: 'Revert (undo) a mutation batch by id.',
-      sideEffects: {
-        mode: 'plan',
-        risk: 'high',
-        requiresConfirmation: true,
+      summary: 'Revert (undo) a mutation batch by id.',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
         destructive: true,
-        confirmationSummary: '将撤回一次批量变更（可能删除或覆盖已有内容）。确认继续后请重新调用并传入 confirmed=true。',
+        overwrite: true,
+        bulk: true,
+        externalSideEffects: false,
+        longRunning: false,
       },
-      scope: 'mutation-batch',
+      confirmation: {
+        required: true,
+        summary: '将撤回一次批量变更（可能删除或覆盖已有内容）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         batchId: z.string().min(1),
@@ -62,19 +77,25 @@ export function createGovernanceOperations(): ProjectAgentOperationRegistry {
         projectId: ctx.projectId,
         userId: ctx.userId,
       }),
-    },
+    }),
 
-    revert_mutation_batch_by_id: {
+    revert_mutation_batch_by_id: defineOperation({
       id: 'revert_mutation_batch_by_id',
-      description: 'Revert (undo) a mutation batch by id without requiring the caller to know its projectId.',
-      sideEffects: {
-        mode: 'plan',
-        risk: 'high',
-        requiresConfirmation: true,
+      summary: 'Revert (undo) a mutation batch by id without requiring the caller to know its projectId.',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
         destructive: true,
-        confirmationSummary: '将撤回一次批量变更（可能删除或覆盖已有内容）。确认继续后请重新调用并传入 confirmed=true。',
+        overwrite: true,
+        bulk: true,
+        externalSideEffects: false,
+        longRunning: false,
       },
-      scope: 'system',
+      confirmation: {
+        required: true,
+        summary: '将撤回一次批量变更（可能删除或覆盖已有内容）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         batchId: z.string().min(1),
@@ -94,6 +115,6 @@ export function createGovernanceOperations(): ProjectAgentOperationRegistry {
           userId: ctx.userId,
         })
       },
-    },
+    }),
   }
 }

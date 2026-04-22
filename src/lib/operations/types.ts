@@ -1,6 +1,6 @@
 import type { UIMessage, UIMessageStreamWriter } from 'ai'
+import type { FlexibleSchema } from '@ai-sdk/provider-utils'
 import type { NextRequest } from 'next/server'
-import type { ZodTypeAny, infer as ZodInfer } from 'zod'
 import type { ProjectAgentContext, WorkspaceAssistantPartType } from '@/lib/project-agent/types'
 
 export type ProjectAgentOperationId = string
@@ -19,77 +19,57 @@ export interface ProjectAgentOperationContext {
   writer?: UIMessageStreamWriter<UIMessage> | null
 }
 
-export type OperationMode = 'query' | 'act' | 'plan'
+type BivariantOperationExecute<Input, Output> = {
+  bivarianceHack(context: ProjectAgentOperationContext, input: Input): Promise<Output>
+}['bivarianceHack']
 
-export type OperationRiskLevel = 'none' | 'low' | 'medium' | 'high'
+export type OperationIntent = 'query' | 'plan' | 'act'
 
-export type OperationScope =
-  | 'system'
-  | 'user'
-  | 'project'
-  | 'episode'
-  | 'storyboard'
-  | 'panel'
-  | 'asset'
-  | 'task'
-  | 'command'
-  | 'plan'
-  | 'mutation-batch'
+export type OperationGroupPath = string[]
+
+export interface OperationPrerequisites {
+  episodeId: 'required' | 'optional' | 'forbidden'
+}
 
 export interface OperationChannels {
   tool: boolean
   api: boolean
 }
 
-export type OperationToolVisibility = 'hidden' | 'core' | 'scenario' | 'extended' | 'guarded'
-
-export interface OperationToolMeta {
-  /**
-   * Whether this operation should be listed in the frontend tool configuration UI.
-   * Note: selectable does NOT mean always injected into the model; it only means eligible to be selected.
-   */
-  selectable: boolean
-  defaultVisibility: OperationToolVisibility
-  /**
-   * Group path for building tree UI, e.g. ['workflow', 'plan'].
-   */
-  groups: string[]
-  /**
-   * Tag list for routing and selection, e.g. ['storyboard', 'asset-hub'].
-   */
-  tags: string[]
-  phases: string[]
-  requiresEpisode: boolean
-  allowInPlanMode: boolean
-  allowInActMode: boolean
+export interface OperationEffects {
+  writes: boolean
+  billable: boolean
+  destructive: boolean
+  overwrite: boolean
+  bulk: boolean
+  externalSideEffects: boolean
+  longRunning: boolean
 }
 
-export type OperationCostHint = 'low' | 'medium' | 'high'
-
-export interface OperationSelectionMeta {
-  baseWeight: number
-  costHint: OperationCostHint
+export interface OperationConfirmation {
+  required: boolean
+  summary?: string | null
+  budget?: {
+    key?: string
+    estimatedCostUnits?: number
+  } | null
 }
 
-export interface OperationSideEffects {
-  mode: OperationMode
-  risk: OperationRiskLevel
-  billable?: boolean
-  budgetKey?: string
-  estimatedCostUnits?: number
-  requiresConfirmation?: boolean
-  confirmationSummary?: string
-  overwrite?: boolean
-  bulk?: boolean
-  destructive?: boolean
-  longRunning?: boolean
+export type RuntimeSchemaSafeParseResult<T> =
+  | { success: true; data: T }
+  | { success: false; error: { issues: unknown } }
+
+export type RuntimeSchema<T> = FlexibleSchema<T> & {
+  safeParse: (input: unknown) => RuntimeSchemaSafeParseResult<T>
 }
 
 export type ProjectAgentToolErrorCode =
   | 'CONFIRMATION_REQUIRED'
+  | 'OPERATION_NOT_ALLOWED'
   | 'OPERATION_EXECUTION_FAILED'
   | 'OPERATION_INPUT_INVALID'
   | 'OPERATION_NOT_FOUND'
+  | 'OPERATION_PREREQUISITE_MISSING'
   | 'OPERATION_OUTPUT_INVALID'
 
 export interface ProjectAgentToolError {
@@ -111,18 +91,33 @@ export type ProjectAgentToolResult<T> =
       error: ProjectAgentToolError
     }
 
-export interface ProjectAgentOperationDefinition {
+export interface ProjectAgentOperationDefinitionBase<Input = unknown, Output = unknown> {
   id: ProjectAgentOperationId
-  description: string
-  inputSchema: ZodTypeAny
-  outputSchema: ZodTypeAny
-  sideEffects?: OperationSideEffects
+  /**
+   * Command-style summary used for tool prompt, logs, and review.
+   * Must be a non-empty string after trimming.
+   */
+  summary: string
+  intent: OperationIntent
+  groupPath?: OperationGroupPath
   channels?: OperationChannels
-  tool?: Partial<OperationToolMeta>
-  selection?: Partial<OperationSelectionMeta>
-  scope: OperationScope
-  execute: (context: ProjectAgentOperationContext, input: ZodInfer<ZodTypeAny>) => Promise<unknown>
+  prerequisites?: Partial<OperationPrerequisites>
+  effects: OperationEffects
+  confirmation?: OperationConfirmation
+  inputSchema: RuntimeSchema<Input>
+  outputSchema: RuntimeSchema<Output>
+  execute: BivariantOperationExecute<Input, Output>
 }
+
+export interface ProjectAgentOperationDefinition<Input = unknown, Output = unknown>
+  extends ProjectAgentOperationDefinitionBase<Input, Output> {
+  groupPath: OperationGroupPath
+  channels: OperationChannels
+  prerequisites: OperationPrerequisites
+  confirmation: OperationConfirmation
+}
+
+export type ProjectAgentOperationRegistryDraft = Record<ProjectAgentOperationId, ProjectAgentOperationDefinitionBase>
 
 export type ProjectAgentOperationRegistry = Record<ProjectAgentOperationId, ProjectAgentOperationDefinition>
 

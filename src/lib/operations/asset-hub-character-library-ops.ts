@@ -11,7 +11,8 @@ import { TASK_TYPE } from '@/lib/task/types'
 import { sanitizeImageInputsForTaskPayload } from '@/lib/media/outbound-image'
 import { getUserModelConfig } from '@/lib/config-service'
 import { submitOperationTask } from './submit-operation-task'
-import type { ProjectAgentOperationRegistry } from './types'
+import type { ProjectAgentOperationRegistryDraft } from './types'
+import { defineOperation } from './define-operation'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
@@ -38,19 +39,21 @@ function parseReferenceImages(body: Record<string, unknown>): string[] {
   return single ? [single] : []
 }
 
-export function createAssetHubCharacterLibraryOperations(): ProjectAgentOperationRegistry {
+export function createAssetHubCharacterLibraryOperations(): ProjectAgentOperationRegistryDraft {
   return {
-    asset_hub_list_characters: {
+    asset_hub_list_characters: defineOperation({
       id: 'asset_hub_list_characters',
-      description: 'List global characters for the current user (optionally filtered by folderId).',
-      tool: {
-        selectable: true,
-        defaultVisibility: 'extended',
-        groups: ['asset-hub', 'read', 'character'],
-        tags: ['asset-hub', 'read', 'character'],
+      summary: 'List global characters for the current user (optionally filtered by folderId).',
+      intent: 'query',
+      effects: {
+        writes: false,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
       },
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'system',
       inputSchema: z.object({
         folderId: z.string().optional(),
       }).passthrough(),
@@ -77,13 +80,21 @@ export function createAssetHubCharacterLibraryOperations(): ProjectAgentOperatio
 
         return { characters: signedCharacters }
       },
-    },
+    }),
 
-    asset_hub_create_character: {
+    asset_hub_create_character: defineOperation({
       id: 'asset_hub_create_character',
-      description: 'Create a global character and its primary appearance; optionally enqueue reference-to-character task.',
-      sideEffects: { mode: 'act', risk: 'medium' },
-      scope: 'system',
+      summary: 'Create a global character and its primary appearance; optionally enqueue reference-to-character task.',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: true,
+        longRunning: false,
+      },
       inputSchema: z.object({
         name: z.string().min(1),
         artStyle: z.string().min(1),
@@ -214,19 +225,21 @@ export function createAssetHubCharacterLibraryOperations(): ProjectAgentOperatio
           character: withMedia,
         }
       },
-    },
+    }),
 
-    asset_hub_get_character: {
+    asset_hub_get_character: defineOperation({
       id: 'asset_hub_get_character',
-      description: 'Get a single global character by id.',
-      tool: {
-        selectable: true,
-        defaultVisibility: 'extended',
-        groups: ['asset-hub', 'read', 'character'],
-        tags: ['asset-hub', 'read', 'character'],
+      summary: 'Get a single global character by id.',
+      intent: 'query',
+      effects: {
+        writes: false,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
       },
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'system',
       inputSchema: z.object({
         characterId: z.string().min(1),
       }),
@@ -242,13 +255,21 @@ export function createAssetHubCharacterLibraryOperations(): ProjectAgentOperatio
         const withMedia = await attachMediaFieldsToGlobalCharacter(character)
         return { character: withMedia }
       },
-    },
+    }),
 
-    asset_hub_update_character: {
+    asset_hub_update_character: defineOperation({
       id: 'asset_hub_update_character',
-      description: 'Update a global character (name, folder, voice binding, profile fields).',
-      sideEffects: { mode: 'act', risk: 'medium' },
-      scope: 'system',
+      summary: 'Update a global character (name, folder, voice binding, profile fields).',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: true,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({
         characterId: z.string().min(1),
       }).passthrough(),
@@ -305,19 +326,25 @@ export function createAssetHubCharacterLibraryOperations(): ProjectAgentOperatio
         const withMedia = await attachMediaFieldsToGlobalCharacter(updated)
         return { success: true, character: withMedia }
       },
-    },
+    }),
 
-    asset_hub_delete_character: {
+    asset_hub_delete_character: defineOperation({
       id: 'asset_hub_delete_character',
-      description: 'Delete a global character and cleanup unreferenced provider resources.',
-      sideEffects: {
-        mode: 'act',
-        risk: 'high',
+      summary: 'Delete a global character and cleanup unreferenced provider resources.',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
         destructive: true,
-        requiresConfirmation: true,
-        confirmationSummary: '将删除该角色记录（不可恢复）。确认继续后请重新调用并传入 confirmed=true。',
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: true,
+        longRunning: false,
       },
-      scope: 'system',
+      confirmation: {
+        required: true,
+        summary: '将删除该角色记录（不可恢复）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         characterId: z.string().min(1),
@@ -346,6 +373,6 @@ export function createAssetHubCharacterLibraryOperations(): ProjectAgentOperatio
         await prisma.globalCharacter.delete({ where: { id: input.characterId } })
         return { success: true }
       },
-    },
+    }),
   }
 }

@@ -4,7 +4,8 @@ import { getProviderKey } from '@/lib/api-config'
 import { probeModelLlmProtocol } from '@/lib/user-api/model-llm-protocol-probe'
 import { validateOpenAICompatMediaTemplate } from '@/lib/user-api/model-template'
 import { probeMediaTemplate } from '@/lib/user-api/model-template/probe'
-import type { ProjectAgentOperationRegistry } from '@/lib/operations/types'
+import type { ProjectAgentOperationRegistryDraft } from '@/lib/operations/types'
+import { defineOperation } from '@/lib/operations/define-operation'
 
 function readRequiredString(value: unknown, field: string, code: string): string {
   if (typeof value !== 'string' || value.trim().length === 0) {
@@ -16,13 +17,21 @@ function readRequiredString(value: unknown, field: string, code: string): string
   return value.trim()
 }
 
-export function createUserApiConfigTemplateDiagnosticOperations(): ProjectAgentOperationRegistry {
+export function createUserApiConfigTemplateDiagnosticOperations(): ProjectAgentOperationRegistryDraft {
   return {
-    api_user_api_config_validate_media_template: {
+    api_user_api_config_validate_media_template: defineOperation({
       id: 'api_user_api_config_validate_media_template',
-      description: 'API-only: Validate openai-compatible media template schema.',
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'user',
+      summary: 'API-only: Validate openai-compatible media template schema.',
+      intent: 'query',
+      effects: {
+        writes: false,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({
         providerId: z.unknown(),
         template: z.unknown(),
@@ -44,13 +53,21 @@ export function createUserApiConfigTemplateDiagnosticOperations(): ProjectAgentO
           issues: result.issues,
         }
       },
-    },
+    }),
 
-    api_user_api_config_probe_media_template: {
+    api_user_api_config_probe_media_template: defineOperation({
       id: 'api_user_api_config_probe_media_template',
-      description: 'API-only: Probe openai-compatible media template against real provider endpoint.',
-      sideEffects: { mode: 'act', risk: 'low', longRunning: true },
-      scope: 'user',
+      summary: 'API-only: Probe openai-compatible media template against real provider endpoint.',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: true,
+        longRunning: true,
+      },
       inputSchema: z.object({
         providerId: z.unknown(),
         modelId: z.unknown(),
@@ -91,13 +108,21 @@ export function createUserApiConfigTemplateDiagnosticOperations(): ProjectAgentO
           ...(sampleImage ? { sampleImage } : {}),
         })
       },
-    },
+    }),
 
-    api_user_api_config_probe_model_llm_protocol: {
+    api_user_api_config_probe_model_llm_protocol: defineOperation({
       id: 'api_user_api_config_probe_model_llm_protocol',
-      description: 'API-only: Probe whether openai-compatible model supports responses or chat-completions protocol.',
-      sideEffects: { mode: 'act', risk: 'low', longRunning: true },
-      scope: 'user',
+      summary: 'API-only: Probe whether openai-compatible model supports responses or chat-completions protocol.',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: true,
+        longRunning: true,
+      },
       inputSchema: z.object({
         providerId: z.unknown(),
         modelId: z.unknown(),
@@ -120,7 +145,6 @@ export function createUserApiConfigTemplateDiagnosticOperations(): ProjectAgentO
           modelId,
         })
       },
-    },
+    }),
   }
 }
-

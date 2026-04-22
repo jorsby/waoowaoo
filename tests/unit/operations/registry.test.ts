@@ -2,46 +2,28 @@ import { describe, expect, it } from 'vitest'
 import { createProjectAgentOperationRegistry } from '@/lib/operations/registry'
 
 describe('project agent operation registry', () => {
-  it('keeps operation ids aligned and scopes defined', () => {
+  it('keeps operation ids aligned and core fields defined', () => {
     const registry = createProjectAgentOperationRegistry()
     for (const [id, operation] of Object.entries(registry)) {
       expect(operation.id).toBe(id)
-      expect(operation.scope).toBeTruthy()
+      expect(operation.summary.trim().length).toBeGreaterThan(0)
+      expect(Array.isArray(operation.groupPath)).toBe(true)
+      expect(operation.groupPath.length).toBeGreaterThan(0)
+      expect(typeof operation.channels.tool).toBe('boolean')
+      expect(typeof operation.channels.api).toBe('boolean')
+      expect(['required', 'optional', 'forbidden']).toContain(operation.prerequisites.episodeId)
+      expect(typeof operation.confirmation.required).toBe('boolean')
+      expect(typeof operation.effects.writes).toBe('boolean')
+      expect(typeof operation.effects.billable).toBe('boolean')
+      expect(typeof operation.effects.destructive).toBe('boolean')
+      expect(typeof operation.effects.overwrite).toBe('boolean')
+      expect(typeof operation.effects.bulk).toBe('boolean')
+      expect(typeof operation.effects.externalSideEffects).toBe('boolean')
+      expect(typeof operation.effects.longRunning).toBe('boolean')
       expect(operation.inputSchema).toBeDefined()
       expect(operation.outputSchema).toBeDefined()
-    }
-  })
-
-  it('decorates manual high-frequency operations with tool metadata', () => {
-    const registry = createProjectAgentOperationRegistry()
-    for (const operationId of [
-      'generate_character_image',
-      'generate_location_image',
-      'regenerate_panel_image',
-      'panel_variant',
-      'create_storyboard_panel',
-      'delete_storyboard_panel',
-      'update_storyboard_panel_prompt',
-      'update_storyboard_panel_fields',
-      'reorder_storyboard_panels',
-      'select_storyboard_panel_candidate',
-      'cancel_storyboard_panel_candidates',
-      'insert_storyboard_panel',
-      'modify_character_image',
-      'modify_location_image',
-      'generate_voice_line_audio',
-      'generate_episode_voice_audio',
-      'generate_panel_video',
-      'generate_episode_videos',
-      'voice_design',
-      'lip_sync',
-    ]) {
-      const operation = registry[operationId]
-      expect(operation).toBeDefined()
-      expect(operation.tool?.groups?.length ?? 0).toBeGreaterThan(0)
-      expect(operation.tool?.tags?.length ?? 0).toBeGreaterThan(0)
-      expect(typeof operation.selection?.baseWeight).toBe('number')
-      expect(operation.selection?.costHint).toBeTruthy()
+      expect(typeof operation.inputSchema.safeParse).toBe('function')
+      expect(typeof operation.outputSchema.safeParse).toBe('function')
     }
   })
 

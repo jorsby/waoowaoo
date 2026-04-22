@@ -55,7 +55,7 @@ describe('routeProjectAgentRequest', () => {
       object: {
         intent: 'act',
         domains: ['storyboard', 'asset'],
-        toolCategories: ['storyboard-edit', 'asset-character'],
+        requestedGroups: [['storyboard', 'edit'], ['asset', 'character']],
         confidence: 0.92,
         needsClarification: false,
         clarifyingQuestion: null,
@@ -68,11 +68,12 @@ describe('routeProjectAgentRequest', () => {
       phase: buildPhaseSnapshot(),
       context: { episodeId: 'ep-1', currentStage: 'storyboard-edit', locale: 'zh' },
       model: {} as never,
+      allowedRequestedGroups: [['storyboard', 'edit'], ['asset', 'character'], ['project', 'read']],
     })
 
     expect(route.intent).toBe('act')
     expect(route.domains).toEqual(['storyboard', 'asset'])
-    expect(route.toolCategories).toEqual(['storyboard-edit', 'asset-character'])
+    expect(route.requestedGroups).toEqual([['storyboard', 'edit'], ['asset', 'character']])
     expect(route.needsClarification).toBe(false)
     expect(route.clarifyingQuestion).toBeNull()
   })
@@ -82,7 +83,7 @@ describe('routeProjectAgentRequest', () => {
       object: {
         intent: 'query',
         domains: ['unknown'],
-        toolCategories: ['project-overview'],
+        requestedGroups: [['project', 'read']],
         confidence: 0.56,
         needsClarification: false,
         clarifyingQuestion: null,
@@ -95,6 +96,7 @@ describe('routeProjectAgentRequest', () => {
       phase: buildPhaseSnapshot(),
       context: { currentStage: 'config', locale: 'zh' },
       model: {} as never,
+      allowedRequestedGroups: [['project', 'read'], ['workflow', 'plan'], ['storyboard', 'edit']],
     })
 
     expect(route.needsClarification).toBe(true)
@@ -111,6 +113,7 @@ describe('routeProjectAgentRequest', () => {
       phase: buildPhaseSnapshot(),
       context: { locale: 'en' },
       model: {} as never,
+      allowedRequestedGroups: [['project', 'read']],
     })
 
     expect(aiMock.generateObject).not.toHaveBeenCalled()

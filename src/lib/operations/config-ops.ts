@@ -17,7 +17,7 @@ import {
   validateCapabilitySelectionsPayload,
   type CapabilityModelContext,
 } from '@/lib/model-capabilities/lookup'
-import type { ProjectAgentOperationRegistry } from './types'
+import type { ProjectAgentOperationRegistryDraft } from './types'
 
 const MODEL_FIELDS = [
   'analysisModel',
@@ -221,13 +221,21 @@ function validateCapabilityOverrides(
   }
 }
 
-export function createConfigOperations(): ProjectAgentOperationRegistry {
+export function createConfigOperations(): ProjectAgentOperationRegistryDraft {
   return {
     get_project_config: {
       id: 'get_project_config',
-      description: 'Get project model and capability override configuration (sanitized).',
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'project',
+      summary: 'Get project model and capability override configuration (sanitized).',
+      intent: 'query',
+      effects: {
+        writes: false,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({}),
       outputSchema: z.object({
         capabilityOverrides: z.record(z.record(z.union([z.string(), z.number(), z.boolean()]))),
@@ -275,9 +283,18 @@ export function createConfigOperations(): ProjectAgentOperationRegistry {
 
     update_project_config: {
       id: 'update_project_config',
-      description: 'Update project model keys, artStyle, and capability overrides.',
-      sideEffects: { mode: 'act', risk: 'medium', overwrite: true },
-      scope: 'project',
+      summary: 'Update project model keys, artStyle, and capability overrides.',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: true,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
+      confirmation: { required: true },
       inputSchema: z.object({
         analysisModel: z.string().nullable().optional(),
         characterModel: z.string().nullable().optional(),

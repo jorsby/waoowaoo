@@ -66,7 +66,7 @@ export function buildProjectAgentSystemPrompt(params: {
       'When confirmationRequired=true: explain the side effects, ask for confirmation, and call the same tool again with confirmed=true after the user approves.',
       'When you see staleArtifacts or failedItems: explain the reason first and recommend the next action.',
       'You may only use the tools injected into the current turn. Tool availability is dynamically trimmed by intent and stage.',
-      'The router has already selected tool categories. Do not assume missing tools exist.',
+      'The router has already selected requested tool groups. Do not assume missing tools exist.',
       'interactionMode=auto means follow the routed intent; interactionMode=plan means downgrade act requests into planning/confirmation preparation; interactionMode=fast means allow direct execution when safety rules permit it.',
       params.interactionMode === 'plan'
         ? 'The current interactionMode is plan. Prefer explanation, planning, and approval preparation. Do not execute act tools directly in this mode.'
@@ -95,7 +95,7 @@ export function buildProjectAgentSystemPrompt(params: {
     '当 tool 返回 confirmationRequired=true：你应向用户解释副作用原因并请求确认，然后在下一次调用同一 tool 时传入 confirmed=true（可参考 confirmation 卡片中的 argsHint）。',
     '当你看到 staleArtifacts 或 failedItems：优先解释原因与推荐动作（例如重跑 workflow、或执行更小粒度的 act 修复）。',
     '你只能使用当前会话注入的 tools 来完成任务（会根据用户意图与阶段动态裁剪）。tool 定义中已包含使用说明，无需额外列举。',
-    'router 已经先行选择了工具类别，不要假设未注入的工具存在。',
+    'router 已经先行选择了 requestedGroups（工具分组），不要假设未注入的工具存在。',
     'interactionMode=auto 表示跟随 router 判定；interactionMode=plan 表示把 act 请求降级为规划/确认准备；interactionMode=fast 表示在安全规则允许时可直接执行。',
     params.interactionMode === 'plan'
       ? '当前 interactionMode=plan。优先做解释、规划和审批准备，不要在该模式下直接执行 act 工具。'

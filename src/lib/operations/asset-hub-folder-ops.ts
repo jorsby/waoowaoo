@@ -1,25 +1,28 @@
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { ApiError } from '@/lib/api-errors'
-import type { ProjectAgentOperationRegistry } from './types'
+import type { ProjectAgentOperationRegistryDraft } from './types'
+import { defineOperation } from './define-operation'
 
 function normalizeString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
 }
 
-export function createAssetHubFolderOperations(): ProjectAgentOperationRegistry {
+export function createAssetHubFolderOperations(): ProjectAgentOperationRegistryDraft {
   return {
-    asset_hub_list_folders: {
+    asset_hub_list_folders: defineOperation({
       id: 'asset_hub_list_folders',
-      description: 'List global asset folders for the current user.',
-      tool: {
-        selectable: true,
-        defaultVisibility: 'extended',
-        groups: ['asset-hub', 'read', 'folder'],
-        tags: ['asset-hub', 'read'],
+      summary: 'List global asset folders for the current user.',
+      intent: 'query',
+      effects: {
+        writes: false,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
       },
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'system',
       inputSchema: z.object({}),
       outputSchema: z.unknown(),
       execute: async (ctx) => {
@@ -29,13 +32,21 @@ export function createAssetHubFolderOperations(): ProjectAgentOperationRegistry 
         })
         return { folders }
       },
-    },
+    }),
 
-    asset_hub_create_folder: {
+    asset_hub_create_folder: defineOperation({
       id: 'asset_hub_create_folder',
-      description: 'Create a global asset folder for the current user.',
-      sideEffects: { mode: 'act', risk: 'low' },
-      scope: 'system',
+      summary: 'Create a global asset folder for the current user.',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({
         name: z.string().min(1),
       }).passthrough(),
@@ -53,13 +64,21 @@ export function createAssetHubFolderOperations(): ProjectAgentOperationRegistry 
         })
         return { success: true, folder }
       },
-    },
+    }),
 
-    asset_hub_update_folder: {
+    asset_hub_update_folder: defineOperation({
       id: 'asset_hub_update_folder',
-      description: 'Update a global asset folder name.',
-      sideEffects: { mode: 'act', risk: 'low' },
-      scope: 'system',
+      summary: 'Update a global asset folder name.',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: true,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({
         folderId: z.string().min(1),
         name: z.string().min(1),
@@ -85,20 +104,25 @@ export function createAssetHubFolderOperations(): ProjectAgentOperationRegistry 
         })
         return { success: true, folder: updatedFolder }
       },
-    },
+    }),
 
-    asset_hub_delete_folder: {
+    asset_hub_delete_folder: defineOperation({
       id: 'asset_hub_delete_folder',
-      description: 'Delete a global asset folder and move assets to root.',
-      sideEffects: {
-        mode: 'act',
-        risk: 'high',
+      summary: 'Delete a global asset folder and move assets to root.',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
         destructive: true,
+        overwrite: false,
         bulk: true,
-        requiresConfirmation: true,
-        confirmationSummary: '将删除该资产文件夹（文件夹内资产会移动到根目录）。确认继续后请重新调用并传入 confirmed=true。',
+        externalSideEffects: false,
+        longRunning: false,
       },
-      scope: 'system',
+      confirmation: {
+        required: true,
+        summary: '将删除该资产文件夹（文件夹内资产会移动到根目录）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         folderId: z.string().min(1),
@@ -130,6 +154,6 @@ export function createAssetHubFolderOperations(): ProjectAgentOperationRegistry 
 
         return { success: true }
       },
-    },
+    }),
   }
 }

@@ -3,23 +3,29 @@ import { createHash } from 'crypto'
 import { ApiError } from '@/lib/api-errors'
 import { getUserModelConfig } from '@/lib/config-service'
 import { TASK_TYPE } from '@/lib/task/types'
-import type { ProjectAgentOperationRegistry } from './types'
+import type { ProjectAgentOperationRegistryDraft } from './types'
+import { defineOperation } from './define-operation'
 import { submitOperationTask } from './submit-operation-task'
 
-export function createHomeLlmOperations(): ProjectAgentOperationRegistry {
+export function createHomeLlmOperations(): ProjectAgentOperationRegistryDraft {
   return {
-    ai_story_expand: {
+    ai_story_expand: defineOperation({
       id: 'ai_story_expand',
-      description: 'Submit home story expand task (AI_STORY_EXPAND).',
-      sideEffects: {
-        mode: 'act',
-        risk: 'high',
+      summary: 'Submit home story expand task (AI_STORY_EXPAND).',
+      intent: 'act',
+      effects: {
+        writes: true,
         billable: true,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: true,
         longRunning: true,
-        requiresConfirmation: true,
-        confirmationSummary: '将提交 AI 续写任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。',
       },
-      scope: 'system',
+      confirmation: {
+        required: true,
+        summary: '将提交 AI 续写任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         prompt: z.string().min(1),
@@ -56,6 +62,6 @@ export function createHomeLlmOperations(): ProjectAgentOperationRegistry {
           priority: 1,
         })
       },
-    },
+    }),
   }
 }

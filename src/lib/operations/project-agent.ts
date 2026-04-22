@@ -33,7 +33,9 @@ import { createUserModelsOperations } from './user-models-ops'
 import { createUserBillingOperations } from './user-billing-ops'
 import { createUserApiConfigOperations } from './user-api-config-ops'
 import { createAuthOperations } from './auth-ops'
-import { decorateProjectAgentOperationRegistryWithToolMeta } from './tool-meta'
+import { createAlwaysOnOperations } from './always-on-ops'
+import { withOperationPack } from './pack'
+import { definePackedOperation } from './define-operation'
 import { createHash, randomUUID } from 'crypto'
 import { ApiError, getRequestId } from '@/lib/api-errors'
 import { submitTask } from '@/lib/task/submitter'
@@ -63,20 +65,13 @@ import type {
   TaskBatchSubmittedPartData,
   TaskSubmittedPartData,
 } from '@/lib/project-agent/types'
-import type { ProjectAgentOperationRegistry } from './types'
+import type { ProjectAgentOperationContext, ProjectAgentOperationRegistry, ProjectAgentOperationRegistryDraft } from './types'
 import { writeOperationDataPart } from './types'
 import { getSignedUrl, generateUniqueKey, downloadAndUploadImage, toFetchableUrl } from '@/lib/storage'
 import { resolveStorageKeyFromMediaValue } from '@/lib/media/service'
 
 
 const DEFAULT_LIPSYNC_MODEL_KEY = composeModelKey('fal', 'fal-ai/kling-video/lipsync/audio-to-video')
-
-function withToolPack(
-  registry: ProjectAgentOperationRegistry,
-  defaults: Parameters<typeof decorateProjectAgentOperationRegistryWithToolMeta>[1],
-): ProjectAgentOperationRegistry {
-  return decorateProjectAgentOperationRegistryWithToolMeta(registry, defaults)
-}
 
 function normalizeString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
@@ -362,7 +357,7 @@ function hasUploadedReferenceAudioForSpeaker(params: {
 }
 
 async function executeStoryboardMutationOperation(
-  ctx: Parameters<ProjectAgentOperationRegistry[string]['execute']>[0],
+  ctx: ProjectAgentOperationContext,
   input: StoryboardMutationInput,
   operationId: string,
 ) {
@@ -1138,7 +1133,7 @@ async function executeStoryboardMutationOperation(
 }
 
 async function executeAssetImageModificationOperation(params: {
-  ctx: Parameters<ProjectAgentOperationRegistry[string]['execute']>[0]
+  ctx: ProjectAgentOperationContext
   input: Record<string, unknown>
   operationId: string
   kind: 'character' | 'location'
@@ -1207,7 +1202,7 @@ async function executeAssetImageModificationOperation(params: {
 }
 
 async function executeVoiceGenerateOperation(params: {
-  ctx: Parameters<ProjectAgentOperationRegistry[string]['execute']>[0]
+  ctx: ProjectAgentOperationContext
   input: {
     episodeId?: string
     lineId?: string
@@ -1427,7 +1422,7 @@ async function executeVoiceGenerateOperation(params: {
 }
 
 async function executeGenerateVideoOperation(params: {
-  ctx: Parameters<ProjectAgentOperationRegistry[string]['execute']>[0]
+  ctx: ProjectAgentOperationContext
   input: Record<string, unknown>
   operationId: string
   batch: boolean
@@ -1797,153 +1792,232 @@ function buildVideoPanelBillingInfoOrThrow(payload: unknown) {
 
 
 export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegistry {
+  const CONFIRM_NONE = { required: false, summary: null, budget: null } as const
+  const CHANNELS_TOOL_API = { tool: true, api: true } as const
+  const CHANNELS_API_ONLY = { tool: false, api: true } as const
+  const CHANNELS_TOOL_ONLY = { tool: true, api: false } as const
+  const PREREQ_EPISODE_OPTIONAL = { episodeId: 'optional' } as const
+  const PREREQ_EPISODE_REQUIRED = { episodeId: 'required' } as const
+
   return {
-    ...withToolPack(createSystemProjectOperations(), {
-      tool: { defaultVisibility: 'core', groups: ['project'], tags: ['project', 'system'] },
-      selection: { baseWeight: 60, costHint: 'low' },
+    ...withOperationPack(createAlwaysOnOperations(), {
+      groupPath: ['ui'],
+      channels: CHANNELS_TOOL_ONLY,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      confirmation: CONFIRM_NONE,
     }),
-    ...withToolPack(createRunOperations(), {
-      tool: { defaultVisibility: 'core', groups: ['run'], tags: ['run'] },
-      selection: { baseWeight: 55, costHint: 'low' },
+    ...withOperationPack(createSystemProjectOperations(), {
+      groupPath: ['project', 'system'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      confirmation: CONFIRM_NONE,
     }),
-    ...withToolPack(createTaskOperations(), {
-      tool: { defaultVisibility: 'core', groups: ['task'], tags: ['task'] },
-      selection: { baseWeight: 55, costHint: 'low' },
+    ...withOperationPack(createRunOperations(), {
+      groupPath: ['run'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      confirmation: CONFIRM_NONE,
     }),
-    ...withToolPack(createSseOperations(), {
-      tool: { defaultVisibility: 'hidden', selectable: false, groups: ['debug', 'sse'], tags: ['debug'] },
-      selection: { baseWeight: -100, costHint: 'low' },
+    ...withOperationPack(createTaskOperations(), {
+      groupPath: ['task'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      confirmation: CONFIRM_NONE,
     }),
-    ...withToolPack(createHomeLlmOperations(), {
-      tool: { defaultVisibility: 'extended', groups: ['llm'], tags: ['llm'] },
-      selection: { baseWeight: 10, costHint: 'medium' },
+    ...withOperationPack(createSseOperations(), {
+      groupPath: ['debug', 'sse'],
+      channels: CHANNELS_API_ONLY,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      confirmation: CONFIRM_NONE,
     }),
-    ...withToolPack(createAuthOperations(), {
-      tool: { defaultVisibility: 'hidden', selectable: false, groups: ['auth'], tags: ['auth'] },
-      selection: { baseWeight: -100, costHint: 'low' },
+    ...withOperationPack(createHomeLlmOperations(), {
+      groupPath: ['llm'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      confirmation: CONFIRM_NONE,
     }),
-    ...withToolPack(createUserPreferenceOperations(), {
-      tool: { defaultVisibility: 'extended', groups: ['config', 'preference'], tags: ['config'] },
-      selection: { baseWeight: 25, costHint: 'low' },
+    ...withOperationPack(createAuthOperations(), {
+      groupPath: ['auth'],
+      channels: CHANNELS_API_ONLY,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      confirmation: CONFIRM_NONE,
     }),
-    ...withToolPack(createUserModelsOperations(), {
-      tool: { defaultVisibility: 'extended', groups: ['config', 'models'], tags: ['config'] },
-      selection: { baseWeight: 25, costHint: 'low' },
+    ...withOperationPack(createUserPreferenceOperations(), {
+      groupPath: ['config', 'preference'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      confirmation: CONFIRM_NONE,
     }),
-    ...withToolPack(createUserBillingOperations(), {
-      tool: { defaultVisibility: 'extended', groups: ['billing'], tags: ['billing'] },
-      selection: { baseWeight: 20, costHint: 'low' },
+    ...withOperationPack(createUserModelsOperations(), {
+      groupPath: ['config', 'models'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      confirmation: CONFIRM_NONE,
     }),
-    ...withToolPack(createUserApiConfigOperations(), {
-      tool: { defaultVisibility: 'extended', groups: ['config', 'api'], tags: ['config'] },
-      selection: { baseWeight: 20, costHint: 'low' },
+    ...withOperationPack(createUserBillingOperations(), {
+      groupPath: ['billing'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      confirmation: CONFIRM_NONE,
     }),
-    ...withToolPack(createAssetHubLlmOperations(), {
-      tool: { defaultVisibility: 'hidden', selectable: false, groups: ['asset-hub', 'ai'], tags: ['asset-hub'] },
-      selection: { baseWeight: -50, costHint: 'high' },
+    ...withOperationPack(createUserApiConfigOperations(), {
+      groupPath: ['config', 'api'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      confirmation: CONFIRM_NONE,
     }),
-    ...withToolPack(createAssetHubVoiceOperations(), {
-      tool: { defaultVisibility: 'hidden', selectable: false, groups: ['asset-hub', 'voice'], tags: ['asset-hub'] },
-      selection: { baseWeight: -50, costHint: 'medium' },
+    ...withOperationPack(createAssetHubLlmOperations(), {
+      groupPath: ['asset-hub', 'ai'],
+      channels: CHANNELS_API_ONLY,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      confirmation: CONFIRM_NONE,
     }),
-    ...withToolPack(createAssetHubFolderOperations(), {
-      tool: { defaultVisibility: 'hidden', selectable: false, groups: ['asset-hub', 'folder'], tags: ['asset-hub'] },
-      selection: { baseWeight: -50, costHint: 'low' },
+    ...withOperationPack(createAssetHubVoiceOperations(), {
+      groupPath: ['asset-hub', 'voice'],
+      channels: CHANNELS_API_ONLY,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      confirmation: CONFIRM_NONE,
     }),
-    ...withToolPack(createAssetHubVoiceLibraryOperations(), {
-      tool: { defaultVisibility: 'hidden', selectable: false, groups: ['asset-hub', 'voice'], tags: ['asset-hub'] },
-      selection: { baseWeight: -50, costHint: 'low' },
+    ...withOperationPack(createAssetHubFolderOperations(), {
+      groupPath: ['asset-hub', 'folder'],
+      channels: CHANNELS_API_ONLY,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      confirmation: CONFIRM_NONE,
     }),
-    ...withToolPack(createAssetHubVoiceUploadOperations(), {
-      tool: { defaultVisibility: 'hidden', selectable: false, groups: ['asset-hub', 'voice'], tags: ['asset-hub'] },
-      selection: { baseWeight: -50, costHint: 'medium' },
+    ...withOperationPack(createAssetHubVoiceLibraryOperations(), {
+      groupPath: ['asset-hub', 'voice-library'],
+      channels: CHANNELS_API_ONLY,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      confirmation: CONFIRM_NONE,
     }),
-    ...withToolPack(createAssetHubCharacterLibraryOperations(), {
-      tool: { defaultVisibility: 'hidden', selectable: false, groups: ['asset-hub', 'character'], tags: ['asset-hub'] },
-      selection: { baseWeight: -50, costHint: 'low' },
+    ...withOperationPack(createAssetHubVoiceUploadOperations(), {
+      groupPath: ['asset-hub', 'voice-upload'],
+      channels: CHANNELS_API_ONLY,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      confirmation: CONFIRM_NONE,
     }),
-    ...withToolPack(createAssetHubCharacterAppearanceOperations(), {
-      tool: { defaultVisibility: 'hidden', selectable: false, groups: ['asset-hub', 'character'], tags: ['asset-hub'] },
-      selection: { baseWeight: -50, costHint: 'low' },
+    ...withOperationPack(createAssetHubCharacterLibraryOperations(), {
+      groupPath: ['asset-hub', 'character-library'],
+      channels: CHANNELS_API_ONLY,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      confirmation: CONFIRM_NONE,
     }),
-    ...withToolPack(createAssetHubLocationLibraryOperations(), {
-      tool: { defaultVisibility: 'hidden', selectable: false, groups: ['asset-hub', 'location'], tags: ['asset-hub'] },
-      selection: { baseWeight: -50, costHint: 'low' },
+    ...withOperationPack(createAssetHubCharacterAppearanceOperations(), {
+      groupPath: ['asset-hub', 'character-appearance'],
+      channels: CHANNELS_API_ONLY,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      confirmation: CONFIRM_NONE,
     }),
-    ...withToolPack(createAssetHubPickerOperations(), {
-      tool: { defaultVisibility: 'hidden', selectable: false, groups: ['asset-hub', 'picker'], tags: ['asset-hub'] },
-      selection: { baseWeight: -50, costHint: 'low' },
+    ...withOperationPack(createAssetHubLocationLibraryOperations(), {
+      groupPath: ['asset-hub', 'location-library'],
+      channels: CHANNELS_API_ONLY,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      confirmation: CONFIRM_NONE,
     }),
-    ...withToolPack(createReadOperations(), {
-      tool: { defaultVisibility: 'core', groups: ['read'], tags: ['read'] },
-      selection: { baseWeight: 70, costHint: 'low' },
+    ...withOperationPack(createAssetHubPickerOperations(), {
+      groupPath: ['asset-hub', 'picker'],
+      channels: CHANNELS_API_ONLY,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      confirmation: CONFIRM_NONE,
     }),
-    ...withToolPack(createProjectCrudOperations(), {
-      tool: { defaultVisibility: 'extended', groups: ['project', 'crud'], tags: ['project'] },
-      selection: { baseWeight: 10, costHint: 'low' },
+    ...withOperationPack(createReadOperations(), {
+      groupPath: ['project', 'read'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      confirmation: CONFIRM_NONE,
     }),
-    ...withToolPack(createVideoOperations(), {
-      tool: { defaultVisibility: 'scenario', groups: ['video'], tags: ['video', 'media'] },
-      selection: { baseWeight: 30, costHint: 'high' },
+    ...withOperationPack(createProjectCrudOperations(), {
+      groupPath: ['project', 'crud'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      confirmation: CONFIRM_NONE,
     }),
-    ...withToolPack(createDownloadOperations(), {
-      tool: { defaultVisibility: 'extended', groups: ['download'], tags: ['download'] },
-      selection: { baseWeight: 15, costHint: 'medium' },
+    ...withOperationPack(createVideoOperations(), {
+      groupPath: ['media', 'video'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      confirmation: CONFIRM_NONE,
     }),
-    ...withToolPack(createPlanOperations(), {
-      tool: { defaultVisibility: 'scenario', groups: ['workflow', 'plan'], tags: ['workflow'] },
-      selection: { baseWeight: 45, costHint: 'low' },
+    ...withOperationPack(createDownloadOperations(), {
+      groupPath: ['media', 'download'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      confirmation: CONFIRM_NONE,
     }),
-    ...withToolPack(createGovernanceOperations(), {
-      tool: { defaultVisibility: 'guarded', selectable: false, groups: ['governance'], tags: ['governance'] },
-      selection: { baseWeight: -20, costHint: 'high' },
+    ...withOperationPack(createPlanOperations(), {
+      groupPath: ['workflow', 'plan'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      confirmation: CONFIRM_NONE,
     }),
-    ...withToolPack(createEditOperations(), {
-      tool: { defaultVisibility: 'extended', groups: ['edit'], tags: ['edit', 'asset', 'storyboard'] },
-      selection: { baseWeight: 20, costHint: 'low' },
+    ...withOperationPack(createGovernanceOperations(), {
+      groupPath: ['governance'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      confirmation: CONFIRM_NONE,
     }),
-    ...withToolPack(createConfigOperations(), {
-      tool: { defaultVisibility: 'extended', groups: ['config'], tags: ['config'] },
-      selection: { baseWeight: 20, costHint: 'low' },
+    ...withOperationPack(createEditOperations(), {
+      groupPath: ['storyboard', 'edit'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      confirmation: CONFIRM_NONE,
     }),
-    ...withToolPack(createProjectDataOperations(), {
-      tool: { defaultVisibility: 'core', groups: ['project', 'data'], tags: ['project', 'asset', 'storyboard'] },
-      selection: { baseWeight: 55, costHint: 'low' },
+    ...withOperationPack(createConfigOperations(), {
+      groupPath: ['config'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      confirmation: CONFIRM_NONE,
     }),
-    ...withToolPack(createGuiOperations(), {
-      tool: { defaultVisibility: 'hidden', selectable: false, groups: ['gui'], tags: ['gui'] },
-      selection: { baseWeight: -100, costHint: 'low' },
+    ...withOperationPack(createProjectDataOperations(), {
+      groupPath: ['project', 'data'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      confirmation: CONFIRM_NONE,
     }),
-    ...withToolPack(createExtraOperations(), {
-      tool: { defaultVisibility: 'extended', groups: ['extra'], tags: ['extra'] },
-      selection: { baseWeight: 0, costHint: 'low' },
+    ...withOperationPack(createGuiOperations(), {
+      groupPath: ['gui'],
+      channels: CHANNELS_API_ONLY,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      confirmation: CONFIRM_NONE,
     }),
-    ...withToolPack(createLlmTaskOperations(), {
-      tool: { defaultVisibility: 'scenario', groups: ['llm', 'task'], tags: ['llm', 'storyboard'] },
-      selection: { baseWeight: 25, costHint: 'high' },
+    ...withOperationPack(createExtraOperations(), {
+      groupPath: ['extra'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      confirmation: CONFIRM_NONE,
     }),
-    ...withToolPack(createMediaOperations(), {
-      tool: { defaultVisibility: 'scenario', groups: ['media'], tags: ['media', 'panel', 'storyboard'] },
-      selection: { baseWeight: 30, costHint: 'high' },
+    ...withOperationPack(createLlmTaskOperations(), {
+      groupPath: ['llm', 'task'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      confirmation: CONFIRM_NONE,
     }),
-    generate_character_image: {
+    ...withOperationPack(createMediaOperations(), {
+      groupPath: ['media'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      confirmation: CONFIRM_NONE,
+    }),
+    generate_character_image: definePackedOperation({
       id: 'generate_character_image',
-      description: 'Generate character appearance images for a project character.',
-      tool: {
-        defaultVisibility: 'scenario',
-        groups: ['asset', 'character', 'generate'],
-        tags: ['asset', 'character', 'edit', 'media'],
-      },
-      selection: { baseWeight: 28, costHint: 'high' },
-      sideEffects: {
-        mode: 'act',
-        risk: 'medium',
+      summary: 'Generate character appearance images for a project character.',
+      intent: 'act',
+      groupPath: ['asset', 'character'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      effects: {
+        writes: true,
         billable: true,
-        requiresConfirmation: true,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: true,
         longRunning: true,
-        confirmationSummary: '将为角色生成形象图片（可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
       },
-      scope: 'asset',
+      confirmation: {
+        required: true,
+        summary: '将为角色生成形象图片（可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         characterId: z.string().min(1).optional(),
@@ -2061,25 +2135,27 @@ export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegi
           mutationBatchId: mutationBatch.id,
         }
       },
-    },
-    generate_location_image: {
+    }),
+    generate_location_image: definePackedOperation({
       id: 'generate_location_image',
-      description: 'Generate location images for a project location.',
-      tool: {
-        defaultVisibility: 'scenario',
-        groups: ['asset', 'location', 'generate'],
-        tags: ['asset', 'location', 'edit', 'media'],
-      },
-      selection: { baseWeight: 28, costHint: 'high' },
-      sideEffects: {
-        mode: 'act',
-        risk: 'medium',
+      summary: 'Generate location images for a project location.',
+      intent: 'act',
+      groupPath: ['asset', 'location'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      effects: {
+        writes: true,
         billable: true,
-        requiresConfirmation: true,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: true,
         longRunning: true,
-        confirmationSummary: '将为场景生成图片（可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
       },
-      scope: 'asset',
+      confirmation: {
+        required: true,
+        summary: '将为场景生成图片（可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         locationId: z.string().min(1).optional(),
@@ -2181,22 +2257,27 @@ export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegi
           mutationBatchId: mutationBatch.id,
         }
       },
-    },
-    modify_asset_image: {
+    }),
+    modify_asset_image: definePackedOperation({
       id: 'modify_asset_image',
-      description: 'Modify an asset image (character/location) using edit model (async task submission).',
-      channels: { tool: false, api: true },
-      sideEffects: {
-        mode: 'act',
-        risk: 'high',
+      summary: 'Modify an asset image (character/location) using edit model (async task submission).',
+      intent: 'act',
+      groupPath: ['asset'],
+      channels: CHANNELS_API_ONLY,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      effects: {
+        writes: true,
         billable: true,
-        requiresConfirmation: true,
-        overwrite: true,
         destructive: true,
+        overwrite: true,
+        bulk: false,
+        externalSideEffects: true,
         longRunning: true,
-        confirmationSummary: '将修改资源图片（可能覆盖现有结果且可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
       },
-      scope: 'asset',
+      confirmation: {
+        required: true,
+        summary: '将修改资源图片（可能覆盖现有结果且可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         type: z.enum(['character', 'location']),
@@ -2210,27 +2291,27 @@ export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegi
         operationId: 'modify_asset_image',
         kind: input.type,
       }),
-    },
-    modify_character_image: {
+    }),
+    modify_character_image: definePackedOperation({
       id: 'modify_character_image',
-      description: 'Modify a project character image using the edit model.',
-      tool: {
-        defaultVisibility: 'scenario',
-        groups: ['asset', 'character', 'modify'],
-        tags: ['asset', 'character', 'edit', 'media'],
-      },
-      selection: { baseWeight: 36, costHint: 'high' },
-      sideEffects: {
-        mode: 'act',
-        risk: 'high',
+      summary: 'Modify a project character image using the edit model.',
+      intent: 'act',
+      groupPath: ['asset', 'character'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      effects: {
+        writes: true,
         billable: true,
-        requiresConfirmation: true,
-        overwrite: true,
         destructive: true,
+        overwrite: true,
+        bulk: false,
+        externalSideEffects: true,
         longRunning: true,
-        confirmationSummary: '将修改角色图片（可能覆盖现有结果且可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
       },
-      scope: 'asset',
+      confirmation: {
+        required: true,
+        summary: '将修改角色图片（可能覆盖现有结果且可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: modifyCharacterImageInputSchema,
       outputSchema: z.unknown(),
       execute: async (ctx, input) => executeAssetImageModificationOperation({
@@ -2239,27 +2320,27 @@ export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegi
         operationId: 'modify_character_image',
         kind: 'character',
       }),
-    },
-    modify_location_image: {
+    }),
+    modify_location_image: definePackedOperation({
       id: 'modify_location_image',
-      description: 'Modify a project location image using the edit model.',
-      tool: {
-        defaultVisibility: 'scenario',
-        groups: ['asset', 'location', 'modify'],
-        tags: ['asset', 'location', 'edit', 'media'],
-      },
-      selection: { baseWeight: 36, costHint: 'high' },
-      sideEffects: {
-        mode: 'act',
-        risk: 'high',
+      summary: 'Modify a project location image using the edit model.',
+      intent: 'act',
+      groupPath: ['asset', 'location'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      effects: {
+        writes: true,
         billable: true,
-        requiresConfirmation: true,
-        overwrite: true,
         destructive: true,
+        overwrite: true,
+        bulk: false,
+        externalSideEffects: true,
         longRunning: true,
-        confirmationSummary: '将修改场景图片（可能覆盖现有结果且可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
       },
-      scope: 'asset',
+      confirmation: {
+        required: true,
+        summary: '将修改场景图片（可能覆盖现有结果且可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: modifyLocationImageInputSchema,
       outputSchema: z.unknown(),
       execute: async (ctx, input) => executeAssetImageModificationOperation({
@@ -2268,25 +2349,27 @@ export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegi
         operationId: 'modify_location_image',
         kind: 'location',
       }),
-    },
-    regenerate_panel_image: {
+    }),
+    regenerate_panel_image: definePackedOperation({
       id: 'regenerate_panel_image',
-      description: 'Regenerate storyboard panel images (async task submission).',
-      tool: {
-        defaultVisibility: 'scenario',
-        groups: ['storyboard', 'panel', 'media'],
-        tags: ['media', 'panel', 'storyboard'],
-      },
-      selection: { baseWeight: 42, costHint: 'high' },
-      sideEffects: {
-        mode: 'act',
-        risk: 'medium',
+      summary: 'Regenerate storyboard panel images (async task submission).',
+      intent: 'act',
+      groupPath: ['storyboard'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      effects: {
+        writes: true,
         billable: true,
-        requiresConfirmation: true,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: true,
         longRunning: true,
-        confirmationSummary: '将为分镜格子重新生成图片（可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
       },
-      scope: 'panel',
+      confirmation: {
+        required: true,
+        summary: '将为分镜格子重新生成图片（可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         panelId: z.string().min(1).optional(),
@@ -2398,25 +2481,27 @@ export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegi
           mutationBatchId: mutationBatch.id,
         }
       },
-    },
-    panel_variant: {
+    }),
+    panel_variant: definePackedOperation({
       id: 'panel_variant',
-      description: 'Insert a variant panel after an existing panel and enqueue image generation (async task submission).',
-      tool: {
-        defaultVisibility: 'scenario',
-        groups: ['storyboard', 'panel', 'variant'],
-        tags: ['media', 'panel', 'storyboard', 'edit'],
-      },
-      selection: { baseWeight: 40, costHint: 'high' },
-      sideEffects: {
-        mode: 'act',
-        risk: 'high',
+      summary: 'Insert a variant panel after an existing panel and enqueue image generation (async task submission).',
+      intent: 'act',
+      groupPath: ['storyboard'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      effects: {
+        writes: true,
         billable: true,
-        requiresConfirmation: true,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: true,
         longRunning: true,
-        confirmationSummary: '将创建新的分镜格并生成变体图片（可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
       },
-      scope: 'storyboard',
+      confirmation: {
+        required: true,
+        summary: '将创建新的分镜格并生成变体图片（可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         storyboardId: z.string().min(1),
@@ -2583,233 +2668,258 @@ export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegi
 
         return { ...result, panelId: createdPanel.id, mutationBatchId: mutationBatch.id }
       },
-    },
-    mutate_storyboard: {
+    }),
+    mutate_storyboard: definePackedOperation({
       id: 'mutate_storyboard',
-      description: 'Apply storyboard mutations, including delete panel, insert panel, update prompts, reorder panels, select candidates, and update panel fields.',
-      channels: { tool: false, api: true },
-      sideEffects: {
-        mode: 'act',
-        risk: 'high',
-        requiresConfirmation: true,
+      summary: 'Apply storyboard mutations, including delete panel, insert panel, update prompts, reorder panels, select candidates, and update panel fields.',
+      intent: 'act',
+      groupPath: ['storyboard'],
+      channels: CHANNELS_API_ONLY,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      effects: {
+        writes: true,
+        billable: true,
+        destructive: true,
         overwrite: true,
         bulk: true,
-        destructive: true,
-        confirmationSummary: '将对分镜进行编辑/重排/插入新格子（可能删除或覆盖内容；插入可能消耗额度）。确认继续后请重新调用并传入 confirmed=true。',
+        externalSideEffects: true,
+        longRunning: true,
       },
-      scope: 'storyboard',
+      confirmation: CONFIRM_NONE,
       inputSchema: storyboardMutationInputSchema,
       outputSchema: z.unknown(),
       execute: async (ctx, input) => executeStoryboardMutationOperation(ctx, input, 'mutate_storyboard'),
-    },
-    create_storyboard_panel: {
+    }),
+    create_storyboard_panel: definePackedOperation({
       id: 'create_storyboard_panel',
-      description: 'Create a new storyboard panel at the end of a storyboard.',
-      tool: {
-        defaultVisibility: 'extended',
-        groups: ['storyboard', 'panel', 'create'],
-        tags: ['storyboard', 'panel', 'edit', 'create'],
+      summary: 'Create a new storyboard panel at the end of a storyboard.',
+      intent: 'act',
+      groupPath: ['storyboard'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
       },
-      selection: { baseWeight: 52, costHint: 'medium' },
-      sideEffects: {
-        mode: 'act',
-        risk: 'high',
-        requiresConfirmation: true,
-        overwrite: true,
-        destructive: true,
-        confirmationSummary: '将创建一个新的分镜格。确认继续后请重新调用并传入 confirmed=true。',
-      },
-      scope: 'storyboard',
+      confirmation: CONFIRM_NONE,
       inputSchema: createStoryboardPanelInputSchema,
       outputSchema: z.unknown(),
       execute: async (ctx, input) => executeStoryboardMutationOperation(ctx, {
         ...input,
         action: 'create_panel',
       }, 'create_storyboard_panel'),
-    },
-    delete_storyboard_panel: {
+    }),
+    delete_storyboard_panel: definePackedOperation({
       id: 'delete_storyboard_panel',
-      description: 'Delete a storyboard panel by panelId or by storyboardId plus panelIndex.',
-      tool: {
-        defaultVisibility: 'extended',
-        groups: ['storyboard', 'panel', 'delete'],
-        tags: ['storyboard', 'panel', 'edit', 'delete'],
-      },
-      selection: { baseWeight: 56, costHint: 'high' },
-      sideEffects: {
-        mode: 'act',
-        risk: 'high',
-        requiresConfirmation: true,
+      summary: 'Delete a storyboard panel by panelId or by storyboardId plus panelIndex.',
+      intent: 'act',
+      groupPath: ['storyboard'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      effects: {
+        writes: true,
+        billable: false,
         destructive: true,
-        confirmationSummary: '将删除一个分镜格并重排后续编号。确认继续后请重新调用并传入 confirmed=true。',
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
       },
-      scope: 'storyboard',
+      confirmation: {
+        required: true,
+        summary: '将删除一个分镜格并重排后续编号。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: deleteStoryboardPanelInputSchema,
       outputSchema: z.unknown(),
       execute: async (ctx, input) => executeStoryboardMutationOperation(ctx, {
         ...input,
         action: 'delete_panel',
       }, 'delete_storyboard_panel'),
-    },
-    update_storyboard_panel_prompt: {
+    }),
+    update_storyboard_panel_prompt: definePackedOperation({
       id: 'update_storyboard_panel_prompt',
-      description: 'Update prompt fields for a storyboard panel.',
-      tool: {
-        defaultVisibility: 'extended',
-        groups: ['storyboard', 'panel', 'prompt'],
-        tags: ['storyboard', 'panel', 'edit', 'prompt'],
-      },
-      selection: { baseWeight: 54, costHint: 'medium' },
-      sideEffects: {
-        mode: 'act',
-        risk: 'high',
-        requiresConfirmation: true,
+      summary: 'Update prompt fields for a storyboard panel.',
+      intent: 'act',
+      groupPath: ['storyboard'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
         overwrite: true,
-        confirmationSummary: '将修改分镜格提示词。确认继续后请重新调用并传入 confirmed=true。',
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
       },
-      scope: 'storyboard',
+      confirmation: {
+        required: true,
+        summary: '将修改分镜格提示词。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: updateStoryboardPanelPromptInputSchema,
       outputSchema: z.unknown(),
       execute: async (ctx, input) => executeStoryboardMutationOperation(ctx, {
         ...input,
         action: 'update_panel_prompt',
       }, 'update_storyboard_panel_prompt'),
-    },
-    update_storyboard_panel_fields: {
+    }),
+    update_storyboard_panel_fields: definePackedOperation({
       id: 'update_storyboard_panel_fields',
-      description: 'Update structured storyboard panel fields such as shot, description, timing, or linkage.',
-      tool: {
-        defaultVisibility: 'extended',
-        groups: ['storyboard', 'panel', 'fields'],
-        tags: ['storyboard', 'panel', 'edit', 'fields'],
-      },
-      selection: { baseWeight: 50, costHint: 'medium' },
-      sideEffects: {
-        mode: 'act',
-        risk: 'high',
-        requiresConfirmation: true,
+      summary: 'Update structured storyboard panel fields such as shot, description, timing, or linkage.',
+      intent: 'act',
+      groupPath: ['storyboard'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
         overwrite: true,
-        confirmationSummary: '将修改分镜格字段信息。确认继续后请重新调用并传入 confirmed=true。',
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
       },
-      scope: 'storyboard',
+      confirmation: {
+        required: true,
+        summary: '将修改分镜格字段信息。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: updateStoryboardPanelFieldsInputSchema,
       outputSchema: z.unknown(),
       execute: async (ctx, input) => executeStoryboardMutationOperation(ctx, {
         ...input,
         action: 'update_panel_fields',
       }, 'update_storyboard_panel_fields'),
-    },
-    reorder_storyboard_panels: {
+    }),
+    reorder_storyboard_panels: definePackedOperation({
       id: 'reorder_storyboard_panels',
-      description: 'Reorder all panels in a storyboard using an explicit orderedPanelIds list.',
-      tool: {
-        defaultVisibility: 'extended',
-        groups: ['storyboard', 'panel', 'reorder'],
-        tags: ['storyboard', 'panel', 'edit', 'reorder'],
+      summary: 'Reorder all panels in a storyboard using an explicit orderedPanelIds list.',
+      intent: 'act',
+      groupPath: ['storyboard'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: true,
+        externalSideEffects: false,
+        longRunning: false,
       },
-      selection: { baseWeight: 48, costHint: 'medium' },
-      sideEffects: {
-        mode: 'act',
-        risk: 'high',
-        requiresConfirmation: true,
-        destructive: true,
-        confirmationSummary: '将重排整个分镜组内的格子顺序。确认继续后请重新调用并传入 confirmed=true。',
+      confirmation: {
+        required: true,
+        summary: '将重排整个分镜组内的格子顺序。确认继续后请重新调用并传入 confirmed=true。',
       },
-      scope: 'storyboard',
       inputSchema: reorderStoryboardPanelsInputSchema,
       outputSchema: z.unknown(),
       execute: async (ctx, input) => executeStoryboardMutationOperation(ctx, {
         ...input,
         action: 'reorder_panels',
       }, 'reorder_storyboard_panels'),
-    },
-    select_storyboard_panel_candidate: {
+    }),
+    select_storyboard_panel_candidate: definePackedOperation({
       id: 'select_storyboard_panel_candidate',
-      description: 'Select one storyboard panel candidate image as the final panel image.',
-      tool: {
-        defaultVisibility: 'extended',
-        groups: ['storyboard', 'panel', 'candidate'],
-        tags: ['storyboard', 'panel', 'edit', 'candidate'],
-      },
-      selection: { baseWeight: 44, costHint: 'medium' },
-      sideEffects: {
-        mode: 'act',
-        risk: 'high',
-        requiresConfirmation: true,
+      summary: 'Select one storyboard panel candidate image as the final panel image.',
+      intent: 'act',
+      groupPath: ['storyboard'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
         overwrite: true,
-        confirmationSummary: '将确认候选图并覆盖当前分镜图。确认继续后请重新调用并传入 confirmed=true。',
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
       },
-      scope: 'panel',
+      confirmation: {
+        required: true,
+        summary: '将确认候选图并覆盖当前分镜图。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: selectStoryboardPanelCandidateInputSchema,
       outputSchema: z.unknown(),
       execute: async (ctx, input) => executeStoryboardMutationOperation(ctx, {
         ...input,
         action: 'select_panel_candidate',
       }, 'select_storyboard_panel_candidate'),
-    },
-    cancel_storyboard_panel_candidates: {
+    }),
+    cancel_storyboard_panel_candidates: definePackedOperation({
       id: 'cancel_storyboard_panel_candidates',
-      description: 'Cancel and clear candidate images for a storyboard panel.',
-      tool: {
-        defaultVisibility: 'extended',
-        groups: ['storyboard', 'panel', 'candidate'],
-        tags: ['storyboard', 'panel', 'edit', 'candidate'],
-      },
-      selection: { baseWeight: 38, costHint: 'low' },
-      sideEffects: {
-        mode: 'act',
-        risk: 'high',
-        requiresConfirmation: true,
+      summary: 'Cancel and clear candidate images for a storyboard panel.',
+      intent: 'act',
+      groupPath: ['storyboard'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      effects: {
+        writes: true,
+        billable: false,
         destructive: true,
-        confirmationSummary: '将清空该分镜格的候选图。确认继续后请重新调用并传入 confirmed=true。',
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
       },
-      scope: 'panel',
+      confirmation: {
+        required: true,
+        summary: '将清空该分镜格的候选图。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: cancelStoryboardPanelCandidatesInputSchema,
       outputSchema: z.unknown(),
       execute: async (ctx, input) => executeStoryboardMutationOperation(ctx, {
         ...input,
         action: 'cancel_panel_candidates',
       }, 'cancel_storyboard_panel_candidates'),
-    },
-    insert_storyboard_panel: {
+    }),
+    insert_storyboard_panel: definePackedOperation({
       id: 'insert_storyboard_panel',
-      description: 'Insert a new storyboard panel after an existing panel and enqueue generation.',
-      tool: {
-        defaultVisibility: 'scenario',
-        groups: ['storyboard', 'panel', 'insert'],
-        tags: ['storyboard', 'panel', 'edit', 'insert'],
-      },
-      selection: { baseWeight: 46, costHint: 'high' },
-      sideEffects: {
-        mode: 'act',
-        risk: 'high',
-        requiresConfirmation: true,
-        overwrite: true,
+      summary: 'Insert a new storyboard panel after an existing panel and enqueue generation.',
+      intent: 'act',
+      groupPath: ['storyboard'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      effects: {
+        writes: true,
+        billable: true,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: true,
         longRunning: true,
-        confirmationSummary: '将插入新的分镜格并提交生成任务。确认继续后请重新调用并传入 confirmed=true。',
       },
-      scope: 'storyboard',
+      confirmation: {
+        required: true,
+        summary: '将插入新的分镜格并提交生成任务。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: insertStoryboardPanelInputSchema,
       outputSchema: z.unknown(),
       execute: async (ctx, input) => executeStoryboardMutationOperation(ctx, {
         ...input,
         action: 'insert_panel',
       }, 'insert_storyboard_panel'),
-    },
-    voice_generate: {
+    }),
+    voice_generate: definePackedOperation({
       id: 'voice_generate',
-      description: 'Generate voice line audio for one or more voice lines (async task submission).',
-      channels: { tool: false, api: true },
-      sideEffects: {
-        mode: 'act',
-        risk: 'high',
+      summary: 'Generate voice line audio for one or more voice lines (async task submission).',
+      intent: 'act',
+      groupPath: ['voice'],
+      channels: CHANNELS_API_ONLY,
+      prerequisites: PREREQ_EPISODE_REQUIRED,
+      effects: {
+        writes: true,
         billable: true,
-        requiresConfirmation: true,
+        destructive: false,
+        overwrite: false,
         bulk: true,
+        externalSideEffects: true,
         longRunning: true,
-        confirmationSummary: '将生成配音（可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
       },
-      scope: 'episode',
+      confirmation: CONFIRM_NONE,
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         episodeId: z.string().min(1).optional(),
@@ -2824,25 +2934,27 @@ export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegi
         operationId: 'voice_generate',
         all: input.all === true,
       }),
-    },
-    generate_voice_line_audio: {
+    }),
+    generate_voice_line_audio: definePackedOperation({
       id: 'generate_voice_line_audio',
-      description: 'Generate audio for a single voice line.',
-      tool: {
-        defaultVisibility: 'scenario',
-        groups: ['voice', 'line', 'generate'],
-        tags: ['asset', 'voice', 'edit'],
-      },
-      selection: { baseWeight: 36, costHint: 'high' },
-      sideEffects: {
-        mode: 'act',
-        risk: 'high',
+      summary: 'Generate audio for a single voice line.',
+      intent: 'act',
+      groupPath: ['voice'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_REQUIRED,
+      effects: {
+        writes: true,
         billable: true,
-        requiresConfirmation: true,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: true,
         longRunning: true,
-        confirmationSummary: '将为单条台词生成配音（可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
       },
-      scope: 'episode',
+      confirmation: {
+        required: true,
+        summary: '将为单条台词生成配音（可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: generateVoiceLineAudioInputSchema,
       outputSchema: z.unknown(),
       execute: async (ctx, input) => executeVoiceGenerateOperation({
@@ -2851,26 +2963,27 @@ export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegi
         operationId: 'generate_voice_line_audio',
         all: false,
       }),
-    },
-    generate_episode_voice_audio: {
+    }),
+    generate_episode_voice_audio: definePackedOperation({
       id: 'generate_episode_voice_audio',
-      description: 'Generate audio for all pending voice lines in an episode.',
-      tool: {
-        defaultVisibility: 'scenario',
-        groups: ['voice', 'episode', 'generate'],
-        tags: ['asset', 'voice', 'edit'],
-      },
-      selection: { baseWeight: 34, costHint: 'high' },
-      sideEffects: {
-        mode: 'act',
-        risk: 'high',
+      summary: 'Generate audio for all pending voice lines in an episode.',
+      intent: 'act',
+      groupPath: ['voice'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_REQUIRED,
+      effects: {
+        writes: true,
         billable: true,
-        requiresConfirmation: true,
+        destructive: false,
+        overwrite: false,
         bulk: true,
+        externalSideEffects: true,
         longRunning: true,
-        confirmationSummary: '将为整集待生成台词批量生成配音（可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
       },
-      scope: 'episode',
+      confirmation: {
+        required: true,
+        summary: '将为整集待生成台词批量生成配音（可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: generateEpisodeVoiceAudioInputSchema,
       outputSchema: z.unknown(),
       execute: async (ctx, input) => executeVoiceGenerateOperation({
@@ -2879,24 +2992,27 @@ export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegi
         operationId: 'generate_episode_voice_audio',
         all: true,
       }),
-    },
-    voice_design: {
+    }),
+    voice_design: definePackedOperation({
       id: 'voice_design',
-      description: 'Design a new voice using a text prompt and preview text (async task submission).',
-      tool: {
-        defaultVisibility: 'scenario',
-        groups: ['voice', 'design'],
-        tags: ['asset', 'voice', 'edit'],
-      },
-      selection: { baseWeight: 26, costHint: 'high' },
-      sideEffects: {
-        mode: 'act',
-        risk: 'high',
+      summary: 'Design a new voice using a text prompt and preview text (async task submission).',
+      intent: 'act',
+      groupPath: ['voice'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      effects: {
+        writes: true,
         billable: true,
-        requiresConfirmation: true,
-        confirmationSummary: '将进行音色设计（可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: true,
+        longRunning: true,
       },
-      scope: 'project',
+      confirmation: {
+        required: true,
+        summary: '将进行音色设计（可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         voicePrompt: z.string().min(1),
@@ -2960,26 +3076,27 @@ export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegi
 
         return result
       },
-    },
-    lip_sync: {
+    }),
+    lip_sync: definePackedOperation({
       id: 'lip_sync',
-      description: 'Generate lip-sync video for a storyboard panel using a voice line (async task submission).',
-      tool: {
-        defaultVisibility: 'scenario',
-        groups: ['storyboard', 'panel', 'lip-sync'],
-        tags: ['media', 'panel', 'storyboard', 'voice'],
-      },
-      selection: { baseWeight: 38, costHint: 'high' },
-      sideEffects: {
-        mode: 'act',
-        risk: 'high',
+      summary: 'Generate lip-sync video for a storyboard panel using a voice line (async task submission).',
+      intent: 'act',
+      groupPath: ['media', 'lipsync'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      effects: {
+        writes: true,
         billable: true,
-        requiresConfirmation: true,
+        destructive: false,
         overwrite: true,
+        bulk: false,
+        externalSideEffects: true,
         longRunning: true,
-        confirmationSummary: '将进行口型同步（可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
       },
-      scope: 'panel',
+      confirmation: {
+        required: true,
+        summary: '将进行口型同步（可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         storyboardId: z.string().min(1),
@@ -3076,22 +3193,24 @@ export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegi
           mutationBatchId: mutationBatch.id,
         }
       },
-    },
-    generate_video: {
+    }),
+    generate_video: definePackedOperation({
       id: 'generate_video',
-      description: 'Generate panel videos for a storyboard panel or an episode batch (async task submission).',
-      channels: { tool: false, api: true },
-      sideEffects: {
-        mode: 'act',
-        risk: 'high',
+      summary: 'Generate panel videos for a storyboard panel or an episode batch (async task submission).',
+      intent: 'act',
+      groupPath: ['media', 'video'],
+      channels: CHANNELS_API_ONLY,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      effects: {
+        writes: true,
         billable: true,
-        requiresConfirmation: true,
+        destructive: false,
         overwrite: true,
         bulk: true,
+        externalSideEffects: true,
         longRunning: true,
-        confirmationSummary: '将生成视频（可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
       },
-      scope: 'episode',
+      confirmation: CONFIRM_NONE,
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         all: z.boolean().optional(),
@@ -3111,26 +3230,27 @@ export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegi
         operationId: 'generate_video',
         batch: input.all === true,
       }),
-    },
-    generate_panel_video: {
+    }),
+    generate_panel_video: definePackedOperation({
       id: 'generate_panel_video',
-      description: 'Generate video for a single storyboard panel.',
-      tool: {
-        defaultVisibility: 'scenario',
-        groups: ['video', 'panel', 'generate'],
-        tags: ['video', 'media', 'panel', 'storyboard'],
-      },
-      selection: { baseWeight: 44, costHint: 'high' },
-      sideEffects: {
-        mode: 'act',
-        risk: 'high',
+      summary: 'Generate video for a single storyboard panel.',
+      intent: 'act',
+      groupPath: ['media', 'video'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_OPTIONAL,
+      effects: {
+        writes: true,
         billable: true,
-        requiresConfirmation: true,
+        destructive: false,
         overwrite: true,
+        bulk: false,
+        externalSideEffects: true,
         longRunning: true,
-        confirmationSummary: '将为单个分镜格生成视频（可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
       },
-      scope: 'panel',
+      confirmation: {
+        required: true,
+        summary: '将为单个分镜格生成视频（可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: generatePanelVideoInputSchema,
       outputSchema: z.unknown(),
       execute: async (ctx, input) => executeGenerateVideoOperation({
@@ -3139,27 +3259,27 @@ export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegi
         operationId: 'generate_panel_video',
         batch: false,
       }),
-    },
-    generate_episode_videos: {
+    }),
+    generate_episode_videos: definePackedOperation({
       id: 'generate_episode_videos',
-      description: 'Batch generate videos for pending panels in an episode.',
-      tool: {
-        defaultVisibility: 'scenario',
-        groups: ['video', 'episode', 'generate'],
-        tags: ['video', 'media', 'panel', 'storyboard'],
-      },
-      selection: { baseWeight: 40, costHint: 'high' },
-      sideEffects: {
-        mode: 'act',
-        risk: 'high',
+      summary: 'Batch generate videos for pending panels in an episode.',
+      intent: 'act',
+      groupPath: ['media', 'video'],
+      channels: CHANNELS_TOOL_API,
+      prerequisites: PREREQ_EPISODE_REQUIRED,
+      effects: {
+        writes: true,
         billable: true,
-        requiresConfirmation: true,
+        destructive: false,
         overwrite: true,
         bulk: true,
+        externalSideEffects: true,
         longRunning: true,
-        confirmationSummary: '将为整集待生成分镜批量生成视频（可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
       },
-      scope: 'episode',
+      confirmation: {
+        required: true,
+        summary: '将为整集待生成分镜批量生成视频（可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: generateEpisodeVideosInputSchema,
       outputSchema: z.unknown(),
       execute: async (ctx, input) => executeGenerateVideoOperation({
@@ -3168,6 +3288,6 @@ export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegi
         operationId: 'generate_episode_videos',
         batch: true,
       }),
-    },
+    }),
   }
 }

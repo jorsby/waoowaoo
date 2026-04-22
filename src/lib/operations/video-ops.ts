@@ -4,7 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { ApiError } from '@/lib/api-errors'
 import { getSignedUrl, toFetchableUrl } from '@/lib/storage'
 import { resolveStorageKeyFromMediaValue } from '@/lib/media/service'
-import type { ProjectAgentOperationRegistry } from './types'
+import type { ProjectAgentOperationRegistryDraft } from './types'
+import { defineOperation } from './define-operation'
 
 function normalizeString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
@@ -108,21 +109,29 @@ async function loadVideoEpisodes(params: { projectId: string; episodeId: string 
   }))
 }
 
-export function createVideoOperations(): ProjectAgentOperationRegistry {
+export function createVideoOperations(): ProjectAgentOperationRegistryDraft {
   return {
-    get_project_video_urls: {
+    get_project_video_urls: defineOperation({
       id: 'get_project_video_urls',
-      description: 'List downloadable project video URLs (via proxy) for client-side downloads.',
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'project',
+      summary: 'List downloadable project video URLs (via proxy) for client-side downloads.',
+      intent: 'query',
+      effects: {
+        writes: false,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({
         episodeId: z.string().optional(),
         panelPreferences: z.record(z.boolean()).optional(),
       }).passthrough(),
       outputSchema: z.unknown(),
       execute: async (ctx, input) => {
-        const episodeId = normalizeString((input as Record<string, unknown>).episodeId) || null
-        const panelPreferences = readPanelPreferences((input as Record<string, unknown>).panelPreferences)
+        const episodeId = normalizeString(input.episodeId) || null
+        const panelPreferences = readPanelPreferences(input.panelPreferences)
         const episodes = await loadVideoEpisodes({ projectId: ctx.projectId, episodeId })
 
         if (episodes.length === 0) {
@@ -195,13 +204,21 @@ export function createVideoOperations(): ProjectAgentOperationRegistry {
           videos,
         }
       },
-    },
+    }),
 
-    resolve_video_proxy: {
+    resolve_video_proxy: defineOperation({
       id: 'resolve_video_proxy',
-      description: 'Resolve a video proxy key into a fetchable signed URL (storage-only, avoids SSRF).',
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'project',
+      summary: 'Resolve a video proxy key into a fetchable signed URL (storage-only, avoids SSRF).',
+      intent: 'query',
+      effects: {
+        writes: false,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({
         key: z.string().min(1),
         expiresSeconds: z.number().int().positive().max(24 * 60 * 60).optional(),
@@ -220,21 +237,29 @@ export function createVideoOperations(): ProjectAgentOperationRegistry {
         const fetchUrl = toFetchableUrl(getSignedUrl(storageKey, expires))
         return { fetchUrl, storageKey, expiresSeconds: expires }
       },
-    },
+    }),
 
-    list_download_videos: {
+    list_download_videos: defineOperation({
       id: 'list_download_videos',
-      description: 'Build a stable download plan for project videos (storage keys + filenames).',
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'project',
+      summary: 'Build a stable download plan for project videos (storage keys + filenames).',
+      intent: 'query',
+      effects: {
+        writes: false,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({
         episodeId: z.string().optional(),
         panelPreferences: z.record(z.boolean()).optional(),
       }).passthrough(),
       outputSchema: z.unknown(),
       execute: async (ctx, input) => {
-        const episodeId = normalizeString((input as Record<string, unknown>).episodeId) || null
-        const panelPreferences = readPanelPreferences((input as Record<string, unknown>).panelPreferences)
+        const episodeId = normalizeString(input.episodeId) || null
+        const panelPreferences = readPanelPreferences(input.panelPreferences)
         const episodes = await loadVideoEpisodes({ projectId: ctx.projectId, episodeId })
 
         if (episodes.length === 0) {
@@ -318,7 +343,6 @@ export function createVideoOperations(): ProjectAgentOperationRegistry {
           files,
         }
       },
-    },
+    }),
   }
 }
-

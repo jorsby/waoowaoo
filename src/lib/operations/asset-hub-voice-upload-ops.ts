@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { attachMediaFieldsToGlobalVoice } from '@/lib/media/attach'
 import { resolveMediaRefFromLegacyValue } from '@/lib/media/service'
 import { generateUniqueKey, uploadObject } from '@/lib/storage'
-import type { ProjectAgentOperationRegistry } from './types'
+import type { ProjectAgentOperationRegistryDraft } from './types'
 
 type UploadFileLike = {
   name: string
@@ -70,13 +70,21 @@ function isSupportedAudio(params: { fileType: string; filename: string }): boole
   return normalized ? AUDIO_MIME_TYPES.has(normalized) : false
 }
 
-export function createAssetHubVoiceUploadOperations(): ProjectAgentOperationRegistry {
+export function createAssetHubVoiceUploadOperations(): ProjectAgentOperationRegistryDraft {
   return {
     asset_hub_upload_voice: {
       id: 'asset_hub_upload_voice',
-      description: 'Upload an audio file into the global voice library and create a GlobalVoice record.',
-      sideEffects: { mode: 'act', risk: 'medium' },
-      scope: 'system',
+      summary: 'Upload an audio file into the global voice library and create a GlobalVoice record.',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: true,
+        longRunning: false,
+      },
       inputSchema: z.object({}).passthrough(),
       outputSchema: z.unknown(),
       execute: async (ctx, _input) => {
@@ -151,4 +159,3 @@ export function createAssetHubVoiceUploadOperations(): ProjectAgentOperationRegi
     },
   }
 }
-

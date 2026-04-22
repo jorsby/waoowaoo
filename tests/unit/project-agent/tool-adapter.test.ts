@@ -3,6 +3,7 @@ import { z } from 'zod'
 import type { UIMessage, UIMessageStreamWriter } from 'ai'
 import type { NextRequest } from 'next/server'
 import type { ProjectAgentOperationRegistry } from '@/lib/operations/types'
+import { makeTestOperation, EFFECTS_NONE, EFFECTS_WRITE } from '../../helpers/project-agent-operations'
 
 const registryState = vi.hoisted(() => ({
   registry: {} as ProjectAgentOperationRegistry,
@@ -34,15 +35,15 @@ describe('executeProjectAgentOperationFromTool', () => {
 
   it('[invalid input] -> returns structured error with issues', async () => {
     registryState.registry = {
-      test_op: {
+      test_op: makeTestOperation({
         id: 'test_op',
-        description: 'test',
-        scope: 'project',
-        sideEffects: { mode: 'act', risk: 'low' },
+        summary: 'test',
+        intent: 'act',
+        effects: EFFECTS_WRITE,
         inputSchema: z.object({ name: z.string().min(1) }),
         outputSchema: z.object({ ok: z.boolean() }),
         execute: vi.fn(async () => ({ ok: true })),
-      },
+      }),
     }
 
     const result = await executeProjectAgentOperationFromTool({
@@ -65,22 +66,23 @@ describe('executeProjectAgentOperationFromTool', () => {
   it('[confirmation required] -> writes confirmation card and returns error', async () => {
     const writer = buildWriter()
     registryState.registry = {
-      confirm_op: {
+      confirm_op: makeTestOperation({
         id: 'confirm_op',
-        description: 'confirm',
-        scope: 'project',
-        sideEffects: {
-          mode: 'act',
-          risk: 'high',
-          requiresConfirmation: true,
-          confirmationSummary: 'needs confirm',
-          budgetKey: 'assistant-budget',
-          estimatedCostUnits: 3,
+        summary: 'confirm',
+        intent: 'act',
+        effects: EFFECTS_WRITE,
+        confirmation: {
+          required: true,
+          summary: 'needs confirm',
+          budget: {
+            key: 'assistant-budget',
+            estimatedCostUnits: 3,
+          },
         },
         inputSchema: z.object({ confirmed: z.boolean().optional() }),
         outputSchema: z.object({ ok: z.boolean() }),
         execute: vi.fn(async () => ({ ok: true })),
-      },
+      }),
     }
 
     const result = await executeProjectAgentOperationFromTool({
@@ -116,20 +118,19 @@ describe('executeProjectAgentOperationFromTool', () => {
     const writer = buildWriter()
     const execute = vi.fn(async () => ({ ok: true }))
     registryState.registry = {
-      confirm_ok_op: {
+      confirm_ok_op: makeTestOperation({
         id: 'confirm_ok_op',
-        description: 'confirm ok',
-        scope: 'project',
-        sideEffects: {
-          mode: 'act',
-          risk: 'high',
-          requiresConfirmation: true,
-          confirmationSummary: 'needs confirm',
+        summary: 'confirm ok',
+        intent: 'act',
+        effects: EFFECTS_WRITE,
+        confirmation: {
+          required: true,
+          summary: 'needs confirm',
         },
         inputSchema: z.object({ confirmed: z.boolean().optional() }),
         outputSchema: z.object({ ok: z.boolean() }),
         execute,
-      },
+      }),
     }
 
     const result = await executeProjectAgentOperationFromTool({
@@ -152,17 +153,17 @@ describe('executeProjectAgentOperationFromTool', () => {
 
   it('[execution error] -> returns structured error', async () => {
     registryState.registry = {
-      fail_op: {
+      fail_op: makeTestOperation({
         id: 'fail_op',
-        description: 'fail',
-        scope: 'project',
-        sideEffects: { mode: 'act', risk: 'low' },
+        summary: 'fail',
+        intent: 'act',
+        effects: EFFECTS_WRITE,
         inputSchema: z.object({}),
         outputSchema: z.object({ ok: z.boolean() }),
         execute: vi.fn(async () => {
           throw new Error('boom')
         }),
-      },
+      }),
     }
 
     const result = await executeProjectAgentOperationFromTool({
@@ -184,17 +185,17 @@ describe('executeProjectAgentOperationFromTool', () => {
 
   it('[execution throws undefined] -> returns fallback message', async () => {
     registryState.registry = {
-      fail_undefined: {
+      fail_undefined: makeTestOperation({
         id: 'fail_undefined',
-        description: 'fail undefined',
-        scope: 'project',
-        sideEffects: { mode: 'act', risk: 'low' },
+        summary: 'fail undefined',
+        intent: 'act',
+        effects: EFFECTS_WRITE,
         inputSchema: z.object({}),
         outputSchema: z.object({ ok: z.boolean() }),
         execute: vi.fn(async () => {
           throw undefined
         }),
-      },
+      }),
     }
 
     const result = await executeProjectAgentOperationFromTool({
@@ -216,17 +217,17 @@ describe('executeProjectAgentOperationFromTool', () => {
 
   it('[execution throws symbol] -> returns fallback message', async () => {
     registryState.registry = {
-      fail_symbol: {
+      fail_symbol: makeTestOperation({
         id: 'fail_symbol',
-        description: 'fail symbol',
-        scope: 'project',
-        sideEffects: { mode: 'act', risk: 'low' },
+        summary: 'fail symbol',
+        intent: 'act',
+        effects: EFFECTS_WRITE,
         inputSchema: z.object({}),
         outputSchema: z.object({ ok: z.boolean() }),
         execute: vi.fn(async () => {
           throw Symbol('boom')
         }),
-      },
+      }),
     }
 
     const result = await executeProjectAgentOperationFromTool({
@@ -248,17 +249,17 @@ describe('executeProjectAgentOperationFromTool', () => {
 
   it('[execution throws function] -> returns fallback message', async () => {
     registryState.registry = {
-      fail_function: {
+      fail_function: makeTestOperation({
         id: 'fail_function',
-        description: 'fail function',
-        scope: 'project',
-        sideEffects: { mode: 'act', risk: 'low' },
+        summary: 'fail function',
+        intent: 'act',
+        effects: EFFECTS_WRITE,
         inputSchema: z.object({}),
         outputSchema: z.object({ ok: z.boolean() }),
         execute: vi.fn(async () => {
           throw (() => 'boom')
         }),
-      },
+      }),
     }
 
     const result = await executeProjectAgentOperationFromTool({
@@ -280,15 +281,15 @@ describe('executeProjectAgentOperationFromTool', () => {
 
   it('[output schema mismatch] -> returns structured error', async () => {
     registryState.registry = {
-      output_op: {
+      output_op: makeTestOperation({
         id: 'output_op',
-        description: 'output',
-        scope: 'project',
-        sideEffects: { mode: 'query', risk: 'low' },
+        summary: 'output',
+        intent: 'query',
+        effects: EFFECTS_NONE,
         inputSchema: z.object({}),
         outputSchema: z.object({ ok: z.boolean() }),
-        execute: vi.fn(async () => ({ missing: true })),
-      },
+        execute: vi.fn(async () => ({ missing: true } as unknown as { ok: boolean })),
+      }),
     }
 
     const result = await executeProjectAgentOperationFromTool({
@@ -310,15 +311,15 @@ describe('executeProjectAgentOperationFromTool', () => {
 
   it('[success] -> wraps output in ok data', async () => {
     registryState.registry = {
-      ok_op: {
+      ok_op: makeTestOperation({
         id: 'ok_op',
-        description: 'ok',
-        scope: 'project',
-        sideEffects: { mode: 'query', risk: 'low' },
+        summary: 'ok',
+        intent: 'query',
+        effects: EFFECTS_NONE,
         inputSchema: z.object({}),
         outputSchema: z.object({ ok: z.boolean() }),
         execute: vi.fn(async () => ({ ok: true })),
-      },
+      }),
     }
 
     const result = await executeProjectAgentOperationFromTool({

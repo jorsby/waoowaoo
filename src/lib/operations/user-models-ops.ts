@@ -11,7 +11,7 @@ import {
 import { findBuiltinCapabilities } from '@/lib/model-capabilities/catalog'
 import { findBuiltinPricingCatalogEntry } from '@/lib/model-pricing/catalog'
 import type { VideoPricingTier } from '@/lib/model-pricing/video-tier'
-import type { ProjectAgentOperationRegistry } from './types'
+import type { ProjectAgentOperationRegistryDraft } from './types'
 
 type StoredModelType = UnifiedModelType | string
 
@@ -156,13 +156,21 @@ function isUserSelectableModel(model: StoredModel): boolean {
   return !AUDIO_MODEL_EXCLUDED_IDS.has(modelId)
 }
 
-export function createUserModelsOperations(): ProjectAgentOperationRegistry {
+export function createUserModelsOperations(): ProjectAgentOperationRegistryDraft {
   return {
     list_user_models: {
       id: 'list_user_models',
-      description: 'List user-enabled models (from userPreference.customModels/customProviders) for config dropdowns.',
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'system',
+      summary: 'List user-enabled models (from userPreference.customModels/customProviders) for config dropdowns.',
+      intent: 'query',
+      effects: {
+        writes: false,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({}).passthrough(),
       outputSchema: z.unknown(),
       execute: async (ctx) => {
@@ -240,4 +248,3 @@ export function createUserModelsOperations(): ProjectAgentOperationRegistry {
     },
   }
 }
-

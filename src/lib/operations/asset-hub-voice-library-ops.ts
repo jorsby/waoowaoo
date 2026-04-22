@@ -3,7 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { ApiError } from '@/lib/api-errors'
 import { attachMediaFieldsToGlobalVoice } from '@/lib/media/attach'
 import { resolveMediaRefFromLegacyValue } from '@/lib/media/service'
-import type { ProjectAgentOperationRegistry } from './types'
+import type { ProjectAgentOperationRegistryDraft } from './types'
+import { defineOperation } from './define-operation'
 
 function normalizeString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
@@ -17,19 +18,21 @@ function normalizeFolderFilter(value: unknown): string | null | undefined {
   return text
 }
 
-export function createAssetHubVoiceLibraryOperations(): ProjectAgentOperationRegistry {
+export function createAssetHubVoiceLibraryOperations(): ProjectAgentOperationRegistryDraft {
   return {
-    asset_hub_list_voices: {
+    asset_hub_list_voices: defineOperation({
       id: 'asset_hub_list_voices',
-      description: 'List global voices for the current user (optionally filtered by folderId).',
-      tool: {
-        selectable: true,
-        defaultVisibility: 'extended',
-        groups: ['asset-hub', 'read', 'voice'],
-        tags: ['asset-hub', 'read', 'voice'],
+      summary: 'List global voices for the current user (optionally filtered by folderId).',
+      intent: 'query',
+      effects: {
+        writes: false,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
       },
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'system',
       inputSchema: z.object({
         folderId: z.string().optional(),
       }).passthrough(),
@@ -55,13 +58,21 @@ export function createAssetHubVoiceLibraryOperations(): ProjectAgentOperationReg
 
         return { voices: signedVoices }
       },
-    },
+    }),
 
-    asset_hub_create_voice: {
+    asset_hub_create_voice: defineOperation({
       id: 'asset_hub_create_voice',
-      description: 'Create a global voice entry for the current user.',
-      sideEffects: { mode: 'act', risk: 'low' },
-      scope: 'system',
+      summary: 'Create a global voice entry for the current user.',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({}).passthrough(),
       outputSchema: z.unknown(),
       execute: async (ctx, input) => {
@@ -114,13 +125,21 @@ export function createAssetHubVoiceLibraryOperations(): ProjectAgentOperationReg
         const withMedia = await attachMediaFieldsToGlobalVoice(voice)
         return { success: true, voice: withMedia }
       },
-    },
+    }),
 
-    asset_hub_update_voice: {
+    asset_hub_update_voice: defineOperation({
       id: 'asset_hub_update_voice',
-      description: 'Update a global voice entry (name/description/folderId).',
-      sideEffects: { mode: 'act', risk: 'low' },
-      scope: 'system',
+      summary: 'Update a global voice entry (name/description/folderId).',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: true,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({
         id: z.string().min(1),
       }).passthrough(),
@@ -155,19 +174,25 @@ export function createAssetHubVoiceLibraryOperations(): ProjectAgentOperationReg
 
         return { success: true, voice: updatedVoice }
       },
-    },
+    }),
 
-    asset_hub_delete_voice: {
+    asset_hub_delete_voice: defineOperation({
       id: 'asset_hub_delete_voice',
-      description: 'Delete a global voice entry.',
-      sideEffects: {
-        mode: 'act',
-        risk: 'high',
+      summary: 'Delete a global voice entry.',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
         destructive: true,
-        requiresConfirmation: true,
-        confirmationSummary: '将删除该音色记录（不可恢复）。确认继续后请重新调用并传入 confirmed=true。',
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
       },
-      scope: 'system',
+      confirmation: {
+        required: true,
+        summary: '将删除该音色记录（不可恢复）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         id: z.string().min(1),
@@ -188,6 +213,6 @@ export function createAssetHubVoiceLibraryOperations(): ProjectAgentOperationReg
         await prisma.globalVoice.delete({ where: { id: input.id } })
         return { success: true }
       },
-    },
+    }),
   }
 }

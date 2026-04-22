@@ -22,29 +22,10 @@ export type ProjectAgentDomain =
   | 'debug'
   | 'unknown'
 
-export type ProjectAgentToolCategory =
-  | 'project-overview'
-  | 'workflow-plan'
-  | 'workflow-run'
-  | 'run-manage'
-  | 'task-manage'
-  | 'storyboard-read'
-  | 'storyboard-edit'
-  | 'panel-media'
-  | 'asset-character'
-  | 'asset-location'
-  | 'asset-voice'
-  | 'asset-hub'
-  | 'config'
-  | 'billing'
-  | 'governance'
-  | 'download'
-  | 'debug'
-
 export interface ProjectAgentRouteDecision {
   intent: ProjectAgentIntent
   domains: ProjectAgentDomain[]
-  toolCategories: ProjectAgentToolCategory[]
+  requestedGroups: string[][]
   confidence: number
   needsClarification: boolean
   clarifyingQuestion: string | null
@@ -72,30 +53,61 @@ const routerSchema = z.object({
     'debug',
     'unknown',
   ])).min(1),
-  toolCategories: z.array(z.enum([
-    'project-overview',
-    'workflow-plan',
-    'workflow-run',
-    'run-manage',
-    'task-manage',
-    'storyboard-read',
-    'storyboard-edit',
-    'panel-media',
-    'asset-character',
-    'asset-location',
-    'asset-voice',
-    'asset-hub',
-    'config',
-    'billing',
-    'governance',
-    'download',
-    'debug',
-  ])).min(1),
+  requestedGroups: z.array(z.array(z.string().min(1)).min(1)).max(8),
   confidence: z.number().min(0).max(1),
   needsClarification: z.boolean(),
   clarifyingQuestion: z.string().nullable(),
   reasoning: z.array(z.string()).max(8),
 })
+
+function serializeGroupPath(groupPath: string[]): string {
+  return groupPath.join('/')
+}
+
+function normalizeGroupPath(raw: unknown): string[] | null {
+  if (!Array.isArray(raw) || raw.length === 0) return null
+  const trimmed = raw
+    .map((segment) => (typeof segment === 'string' ? segment.trim() : ''))
+    .filter(Boolean)
+  return trimmed.length > 0 ? trimmed : null
+}
+
+function filterRequestedGroups(params: {
+  requestedGroups: unknown
+  allowedRequestedGroups: string[][]
+  reasoning: string[]
+}): string[][] {
+  const allowedSet = new Set<string>(
+    params.allowedRequestedGroups.map((groupPath) => serializeGroupPath(groupPath)),
+  )
+  const requested = Array.isArray(params.requestedGroups) ? params.requestedGroups : []
+
+  const output: string[][] = []
+  const seen = new Set<string>()
+  let dropped = 0
+
+  for (const item of requested) {
+    const normalized = normalizeGroupPath(item)
+    if (!normalized) {
+      dropped += 1
+      continue
+    }
+    const key = serializeGroupPath(normalized)
+    if (!allowedSet.has(key)) {
+      dropped += 1
+      continue
+    }
+    if (seen.has(key)) continue
+    seen.add(key)
+    output.push(normalized)
+  }
+
+  if (dropped > 0) {
+    params.reasoning.push(`router:requestedGroups_dropped=${String(dropped)}`)
+  }
+
+  return output
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
@@ -154,30 +166,13 @@ function buildRouterPrompt(params: {
   conversationExcerpt: string
   phaseSummary: string
   context: ProjectAgentContext
+  allowedRequestedGroups: string[][]
 }): { system: string; prompt: string } {
   const episodeId = params.context.episodeId || 'none'
   const stage = params.context.currentStage || 'unknown'
   const interactionMode = params.context.interactionMode || 'auto'
 
-  const categoryList = [
-    'project-overview',
-    'workflow-plan',
-    'workflow-run',
-    'run-manage',
-    'task-manage',
-    'storyboard-read',
-    'storyboard-edit',
-    'panel-media',
-    'asset-character',
-    'asset-location',
-    'asset-voice',
-    'asset-hub',
-    'config',
-    'billing',
-    'governance',
-    'download',
-    'debug',
-  ].join(', ')
+  const groupList = JSON.stringify(params.allowedRequestedGroups)
 
   if (params.locale === 'en') {
     return {
@@ -186,9 +181,10 @@ function buildRouterPrompt(params: {
         'Your task is to classify the user turn before the main assistant acts.',
         'Use high confidence only when the user goal is genuinely clear.',
         'If the request is ambiguous, set needsClarification=true and provide one short clarifyingQuestion.',
-        'If a tool category might be needed, include it. Prefer recall over aggressive exclusion.',
+        'If any tool group might be needed, include it. Prefer recall over aggressive exclusion.',
         'Do not rely on previous rule routing. Output only from the provided schema.',
-        `Allowed toolCategories: ${categoryList}`,
+        'requestedGroups is a list of groupPath arrays, e.g. ["workflow","plan"].',
+        `Allowed requestedGroups (choose from this list): ${groupList}`,
       ].join('\n'),
       prompt: [
         `episodeId=${episodeId}`,
@@ -213,9 +209,10 @@ function buildRouterPrompt(params: {
       '你的任务是在主 assistant 执行前，对当前用户请求做结构化分类。',
       '只有当用户目标真的明确时，才能给高置信度。',
       '如果请求有歧义，必须设置 needsClarification=true，并提供一个简短的 clarifyingQuestion。',
-      '如果某个工具类别可能需要用到，就把它包含进去。宁可高召回，不要激进排除。',
+      '如果某个工具 group 可能需要用到，就把它包含进去。宁可高召回，不要激进排除。',
       '禁止依赖旧的规则路由，必须只按 schema 输出。',
-      `允许的 toolCategories: ${categoryList}`,
+      'requestedGroups 是 groupPath 数组列表，例如 ["workflow","plan"]。',
+      `允许的 requestedGroups（必须从该列表中选择）：${groupList}`,
     ].join('\n'),
     prompt: [
       `episodeId=${episodeId}`,
@@ -239,13 +236,14 @@ export async function routeProjectAgentRequest(input: {
   phase: ProjectPhaseSnapshot
   context: ProjectAgentContext
   model: LanguageModel
+  allowedRequestedGroups: string[][]
 }): Promise<ProjectAgentRouteDecision> {
   const latestUserText = extractLatestUserText(input.messages)
   if (!latestUserText) {
     return {
       intent: 'query',
       domains: ['unknown'],
-      toolCategories: ['project-overview'],
+      requestedGroups: [],
       confidence: 0,
       needsClarification: true,
       clarifyingQuestion: normalizeProjectAgentLocale(input.context.locale) === 'en'
@@ -263,6 +261,7 @@ export async function routeProjectAgentRequest(input: {
     conversationExcerpt: extractConversationExcerpt(input.messages),
     phaseSummary: buildPhaseSummary(input.phase),
     context: input.context,
+    allowedRequestedGroups: input.allowedRequestedGroups,
   })
 
   const result = await generateObject({
@@ -283,14 +282,21 @@ export async function routeProjectAgentRequest(input: {
         : '请补充你希望我执行的具体动作或目标结果。'))
     : null
 
+  const reasoning = [...object.reasoning]
+  const requestedGroups = filterRequestedGroups({
+    requestedGroups: object.requestedGroups,
+    allowedRequestedGroups: input.allowedRequestedGroups,
+    reasoning,
+  })
+
   return {
     intent: object.intent,
     domains: Array.from(new Set(object.domains)),
-    toolCategories: Array.from(new Set(object.toolCategories)),
+    requestedGroups,
     confidence,
     needsClarification: clarificationRequired,
     clarifyingQuestion,
-    reasoning: object.reasoning,
+    reasoning,
     latestUserText,
   }
 }

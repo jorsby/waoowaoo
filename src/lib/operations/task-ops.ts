@@ -5,7 +5,8 @@ import { removeTaskJob } from '@/lib/task/queues'
 import { listTaskLifecycleEvents, publishTaskEvent } from '@/lib/task/publisher'
 import { cancelTask, dismissFailedTasks, getTaskById, queryTasks } from '@/lib/task/service'
 import { TASK_EVENT_TYPE, type TaskStatus } from '@/lib/task/types'
-import type { ProjectAgentOperationRegistry } from './types'
+import type { ProjectAgentOperationRegistryDraft } from './types'
+import { defineOperation } from './define-operation'
 
 function toObject(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
@@ -26,13 +27,21 @@ function withTaskError(task: Awaited<ReturnType<typeof queryTasks>>[number]) {
   }
 }
 
-export function createTaskOperations(): ProjectAgentOperationRegistry {
+export function createTaskOperations(): ProjectAgentOperationRegistryDraft {
   return {
-    list_tasks: {
+    list_tasks: defineOperation({
       id: 'list_tasks',
-      description: 'List tasks for the current user with optional filters.',
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'system',
+      summary: 'List tasks for the current user with optional filters.',
+      intent: 'query',
+      effects: {
+        writes: false,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({}).passthrough(),
       outputSchema: z.unknown(),
       execute: async (ctx, input) => {
@@ -65,13 +74,25 @@ export function createTaskOperations(): ProjectAgentOperationRegistry {
           .map(withTaskError)
         return { tasks: filtered }
       },
-    },
+    }),
 
-    dismiss_failed_tasks: {
+    dismiss_failed_tasks: defineOperation({
       id: 'dismiss_failed_tasks',
-      description: 'Dismiss failed tasks in bulk for the current user.',
-      sideEffects: { mode: 'act', risk: 'medium', destructive: true, bulk: true, requiresConfirmation: true, confirmationSummary: '将批量 dismiss 失败任务（不可逆）。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'system',
+      summary: 'Dismiss failed tasks in bulk for the current user.',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: true,
+        overwrite: false,
+        bulk: true,
+        externalSideEffects: false,
+        longRunning: false,
+      },
+      confirmation: {
+        required: true,
+        summary: '将批量 dismiss 失败任务（不可逆）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({}).passthrough(),
       outputSchema: z.unknown(),
       execute: async (ctx, input) => {
@@ -91,13 +112,21 @@ export function createTaskOperations(): ProjectAgentOperationRegistry {
         const count = await dismissFailedTasks(taskIds, ctx.userId)
         return { success: true, dismissed: count }
       },
-    },
+    }),
 
-    get_task: {
+    get_task: defineOperation({
       id: 'get_task',
-      description: 'Get task detail for the current user; optionally includes lifecycle events.',
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'system',
+      summary: 'Get task detail for the current user; optionally includes lifecycle events.',
+      intent: 'query',
+      effects: {
+        writes: false,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({}).passthrough(),
       outputSchema: z.unknown(),
       execute: async (ctx, input) => {
@@ -127,14 +156,27 @@ export function createTaskOperations(): ProjectAgentOperationRegistry {
           ...(events ? { events } : {}),
         }
       },
-    },
+    }),
 
-    cancel_task: {
+    cancel_task: defineOperation({
       id: 'cancel_task',
-      description: 'Cancel a task owned by the current user and publish cancelled lifecycle payload.',
-      sideEffects: { mode: 'act', risk: 'medium', destructive: true, requiresConfirmation: true, confirmationSummary: '将取消该任务。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'system',
+      summary: 'Cancel a task owned by the current user and publish cancelled lifecycle payload.',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: true,
+        overwrite: true,
+        bulk: false,
+        externalSideEffects: true,
+        longRunning: false,
+      },
+      confirmation: {
+        required: true,
+        summary: '将取消该任务。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
+        confirmed: z.boolean().optional(),
         taskId: z.string().min(1),
       }),
       outputSchema: z.unknown(),
@@ -180,7 +222,6 @@ export function createTaskOperations(): ProjectAgentOperationRegistry {
           },
         }
       },
-    },
+    }),
   }
 }
-

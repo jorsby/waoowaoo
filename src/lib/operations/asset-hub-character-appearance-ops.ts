@@ -3,7 +3,8 @@ import { ApiError } from '@/lib/api-errors'
 import { prisma } from '@/lib/prisma'
 import { encodeImageUrls } from '@/lib/contracts/image-urls-contract'
 import { PRIMARY_APPEARANCE_INDEX, isArtStyleValue } from '@/lib/constants'
-import type { ProjectAgentOperationRegistry } from './types'
+import type { ProjectAgentOperationRegistryDraft } from './types'
+import { defineOperation } from './define-operation'
 
 function normalizeString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
@@ -28,13 +29,21 @@ function parseDescriptions(jsonValue: unknown): string[] {
   }
 }
 
-export function createAssetHubCharacterAppearanceOperations(): ProjectAgentOperationRegistry {
+export function createAssetHubCharacterAppearanceOperations(): ProjectAgentOperationRegistryDraft {
   return {
-    asset_hub_update_character_appearance: {
+    asset_hub_update_character_appearance: defineOperation({
       id: 'asset_hub_update_character_appearance',
-      description: 'Update a global character appearance description/changeReason/artStyle.',
-      sideEffects: { mode: 'act', risk: 'medium' },
-      scope: 'system',
+      summary: 'Update a global character appearance description/changeReason/artStyle.',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: true,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({
         characterId: z.string().min(1),
         appearanceIndex: z.union([z.number().int().min(0), z.string().min(1)]),
@@ -106,13 +115,21 @@ export function createAssetHubCharacterAppearanceOperations(): ProjectAgentOpera
 
         return { success: true }
       },
-    },
+    }),
 
-    asset_hub_add_character_appearance: {
+    asset_hub_add_character_appearance: defineOperation({
       id: 'asset_hub_add_character_appearance',
-      description: 'Add a new appearance to a global character.',
-      sideEffects: { mode: 'act', risk: 'medium' },
-      scope: 'system',
+      summary: 'Add a new appearance to a global character.',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({
         characterId: z.string().min(1),
         description: z.string().min(1),
@@ -163,19 +180,25 @@ export function createAssetHubCharacterAppearanceOperations(): ProjectAgentOpera
 
         return { success: true, appearance }
       },
-    },
+    }),
 
-    asset_hub_delete_character_appearance: {
+    asset_hub_delete_character_appearance: defineOperation({
       id: 'asset_hub_delete_character_appearance',
-      description: 'Delete a global character appearance by index.',
-      sideEffects: {
-        mode: 'act',
-        risk: 'high',
+      summary: 'Delete a global character appearance by index.',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
         destructive: true,
-        requiresConfirmation: true,
-        confirmationSummary: '将删除该角色形象记录（不可恢复）。确认继续后请重新调用并传入 confirmed=true。',
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
       },
-      scope: 'system',
+      confirmation: {
+        required: true,
+        summary: '将删除该角色形象记录（不可恢复）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         characterId: z.string().min(1),
@@ -202,7 +225,6 @@ export function createAssetHubCharacterAppearanceOperations(): ProjectAgentOpera
         await prisma.globalCharacterAppearance.delete({ where: { id: appearance.id } })
         return { success: true }
       },
-    },
+    }),
   }
 }
-

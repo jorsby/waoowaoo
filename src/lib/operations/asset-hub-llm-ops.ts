@@ -6,7 +6,8 @@ import { getUserModelConfig } from '@/lib/config-service'
 import { TASK_TYPE } from '@/lib/task/types'
 import { normalizeImageGenerationCount } from '@/lib/image-generation/count'
 import { sanitizeImageInputsForTaskPayload } from '@/lib/media/outbound-image'
-import type { ProjectAgentOperationRegistry } from './types'
+import type { ProjectAgentOperationRegistryDraft } from './types'
+import { defineOperation } from './define-operation'
 import { normalizeString, submitOperationTask } from './submit-operation-task'
 
 function parseReferenceImages(body: Record<string, unknown>): string[] {
@@ -18,13 +19,27 @@ function parseReferenceImages(body: Record<string, unknown>): string[] {
   return single ? [single] : []
 }
 
-export function createAssetHubLlmOperations(): ProjectAgentOperationRegistry {
+const EFFECTS_BILLABLE_LONG_RUNNING = {
+  writes: true,
+  billable: true,
+  destructive: false,
+  overwrite: false,
+  bulk: false,
+  externalSideEffects: true,
+  longRunning: true,
+} as const
+
+export function createAssetHubLlmOperations(): ProjectAgentOperationRegistryDraft {
   return {
-    asset_hub_ai_design_character: {
+    asset_hub_ai_design_character: defineOperation({
       id: 'asset_hub_ai_design_character',
-      description: 'Submit global asset-hub character design task (ASSET_HUB_AI_DESIGN_CHARACTER).',
-      sideEffects: { mode: 'act', risk: 'high', billable: true, longRunning: true, requiresConfirmation: true, confirmationSummary: '将提交资产中心角色设计任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'system',
+      summary: 'Submit global asset-hub character design task (ASSET_HUB_AI_DESIGN_CHARACTER).',
+      intent: 'act',
+      effects: EFFECTS_BILLABLE_LONG_RUNNING,
+      confirmation: {
+        required: true,
+        summary: '将提交资产中心角色设计任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         userInstruction: z.string().min(1),
@@ -57,13 +72,17 @@ export function createAssetHubLlmOperations(): ProjectAgentOperationRegistry {
           priority: 1,
         })
       },
-    },
+    }),
 
-    asset_hub_ai_design_location: {
+    asset_hub_ai_design_location: defineOperation({
       id: 'asset_hub_ai_design_location',
-      description: 'Submit global asset-hub location design task (ASSET_HUB_AI_DESIGN_LOCATION).',
-      sideEffects: { mode: 'act', risk: 'high', billable: true, longRunning: true, requiresConfirmation: true, confirmationSummary: '将提交资产中心场景设计任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'system',
+      summary: 'Submit global asset-hub location design task (ASSET_HUB_AI_DESIGN_LOCATION).',
+      intent: 'act',
+      effects: EFFECTS_BILLABLE_LONG_RUNNING,
+      confirmation: {
+        required: true,
+        summary: '将提交资产中心场景设计任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         userInstruction: z.string().min(1),
@@ -96,13 +115,17 @@ export function createAssetHubLlmOperations(): ProjectAgentOperationRegistry {
           priority: 1,
         })
       },
-    },
+    }),
 
-    asset_hub_ai_modify_character: {
+    asset_hub_ai_modify_character: defineOperation({
       id: 'asset_hub_ai_modify_character',
-      description: 'Submit asset-hub AI modify character description task.',
-      sideEffects: { mode: 'act', risk: 'high', billable: true, longRunning: true, requiresConfirmation: true, confirmationSummary: '将提交资产中心角色形象修改任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'system',
+      summary: 'Submit asset-hub AI modify character description task.',
+      intent: 'act',
+      effects: EFFECTS_BILLABLE_LONG_RUNNING,
+      confirmation: {
+        required: true,
+        summary: '将提交资产中心角色形象修改任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         characterId: z.string().min(1),
@@ -140,13 +163,17 @@ export function createAssetHubLlmOperations(): ProjectAgentOperationRegistry {
           dedupeKey: `asset_hub_ai_modify_character:${input.characterId}:${input.appearanceIndex}`,
         })
       },
-    },
+    }),
 
-    asset_hub_ai_modify_location: {
+    asset_hub_ai_modify_location: defineOperation({
       id: 'asset_hub_ai_modify_location',
-      description: 'Submit asset-hub AI modify location description task.',
-      sideEffects: { mode: 'act', risk: 'high', billable: true, longRunning: true, requiresConfirmation: true, confirmationSummary: '将提交资产中心场景修改任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'system',
+      summary: 'Submit asset-hub AI modify location description task.',
+      intent: 'act',
+      effects: EFFECTS_BILLABLE_LONG_RUNNING,
+      confirmation: {
+        required: true,
+        summary: '将提交资产中心场景修改任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         locationId: z.string().min(1),
@@ -184,13 +211,17 @@ export function createAssetHubLlmOperations(): ProjectAgentOperationRegistry {
           dedupeKey: `asset_hub_ai_modify_location:${input.locationId}:${input.imageIndex}`,
         })
       },
-    },
+    }),
 
-    asset_hub_ai_modify_prop: {
+    asset_hub_ai_modify_prop: defineOperation({
       id: 'asset_hub_ai_modify_prop',
-      description: 'Submit asset-hub AI modify prop description task.',
-      sideEffects: { mode: 'act', risk: 'high', billable: true, longRunning: true, requiresConfirmation: true, confirmationSummary: '将提交资产中心道具修改任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'system',
+      summary: 'Submit asset-hub AI modify prop description task.',
+      intent: 'act',
+      effects: EFFECTS_BILLABLE_LONG_RUNNING,
+      confirmation: {
+        required: true,
+        summary: '将提交资产中心道具修改任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         propId: z.string().min(1),
@@ -245,13 +276,17 @@ export function createAssetHubLlmOperations(): ProjectAgentOperationRegistry {
           dedupeKey: `asset_hub_ai_modify_prop:${propId}:${variantId || 'default'}`,
         })
       },
-    },
+    }),
 
-    asset_hub_reference_to_character: {
+    asset_hub_reference_to_character: defineOperation({
       id: 'asset_hub_reference_to_character',
-      description: 'Submit asset-hub reference-to-character task with normalized reference images.',
-      sideEffects: { mode: 'act', risk: 'high', billable: true, longRunning: true, requiresConfirmation: true, confirmationSummary: '将提交参考图转角色任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。' },
-      scope: 'system',
+      summary: 'Submit asset-hub reference-to-character task with normalized reference images.',
+      intent: 'act',
+      effects: EFFECTS_BILLABLE_LONG_RUNNING,
+      confirmation: {
+        required: true,
+        summary: '将提交参考图转角色任务（可能计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({}).passthrough(),
       outputSchema: z.unknown(),
       execute: async (ctx, input) => {
@@ -298,7 +333,6 @@ export function createAssetHubLlmOperations(): ProjectAgentOperationRegistry {
           dedupeKey: `asset_hub_reference_to_character:${appearanceId || characterId || ctx.userId}:${count}`,
         })
       },
-    },
+    }),
   }
 }
-

@@ -5,7 +5,8 @@ import { attachMediaFieldsToGlobalLocation } from '@/lib/media/attach'
 import { isArtStyleValue } from '@/lib/constants'
 import { normalizeImageGenerationCount } from '@/lib/image-generation/count'
 import { normalizeLocationAvailableSlots, stringifyLocationAvailableSlots } from '@/lib/location-available-slots'
-import type { ProjectAgentOperationRegistry } from './types'
+import type { ProjectAgentOperationRegistryDraft } from './types'
+import { defineOperation } from './define-operation'
 
 function normalizeString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
@@ -23,19 +24,21 @@ function hasOwn(obj: Record<string, unknown>, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(obj, key)
 }
 
-export function createAssetHubLocationLibraryOperations(): ProjectAgentOperationRegistry {
+export function createAssetHubLocationLibraryOperations(): ProjectAgentOperationRegistryDraft {
   return {
-    asset_hub_list_locations: {
+    asset_hub_list_locations: defineOperation({
       id: 'asset_hub_list_locations',
-      description: 'List global locations for the current user (optionally filtered by folderId).',
-      tool: {
-        selectable: true,
-        defaultVisibility: 'extended',
-        groups: ['asset-hub', 'read', 'location'],
-        tags: ['asset-hub', 'read', 'location'],
+      summary: 'List global locations for the current user (optionally filtered by folderId).',
+      intent: 'query',
+      effects: {
+        writes: false,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
       },
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'system',
       inputSchema: z.object({
         folderId: z.string().optional(),
       }).passthrough(),
@@ -62,13 +65,21 @@ export function createAssetHubLocationLibraryOperations(): ProjectAgentOperation
 
         return { locations: signedLocations }
       },
-    },
+    }),
 
-    asset_hub_create_location: {
+    asset_hub_create_location: defineOperation({
       id: 'asset_hub_create_location',
-      description: 'Create a global location and its initial image placeholders.',
-      sideEffects: { mode: 'act', risk: 'medium' },
-      scope: 'system',
+      summary: 'Create a global location and its initial image placeholders.',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({
         name: z.string().min(1),
         artStyle: z.string().min(1),
@@ -129,19 +140,21 @@ export function createAssetHubLocationLibraryOperations(): ProjectAgentOperation
         const withMedia = withImages ? await attachMediaFieldsToGlobalLocation(withImages) : null
         return { success: true, location: withMedia }
       },
-    },
+    }),
 
-    asset_hub_get_location: {
+    asset_hub_get_location: defineOperation({
       id: 'asset_hub_get_location',
-      description: 'Get a global location by id.',
-      tool: {
-        selectable: true,
-        defaultVisibility: 'extended',
-        groups: ['asset-hub', 'read', 'location'],
-        tags: ['asset-hub', 'read', 'location'],
+      summary: 'Get a global location by id.',
+      intent: 'query',
+      effects: {
+        writes: false,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
       },
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'system',
       inputSchema: z.object({
         locationId: z.string().min(1),
       }),
@@ -155,13 +168,21 @@ export function createAssetHubLocationLibraryOperations(): ProjectAgentOperation
         const withMedia = await attachMediaFieldsToGlobalLocation(location)
         return { location: withMedia }
       },
-    },
+    }),
 
-    asset_hub_update_location: {
+    asset_hub_update_location: defineOperation({
       id: 'asset_hub_update_location',
-      description: 'Update a global location (name/summary/folderId).',
-      sideEffects: { mode: 'act', risk: 'medium' },
-      scope: 'system',
+      summary: 'Update a global location (name/summary/folderId).',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: true,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({
         locationId: z.string().min(1),
       }).passthrough(),
@@ -207,19 +228,25 @@ export function createAssetHubLocationLibraryOperations(): ProjectAgentOperation
         const withMedia = await attachMediaFieldsToGlobalLocation(updated)
         return { success: true, location: withMedia }
       },
-    },
+    }),
 
-    asset_hub_delete_location: {
+    asset_hub_delete_location: defineOperation({
       id: 'asset_hub_delete_location',
-      description: 'Delete a global location.',
-      sideEffects: {
-        mode: 'act',
-        risk: 'high',
+      summary: 'Delete a global location.',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
         destructive: true,
-        requiresConfirmation: true,
-        confirmationSummary: '将删除该场景记录（不可恢复）。确认继续后请重新调用并传入 confirmed=true。',
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
       },
-      scope: 'system',
+      confirmation: {
+        required: true,
+        summary: '将删除该场景记录（不可恢复）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         locationId: z.string().min(1),
@@ -236,6 +263,6 @@ export function createAssetHubLocationLibraryOperations(): ProjectAgentOperation
         await prisma.globalLocation.delete({ where: { id: input.locationId } })
         return { success: true }
       },
-    },
+    }),
   }
 }

@@ -23,8 +23,9 @@ import type {
 } from '@/lib/project-agent/types'
 import { ApiError } from '@/lib/api-errors'
 import { prisma } from '@/lib/prisma'
-import type { ProjectAgentOperationRegistry } from './types'
+import type { ProjectAgentOperationRegistryDraft } from './types'
 import { writeOperationDataPart } from './types'
+import { defineOperation } from './define-operation'
 
 function normalizeString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
@@ -34,13 +35,21 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
 }
 
-export function createPlanOperations(): ProjectAgentOperationRegistry {
+export function createPlanOperations(): ProjectAgentOperationRegistryDraft {
   return {
-    save_workflow_plan_as_skill: {
+    save_workflow_plan_as_skill: defineOperation({
       id: 'save_workflow_plan_as_skill',
-      description: 'Save an existing workflow execution plan as a reusable saved skill template.',
-      sideEffects: { mode: 'act', risk: 'low' },
-      scope: 'project',
+      summary: 'Save an existing workflow execution plan as a reusable saved skill template.',
+      intent: 'act',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({
         planId: z.string().min(1),
         name: z.string().min(1),
@@ -65,12 +74,20 @@ export function createPlanOperations(): ProjectAgentOperationRegistry {
           updatedAt: saved.updatedAt.toISOString(),
         }
       },
-    },
-    create_workflow_plan_from_saved_skill: {
+    }),
+    create_workflow_plan_from_saved_skill: defineOperation({
       id: 'create_workflow_plan_from_saved_skill',
-      description: 'Create a workflow plan from a saved skill template (workflow_plan_template).',
-      sideEffects: { mode: 'plan', risk: 'low' },
-      scope: 'episode',
+      summary: 'Create a workflow plan from a saved skill template (workflow_plan_template).',
+      intent: 'plan',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({
         savedSkillId: z.string().min(1),
         episodeId: z.string().optional(),
@@ -172,12 +189,20 @@ export function createPlanOperations(): ProjectAgentOperationRegistry {
           savedSkillName: saved.name,
         }
       },
-    },
-    create_workflow_plan: {
+    }),
+    create_workflow_plan: defineOperation({
       id: 'create_workflow_plan',
-      description: 'Create a persisted command and plan for a fixed workflow package.',
-      sideEffects: { mode: 'plan', risk: 'low' },
-      scope: 'episode',
+      summary: 'Create a persisted command and plan for a fixed workflow package.',
+      intent: 'plan',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({
         workflowId: z.enum(['story-to-script', 'script-to-storyboard']),
         episodeId: z.string().optional(),
@@ -250,19 +275,24 @@ export function createPlanOperations(): ProjectAgentOperationRegistry {
         }
         return result
       },
-    },
-    approve_plan: {
+    }),
+    approve_plan: defineOperation({
       id: 'approve_plan',
-      description: 'Approve a pending workflow plan and enqueue execution.',
-      sideEffects: {
-        mode: 'plan',
-        risk: 'high',
+      summary: 'Approve a pending workflow plan and enqueue execution.',
+      intent: 'plan',
+      effects: {
+        writes: true,
         billable: true,
-        requiresConfirmation: true,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: true,
         longRunning: true,
-        confirmationSummary: '将批准并执行 workflow plan（可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
       },
-      scope: 'plan',
+      confirmation: {
+        required: true,
+        summary: '将批准并执行 workflow plan（可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         planId: z.string().min(1),
         workflowId: z.enum(['story-to-script', 'script-to-storyboard']).optional(),
@@ -314,7 +344,7 @@ export function createPlanOperations(): ProjectAgentOperationRegistry {
           activeSkillId: result.steps[0]?.skillId as WorkflowStatusPartData['activeSkillId'],
           event: result.linkedRunId
             ? buildRunLifecycleCanonicalEvent({
-                workflowId: input.workflowId,
+                workflowId,
                 runId: result.linkedRunId,
                 status: 'start',
               })
@@ -322,12 +352,20 @@ export function createPlanOperations(): ProjectAgentOperationRegistry {
         })
         return result
       },
-    },
-    reject_plan: {
+    }),
+    reject_plan: defineOperation({
       id: 'reject_plan',
-      description: 'Reject a pending workflow plan.',
-      sideEffects: { mode: 'plan', risk: 'low' },
-      scope: 'plan',
+      summary: 'Reject a pending workflow plan.',
+      intent: 'plan',
+      effects: {
+        writes: true,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({
         planId: z.string().min(1),
         note: z.string().optional(),
@@ -350,6 +388,6 @@ export function createPlanOperations(): ProjectAgentOperationRegistry {
           note: input.note,
         })
       },
-    },
+    }),
   }
 }

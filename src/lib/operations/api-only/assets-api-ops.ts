@@ -4,7 +4,8 @@ import { createAsset, copyAssetFromGlobal, removeAsset, revertAssetRender, selec
 import { updateAssetRenderLabel } from '@/lib/assets/services/asset-label'
 import { readAssets } from '@/lib/assets/services/read-assets'
 import type { AssetKind, AssetScope } from '@/lib/assets/contracts'
-import type { ProjectAgentOperationRegistry } from '@/lib/operations/types'
+import type { ProjectAgentOperationRegistryDraft } from '@/lib/operations/types'
+import { defineOperation } from '@/lib/operations/define-operation'
 
 const ASSET_SCOPES = ['global', 'project'] as const
 const ASSET_KINDS = ['character', 'location', 'prop', 'voice'] as const
@@ -15,6 +16,46 @@ const scopeSchema = z.enum(ASSET_SCOPES satisfies ReadonlyArray<AssetScope>)
 const kindSchema = z.enum(ASSET_KINDS satisfies ReadonlyArray<AssetKind>)
 const mutableKindSchema = z.enum(ASSET_MUTABLE_KINDS satisfies ReadonlyArray<Extract<AssetKind, 'character' | 'location' | 'prop'>>)
 const creatableKindSchema = z.enum(ASSET_CREATABLE_KINDS satisfies ReadonlyArray<Extract<AssetKind, 'location' | 'prop'>>)
+
+const EFFECTS_QUERY = {
+  writes: false,
+  billable: false,
+  destructive: false,
+  overwrite: false,
+  bulk: false,
+  externalSideEffects: false,
+  longRunning: false,
+} as const
+
+const EFFECTS_WRITE = {
+  writes: true,
+  billable: false,
+  destructive: false,
+  overwrite: false,
+  bulk: false,
+  externalSideEffects: false,
+  longRunning: false,
+} as const
+
+const EFFECTS_WRITE_OVERWRITE = {
+  writes: true,
+  billable: false,
+  destructive: false,
+  overwrite: true,
+  bulk: false,
+  externalSideEffects: false,
+  longRunning: false,
+} as const
+
+const EFFECTS_LONG_RUNNING = {
+  writes: true,
+  billable: false,
+  destructive: false,
+  overwrite: false,
+  bulk: false,
+  externalSideEffects: true,
+  longRunning: true,
+} as const
 
 function requireProjectId(scope: AssetScope, projectId: unknown): string {
   if (scope !== 'project') return ''
@@ -31,13 +72,13 @@ function omitBodyKeys(input: unknown, keys: ReadonlyArray<string>): Record<strin
   return body
 }
 
-export function createAssetsApiOperations(): ProjectAgentOperationRegistry {
+export function createAssetsApiOperations(): ProjectAgentOperationRegistryDraft {
   return {
-    api_assets_read: {
+    api_assets_read: defineOperation({
       id: 'api_assets_read',
-      description: 'API-only: Read assets with scope filter.',
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'asset',
+      summary: 'API-only: Read assets with scope filter.',
+      intent: 'query',
+      effects: EFFECTS_QUERY,
       inputSchema: z.object({
         scope: scopeSchema,
         projectId: z.string().nullable().optional(),
@@ -57,13 +98,13 @@ export function createAssetsApiOperations(): ProjectAgentOperationRegistry {
 
         return { assets }
       },
-    },
+    }),
 
-    api_assets_create: {
+    api_assets_create: defineOperation({
       id: 'api_assets_create',
-      description: 'API-only: Create a location/prop asset (global or project scope).',
-      sideEffects: { mode: 'act', risk: 'low' },
-      scope: 'asset',
+      summary: 'API-only: Create a location/prop asset (global or project scope).',
+      intent: 'act',
+      effects: EFFECTS_WRITE,
       inputSchema: z.object({
         scope: scopeSchema,
         kind: creatableKindSchema,
@@ -81,13 +122,13 @@ export function createAssetsApiOperations(): ProjectAgentOperationRegistry {
             : { scope: 'global', userId: ctx.userId },
         })
       },
-    },
+    }),
 
-    api_assets_update: {
+    api_assets_update: defineOperation({
       id: 'api_assets_update',
-      description: 'API-only: Update an asset record (global or project scope).',
-      sideEffects: { mode: 'act', risk: 'low' },
-      scope: 'asset',
+      summary: 'API-only: Update an asset record (global or project scope).',
+      intent: 'act',
+      effects: EFFECTS_WRITE,
       inputSchema: z.object({
         assetId: z.string().min(1),
         scope: scopeSchema,
@@ -107,13 +148,16 @@ export function createAssetsApiOperations(): ProjectAgentOperationRegistry {
             : { scope: 'global', userId: ctx.userId },
         })
       },
-    },
+    }),
 
-    api_assets_remove: {
+    api_assets_remove: defineOperation({
       id: 'api_assets_remove',
-      description: 'API-only: Remove a location/prop asset (global or project scope).',
-      sideEffects: { mode: 'act', risk: 'low' },
-      scope: 'asset',
+      summary: 'API-only: Remove a location/prop asset (global or project scope).',
+      intent: 'act',
+      effects: {
+        ...EFFECTS_WRITE,
+        destructive: true,
+      },
       inputSchema: z.object({
         assetId: z.string().min(1),
         scope: scopeSchema,
@@ -131,13 +175,13 @@ export function createAssetsApiOperations(): ProjectAgentOperationRegistry {
             : { scope: 'global', userId: ctx.userId },
         })
       },
-    },
+    }),
 
-    api_assets_generate: {
+    api_assets_generate: defineOperation({
       id: 'api_assets_generate',
-      description: 'API-only: Submit asset generate task (global or project scope).',
-      sideEffects: { mode: 'act', risk: 'low', longRunning: true },
-      scope: 'asset',
+      summary: 'API-only: Submit asset generate task (global or project scope).',
+      intent: 'act',
+      effects: EFFECTS_LONG_RUNNING,
       inputSchema: z.object({
         assetId: z.string().min(1),
         scope: scopeSchema,
@@ -158,13 +202,13 @@ export function createAssetsApiOperations(): ProjectAgentOperationRegistry {
             : { scope: 'global', userId: ctx.userId },
         })
       },
-    },
+    }),
 
-    api_assets_modify_render: {
+    api_assets_modify_render: defineOperation({
       id: 'api_assets_modify_render',
-      description: 'API-only: Submit asset modify-render task (global or project scope).',
-      sideEffects: { mode: 'act', risk: 'low', longRunning: true },
-      scope: 'asset',
+      summary: 'API-only: Submit asset modify-render task (global or project scope).',
+      intent: 'act',
+      effects: EFFECTS_LONG_RUNNING,
       inputSchema: z.object({
         assetId: z.string().min(1),
         scope: scopeSchema,
@@ -185,13 +229,13 @@ export function createAssetsApiOperations(): ProjectAgentOperationRegistry {
             : { scope: 'global', userId: ctx.userId },
         })
       },
-    },
+    }),
 
-    api_assets_select_render: {
+    api_assets_select_render: defineOperation({
       id: 'api_assets_select_render',
-      description: 'API-only: Select an asset render (global or project scope).',
-      sideEffects: { mode: 'act', risk: 'low', overwrite: true },
-      scope: 'asset',
+      summary: 'API-only: Select an asset render (global or project scope).',
+      intent: 'act',
+      effects: EFFECTS_WRITE_OVERWRITE,
       inputSchema: z.object({
         assetId: z.string().min(1),
         scope: scopeSchema,
@@ -211,13 +255,13 @@ export function createAssetsApiOperations(): ProjectAgentOperationRegistry {
             : { scope: 'global', userId: ctx.userId },
         })
       },
-    },
+    }),
 
-    api_assets_revert_render: {
+    api_assets_revert_render: defineOperation({
       id: 'api_assets_revert_render',
-      description: 'API-only: Revert an asset render (global or project scope).',
-      sideEffects: { mode: 'act', risk: 'low', overwrite: true },
-      scope: 'asset',
+      summary: 'API-only: Revert an asset render (global or project scope).',
+      intent: 'act',
+      effects: EFFECTS_WRITE_OVERWRITE,
       inputSchema: z.object({
         assetId: z.string().min(1),
         scope: scopeSchema,
@@ -237,13 +281,13 @@ export function createAssetsApiOperations(): ProjectAgentOperationRegistry {
             : { scope: 'global', userId: ctx.userId },
         })
       },
-    },
+    }),
 
-    api_assets_copy_from_global: {
+    api_assets_copy_from_global: defineOperation({
       id: 'api_assets_copy_from_global',
-      description: 'API-only: Copy a global asset into a project target asset.',
-      sideEffects: { mode: 'act', risk: 'low', overwrite: true },
-      scope: 'asset',
+      summary: 'API-only: Copy a global asset into a project target asset.',
+      intent: 'act',
+      effects: EFFECTS_WRITE_OVERWRITE,
       inputSchema: z.object({
         assetId: z.string().min(1),
         projectId: z.string().min(1),
@@ -262,13 +306,13 @@ export function createAssetsApiOperations(): ProjectAgentOperationRegistry {
           },
         })
       },
-    },
+    }),
 
-    api_assets_update_label: {
+    api_assets_update_label: defineOperation({
       id: 'api_assets_update_label',
-      description: 'API-only: Update asset render label (global or project scope).',
-      sideEffects: { mode: 'act', risk: 'low' },
-      scope: 'asset',
+      summary: 'API-only: Update asset render label (global or project scope).',
+      intent: 'act',
+      effects: EFFECTS_WRITE,
       inputSchema: z.object({
         assetId: z.string().min(1),
         scope: scopeSchema,
@@ -290,13 +334,13 @@ export function createAssetsApiOperations(): ProjectAgentOperationRegistry {
         })
         return { success: true }
       },
-    },
+    }),
 
-    api_assets_update_variant: {
+    api_assets_update_variant: defineOperation({
       id: 'api_assets_update_variant',
-      description: 'API-only: Update an asset variant record (global or project scope).',
-      sideEffects: { mode: 'act', risk: 'low' },
-      scope: 'asset',
+      summary: 'API-only: Update an asset variant record (global or project scope).',
+      intent: 'act',
+      effects: EFFECTS_WRITE,
       inputSchema: z.object({
         assetId: z.string().min(1),
         variantId: z.string().min(1),
@@ -318,6 +362,6 @@ export function createAssetsApiOperations(): ProjectAgentOperationRegistry {
             : { scope: 'global', userId: ctx.userId },
         })
       },
-    },
+    }),
   }
 }

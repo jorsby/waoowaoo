@@ -4,25 +4,27 @@ import { ApiError } from '@/lib/api-errors'
 import { resolveMediaRefFromLegacyValue } from '@/lib/media/service'
 import { decodeImageUrlsFromDb } from '@/lib/contracts/image-urls-contract'
 import { PRIMARY_APPEARANCE_INDEX } from '@/lib/constants'
-import type { ProjectAgentOperationRegistry } from './types'
+import type { ProjectAgentOperationRegistryDraft } from './types'
 
 function normalizeString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
 }
 
-export function createAssetHubPickerOperations(): ProjectAgentOperationRegistry {
+export function createAssetHubPickerOperations(): ProjectAgentOperationRegistryDraft {
   return {
     asset_hub_picker: {
       id: 'asset_hub_picker',
-      description: 'List global assets for picker (character/location/voice) with preview URLs.',
-      tool: {
-        selectable: true,
-        defaultVisibility: 'extended',
-        groups: ['asset-hub', 'read', 'picker'],
-        tags: ['asset-hub', 'read'],
+      summary: 'List global assets for picker (character/location/voice) with preview URLs.',
+      intent: 'query',
+      effects: {
+        writes: false,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
       },
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'system',
       inputSchema: z.object({
         type: z.enum(['character', 'location', 'voice']).optional(),
       }).passthrough(),

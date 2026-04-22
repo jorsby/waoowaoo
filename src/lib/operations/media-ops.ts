@@ -11,7 +11,8 @@ import { normalizeImageGenerationCount } from '@/lib/image-generation/count'
 import { ensureProjectLocationImageSlots } from '@/lib/image-generation/location-slots'
 import { hasCharacterAppearanceOutput, hasLocationImageOutput, hasPanelImageOutput } from '@/lib/task/has-output'
 import { sanitizeImageInputsForTaskPayload } from '@/lib/media/outbound-image'
-import type { ProjectAgentOperationRegistry } from './types'
+import type { ProjectAgentOperationRegistryDraft } from './types'
+import { defineOperation } from './define-operation'
 
 function normalizeString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
@@ -27,20 +28,25 @@ function toNumberOrNull(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null
 }
 
-export function createMediaOperations(): ProjectAgentOperationRegistry {
+export function createMediaOperations(): ProjectAgentOperationRegistryDraft {
   return {
-    regenerate_group: {
+    regenerate_group: defineOperation({
       id: 'regenerate_group',
-      description: 'Regenerate a group of asset images (character/location) by submitting an async task.',
-      sideEffects: {
-        mode: 'act',
-        risk: 'medium',
+      summary: 'Regenerate a group of asset images (character/location) by submitting an async task.',
+      intent: 'act',
+      effects: {
+        writes: true,
         billable: true,
-        requiresConfirmation: true,
+        destructive: false,
+        overwrite: false,
+        bulk: true,
+        externalSideEffects: true,
         longRunning: true,
-        confirmationSummary: '将批量重生成图片（可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
       },
-      scope: 'asset',
+      confirmation: {
+        required: true,
+        summary: '将批量重生成图片（可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         type: z.enum(['character', 'location']),
@@ -126,20 +132,25 @@ export function createMediaOperations(): ProjectAgentOperationRegistry {
           billingInfo: buildDefaultTaskBillingInfo(TASK_TYPE.REGENERATE_GROUP, billingPayload),
         })
       },
-    },
+    }),
 
-    regenerate_single_image: {
+    regenerate_single_image: defineOperation({
       id: 'regenerate_single_image',
-      description: 'Regenerate a single image by index for character/location (async task submission).',
-      sideEffects: {
-        mode: 'act',
-        risk: 'medium',
+      summary: 'Regenerate a single image by index for character/location (async task submission).',
+      intent: 'act',
+      effects: {
+        writes: true,
         billable: true,
-        requiresConfirmation: true,
+        destructive: false,
+        overwrite: true,
+        bulk: false,
+        externalSideEffects: true,
         longRunning: true,
-        confirmationSummary: '将重生成单张图片（可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
       },
-      scope: 'asset',
+      confirmation: {
+        required: true,
+        summary: '将重生成单张图片（可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         type: z.enum(['character', 'location']),
@@ -207,20 +218,25 @@ export function createMediaOperations(): ProjectAgentOperationRegistry {
           billingInfo: buildDefaultTaskBillingInfo(taskType, billingPayload),
         })
       },
-    },
+    }),
 
-    regenerate_storyboard_text: {
+    regenerate_storyboard_text: defineOperation({
       id: 'regenerate_storyboard_text',
-      description: 'Regenerate storyboard text (async task submission).',
-      sideEffects: {
-        mode: 'act',
-        risk: 'medium',
+      summary: 'Regenerate storyboard text (async task submission).',
+      intent: 'act',
+      effects: {
+        writes: true,
         billable: true,
-        requiresConfirmation: true,
+        destructive: false,
+        overwrite: true,
+        bulk: false,
+        externalSideEffects: true,
         longRunning: true,
-        confirmationSummary: '将重生成分镜文本（可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
       },
-      scope: 'storyboard',
+      confirmation: {
+        required: true,
+        summary: '将重生成分镜文本（可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         storyboardId: z.string().min(1),
@@ -247,22 +263,25 @@ export function createMediaOperations(): ProjectAgentOperationRegistry {
           billingInfo: buildDefaultTaskBillingInfo(TASK_TYPE.REGENERATE_STORYBOARD_TEXT, billingPayload),
         })
       },
-    },
+    }),
 
-    modify_storyboard_image: {
+    modify_storyboard_image: defineOperation({
       id: 'modify_storyboard_image',
-      description: 'Modify storyboard panel image using edit model (async task submission).',
-      sideEffects: {
-        mode: 'act',
-        risk: 'high',
+      summary: 'Modify storyboard panel image using edit model (async task submission).',
+      intent: 'act',
+      effects: {
+        writes: true,
         billable: true,
-        requiresConfirmation: true,
-        overwrite: true,
         destructive: true,
+        overwrite: true,
+        bulk: false,
+        externalSideEffects: true,
         longRunning: true,
-        confirmationSummary: '将修改分镜图片（可能覆盖现有结果且可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
       },
-      scope: 'panel',
+      confirmation: {
+        required: true,
+        summary: '将修改分镜图片（可能覆盖现有结果且可能消耗额度/产生计费）。确认继续后请重新调用并传入 confirmed=true。',
+      },
       inputSchema: z.object({
         confirmed: z.boolean().optional(),
         storyboardId: z.string().min(1),
@@ -371,7 +390,6 @@ export function createMediaOperations(): ProjectAgentOperationRegistry {
           billingInfo: buildDefaultTaskBillingInfo(TASK_TYPE.MODIFY_ASSET_IMAGE, billingPayload),
         })
       },
-    },
+    }),
   }
 }
-

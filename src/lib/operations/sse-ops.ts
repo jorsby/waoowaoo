@@ -4,7 +4,8 @@ import { ApiError } from '@/lib/api-errors'
 import { listEventsAfter, getProjectChannel } from '@/lib/task/publisher'
 import { TASK_EVENT_TYPE, TASK_SSE_EVENT_TYPE, TASK_STATUS, type SSEEvent } from '@/lib/task/types'
 import { coerceTaskIntent } from '@/lib/task/intent'
-import type { ProjectAgentOperationRegistry } from './types'
+import type { ProjectAgentOperationRegistryDraft } from './types'
+import { defineOperation } from './define-operation'
 
 function parseReplayCursorId(value: string | null | undefined): number {
   if (!value) return 0
@@ -80,13 +81,21 @@ async function listActiveLifecycleSnapshot(params: {
   })
 }
 
-export function createSseOperations(): ProjectAgentOperationRegistry {
+export function createSseOperations(): ProjectAgentOperationRegistryDraft {
   return {
-    get_sse_bootstrap: {
+    get_sse_bootstrap: defineOperation({
       id: 'get_sse_bootstrap',
-      description: 'Compute SSE bootstrap payload (replay missed events or active lifecycle snapshot).',
-      sideEffects: { mode: 'query', risk: 'low' },
-      scope: 'project',
+      summary: 'Compute SSE bootstrap payload (replay missed events or active lifecycle snapshot).',
+      intent: 'query',
+      effects: {
+        writes: false,
+        billable: false,
+        destructive: false,
+        overwrite: false,
+        bulk: false,
+        externalSideEffects: false,
+        longRunning: false,
+      },
       inputSchema: z.object({
         episodeId: z.string().optional().nullable(),
         lastEventId: z.string().optional().nullable(),
@@ -123,6 +132,6 @@ export function createSseOperations(): ProjectAgentOperationRegistry {
           events,
         }
       },
-    },
+    }),
   }
 }
