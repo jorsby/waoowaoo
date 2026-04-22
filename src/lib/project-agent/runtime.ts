@@ -6,6 +6,7 @@ import {
   streamText,
   type UIMessage,
   type ToolSet,
+  type UIMessageStreamWriter,
 } from 'ai'
 import type { Tool } from '@ai-sdk/provider-utils'
 import type { NextRequest } from 'next/server'
@@ -18,7 +19,7 @@ import { createScopedLogger } from '@/lib/logging/core'
 import type { ProjectAgentContext } from './types'
 import { resolveProjectPhase } from './project-phase'
 import { createProjectAgentStopController } from './stop-conditions'
-import type { ProjectAgentStopPartData } from './types'
+import type { AgentDebugPartData, ProjectAgentStopPartData } from './types'
 import { routeProjectAgentRequest } from './router'
 import { selectProjectAgentOperationsByGroups } from './operation-injection'
 import { buildProjectAgentSystemPrompt, localizeSelectableToolDescription } from './copy'
@@ -115,6 +116,7 @@ export async function createProjectAgentChatResponse(input: {
   const stream = createUIMessageStream({
     originalMessages: runtimeMessages,
     execute: async ({ writer }) => {
+      const agentDebug = new URL(input.request.url).searchParams.get('agentDebug') === '1'
       const operations = createProjectAgentOperationRegistry()
       const allowedRequestedGroups = Array.from(new Set(
         Object.values(operations)
@@ -178,6 +180,18 @@ export async function createProjectAgentChatResponse(input: {
         maxTools: 45,
         allowedIntents,
       })
+      if (agentDebug) {
+        writeOperationDataPart<AgentDebugPartData>(writer, 'data-agent-debug', {
+          requestId: requestId ?? null,
+          interactionMode: executionMode.interactionMode,
+          routedIntent: route.intent,
+          effectiveIntent: executionMode.effectiveIntent,
+          confidence: route.confidence,
+          requestedGroups: route.requestedGroups,
+          alwaysOnOperationIds: selection.alwaysOnOperationIds,
+          operationIds: selection.operationIds,
+        })
+      }
       projectAgentLogger.info({
         action: 'assistant.tool.selection.result',
         message: 'Project agent tool selection result',
@@ -229,6 +243,33 @@ export async function createProjectAgentChatResponse(input: {
         messages: await toModelMessages(runtimeMessages),
         tools,
         stopWhen: stopController.stopWhen,
+        experimental_onToolCallStart: ({ toolCall }) => {
+          projectAgentLogger.info({
+            action: 'assistant.tool.call.start',
+            message: 'Project agent tool call started',
+            requestId: requestId ?? 'unknown',
+            projectId: input.projectId,
+            userId: input.userId,
+            details: {
+              toolName: toolCall.toolName,
+            },
+          })
+        },
+        experimental_onToolCallFinish: ({ toolCall, durationMs, success, error }) => {
+          projectAgentLogger.info({
+            action: 'assistant.tool.call.finish',
+            message: 'Project agent tool call finished',
+            requestId: requestId ?? 'unknown',
+            projectId: input.projectId,
+            userId: input.userId,
+            details: {
+              toolName: toolCall.toolName,
+              durationMs,
+              success,
+              ...(success ? {} : { error: error instanceof Error ? error.message : String(error) }),
+            },
+          })
+        },
         onFinish: ({ steps }) => {
           const stopPart = stopController.buildStopPart(steps.length)
           if (!stopPart) return

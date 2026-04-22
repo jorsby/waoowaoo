@@ -86,6 +86,17 @@ export interface ProjectAgentStopPartData {
   maxSteps: number
 }
 
+export interface AgentDebugPartData {
+  requestId: string | null
+  interactionMode: ProjectAgentInteractionMode
+  routedIntent: 'query' | 'plan' | 'act'
+  effectiveIntent: 'query' | 'plan' | 'act'
+  confidence: number
+  requestedGroups: string[][]
+  alwaysOnOperationIds: string[]
+  operationIds: string[]
+}
+
 export interface ConfirmationRequestPartData {
   operationId: string
   summary: string
@@ -145,6 +156,7 @@ export interface ProjectAssistantThreadSnapshot {
 }
 
 export type WorkspaceAssistantPartType =
+  | 'data-agent-debug'
   | 'data-agent-stop'
   | 'data-project-phase'
   | 'data-confirmation-request'
