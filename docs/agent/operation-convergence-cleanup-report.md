@@ -30,7 +30,7 @@
 
 - 注入/always-on 单测：`tests/unit/project-agent/operation-injection.test.ts:1`
 - 执行门禁单测：`tests/unit/project-agent/tool-adapter-gates.test.ts:1`
-- registry 导出产物：`docs/agent/artifacts/operation-registry.export.json`
+- registry 导出产物（本地生成，不提交，已被 `.gitignore` 忽略）：`docs/agent/artifacts/operation-registry.export.json`
 - registry 导出脚本：`scripts/agent/export-operation-registry.ts:1`（脚本入口 `package.json:agent:export-operation-registry`）
 
 ## 建议的校验命令（你本地复现）
