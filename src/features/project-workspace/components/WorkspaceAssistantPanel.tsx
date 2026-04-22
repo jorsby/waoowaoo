@@ -259,6 +259,25 @@ export default function WorkspaceAssistantPanel({
                   </div>
                   <p className="mt-2 text-xs leading-5 text-[var(--glass-text-secondary)]">{contextSummary}</p>
                 </div>
+                {assistantRuntime.error ? (
+                  <div className="rounded-2xl border border-[rgba(239,68,68,0.28)] bg-[rgba(239,68,68,0.08)] px-3 py-3">
+                    <div className="text-xs font-semibold text-[rgba(239,68,68,0.92)]">{t('panel.errorTitle')}</div>
+                    <div className="mt-2 text-xs leading-5 text-[var(--glass-text-primary)]">
+                      {assistantRuntime.error.message || 'UNKNOWN_ERROR'}
+                    </div>
+                    <div className="mt-2 text-xs leading-5 text-[var(--glass-text-secondary)]">
+                      {t('panel.errorHint')}
+                    </div>
+                    <div className="mt-2 text-xs">
+                      <a
+                        href={downloadHref}
+                        className="inline-flex items-center gap-1 rounded-full border border-[rgba(239,68,68,0.22)] bg-[rgba(255,255,255,0.65)] px-3 py-1 text-xs font-medium text-[rgba(239,68,68,0.92)] hover:bg-[rgba(255,255,255,0.8)]"
+                      >
+                        {t('panel.downloadLog')}
+                      </a>
+                    </div>
+                  </div>
+                ) : null}
                 {pendingActionItems.length > 0 ? (
                   <div className="rounded-2xl border border-[var(--glass-stroke-base)] bg-[var(--glass-bg-muted)]/80 p-3">
                     <div className="mb-3 text-sm font-medium text-[var(--glass-text-primary)]">

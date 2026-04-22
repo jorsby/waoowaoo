@@ -11,6 +11,8 @@
     "streaming": "Streaming",
     "loading": "Loading",
     "statusReady": "Ready",
+    "errorTitle": "Error",
+    "errorHint": "Download the log and include the requestId for debugging, or retry the same instruction.",
     "modeLabel": "Mode",
     "modeAuto": "Auto",
     "modePlan": "Plan",

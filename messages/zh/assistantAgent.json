@@ -11,6 +11,8 @@
     "streaming": "流式响应中",
     "loading": "加载中",
     "statusReady": "就绪",
+    "errorTitle": "发生错误",
+    "errorHint": "请下载日志并附上 requestId 以便排查；你也可以直接重试一次相同指令。",
     "modeLabel": "模式",
     "modeAuto": "Auto",
     "modePlan": "Plan",
