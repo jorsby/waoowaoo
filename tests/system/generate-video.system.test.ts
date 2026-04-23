@@ -17,8 +17,8 @@ const videoState = vi.hoisted(() => ({
   uploadedCosKey: 'video/system-video.mp4',
 }))
 
-vi.mock('@/lib/generator-api', async () => {
-  const actual = await vi.importActual<typeof import('@/lib/generator-api')>('@/lib/generator-api')
+vi.mock('@/lib/ai-exec/engine', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/ai-exec/engine')>('@/lib/ai-exec/engine')
   return {
     ...actual,
     generateVideo: vi.fn(async () => ({

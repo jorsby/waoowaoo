@@ -5,7 +5,7 @@ import { getAudioApiKey, getProviderConfig, getProviderKey, resolveModelSelectio
 import { normalizeToBase64ForGeneration } from '@/lib/media/outbound-image'
 import { extractStorageKey, getSignedUrl, toFetchableUrl, uploadObject } from '@/lib/storage'
 import { resolveStorageKeyFromMediaValue } from '@/lib/media/service'
-import { synthesizeWithBailianTTS } from '@/lib/providers/bailian'
+import { synthesizeWithBailianTTS } from '@/lib/ai-providers/bailian'
 import {
   parseSpeakerVoiceMap,
   resolveVoiceBindingForProvider,

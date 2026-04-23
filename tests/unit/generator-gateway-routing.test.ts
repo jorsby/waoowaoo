@@ -65,19 +65,19 @@ vi.mock('@/lib/generators/factory', () => ({
   createAudioGenerator: createAudioGeneratorMock,
 }))
 
-vi.mock('@/lib/providers/bailian', () => ({
+vi.mock('@/lib/ai-providers/bailian', () => ({
   generateBailianImage: generateBailianImageMock,
   generateBailianVideo: generateBailianVideoMock,
   generateBailianAudio: generateBailianAudioMock,
 }))
 
-vi.mock('@/lib/providers/siliconflow', () => ({
+vi.mock('@/lib/ai-providers/siliconflow', () => ({
   generateSiliconFlowImage: generateSiliconFlowImageMock,
   generateSiliconFlowVideo: generateSiliconFlowVideoMock,
   generateSiliconFlowAudio: generateSiliconFlowAudioMock,
 }))
 
-import { generateAudio, generateImage, generateVideo } from '@/lib/generator-api'
+import { generateAudio, generateImage, generateVideo } from '@/lib/ai-exec/engine'
 
 describe('generator gateway routing', () => {
   beforeEach(() => {

@@ -1,4 +1,4 @@
-import { buildOpenAIChatCompletion } from '@/lib/llm/providers/openai-compat'
+import { buildOpenAIChatCompletion } from '@/lib/ai-providers/llm/openai-compat'
 import { buildReasoningAwareContent } from '@/lib/llm/utils'
 import type { OpenAICompatChatRequest } from '../types'
 import { resolveOpenAICompatClientConfig } from './common'
@@ -133,4 +133,3 @@ export async function runOpenAICompatResponsesCompletion(input: OpenAICompatChat
     usage,
   )
 }
-

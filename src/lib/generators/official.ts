@@ -7,8 +7,8 @@ import {
   type ImageGenerateParams,
   type VideoGenerateParams,
 } from './base'
-import { generateBailianAudio, generateBailianImage, generateBailianVideo } from '@/lib/providers/bailian'
-import { generateSiliconFlowAudio, generateSiliconFlowImage, generateSiliconFlowVideo } from '@/lib/providers/siliconflow'
+import { generateBailianAudio, generateBailianImage, generateBailianVideo } from '@/lib/ai-providers/bailian'
+import { generateSiliconFlowAudio, generateSiliconFlowImage, generateSiliconFlowVideo } from '@/lib/ai-providers/siliconflow'
 
 export class BailianImageGenerator extends BaseImageGenerator {
   protected async doGenerate(params: ImageGenerateParams): Promise<GenerateResult> {

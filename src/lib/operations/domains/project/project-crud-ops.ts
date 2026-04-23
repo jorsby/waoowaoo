@@ -8,7 +8,7 @@ import { logError } from '@/lib/logging/core'
 import {
   collectProjectBailianManagedVoiceIds,
   cleanupUnreferencedBailianVoices,
-} from '@/lib/providers/bailian'
+} from '@/lib/ai-providers/bailian'
 import { resolveTaskLocale } from '@/lib/task/resolve-locale'
 import {
   formatProjectValidationIssue,

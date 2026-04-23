@@ -103,7 +103,7 @@ vi.mock('sharp', () => ({
   default: sharpMock,
 }))
 vi.mock('@/lib/prisma', () => ({ prisma: prismaMock }))
-vi.mock('@/lib/generator-api', () => generatorApiMock)
+vi.mock('@/lib/ai-exec/engine', () => generatorApiMock)
 vi.mock('@/lib/async-submit', () => asyncSubmitMock)
 vi.mock('@/lib/ark-api', () => arkApiMock)
 vi.mock('@/lib/api-config', () => apiConfigMock)

@@ -6,7 +6,7 @@
  */
 
 import { logInternal } from './logging/semantic'
-import { buildFalQueueUrl } from '@/lib/providers/fal/base-url'
+import { buildFalQueueUrl } from '@/lib/ai-providers/fal/base-url'
 
 export interface TaskStatus {
     status: 'pending' | 'completed' | 'failed'

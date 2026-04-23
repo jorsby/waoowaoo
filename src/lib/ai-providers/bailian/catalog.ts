@@ -1,5 +1,5 @@
-import { registerOfficialModel } from '@/lib/providers/official/model-registry'
-import type { OfficialModelModality } from '@/lib/providers/official/model-registry'
+import { registerOfficialModel } from '@/lib/ai-providers/official/model-registry'
+import type { OfficialModelModality } from '@/lib/ai-providers/official/model-registry'
 
 const BAILIAN_CATALOG: Readonly<Record<OfficialModelModality, readonly string[]>> = {
   llm: [

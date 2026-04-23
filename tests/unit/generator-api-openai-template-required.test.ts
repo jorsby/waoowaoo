@@ -43,19 +43,19 @@ vi.mock('@/lib/generators/factory', () => ({
   createAudioGenerator: vi.fn(() => ({ generate: vi.fn() })),
 }))
 
-vi.mock('@/lib/providers/bailian', () => ({
+vi.mock('@/lib/ai-providers/bailian', () => ({
   generateBailianImage: vi.fn(),
   generateBailianVideo: vi.fn(),
   generateBailianAudio: vi.fn(),
 }))
 
-vi.mock('@/lib/providers/siliconflow', () => ({
+vi.mock('@/lib/ai-providers/siliconflow', () => ({
   generateSiliconFlowImage: vi.fn(),
   generateSiliconFlowVideo: vi.fn(),
   generateSiliconFlowAudio: vi.fn(),
 }))
 
-import { generateImage, generateVideo } from '@/lib/generator-api'
+import { generateImage, generateVideo } from '@/lib/ai-exec/engine'
 
 describe('generator-api requires compat media template for openai-compatible media', () => {
   beforeEach(() => {

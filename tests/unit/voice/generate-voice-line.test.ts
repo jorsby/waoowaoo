@@ -53,7 +53,7 @@ vi.mock('@/lib/media/service', () => ({
   resolveStorageKeyFromMediaValue: resolveStorageKeyFromMediaValueMock,
 }))
 
-vi.mock('@/lib/providers/bailian', () => ({
+vi.mock('@/lib/ai-providers/bailian', () => ({
   synthesizeWithBailianTTS: synthesizeWithBailianTTSMock,
 }))
 

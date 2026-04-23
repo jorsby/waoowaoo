@@ -25,13 +25,13 @@ import { revertAssetRender } from '@/lib/assets/services/asset-actions'
 import {
   collectBailianManagedVoiceIds,
   cleanupUnreferencedBailianVoices,
-} from '@/lib/providers/bailian'
+} from '@/lib/ai-providers/bailian'
 import {
   parseSpeakerVoiceMap,
   type SpeakerVoiceEntry,
   type SpeakerVoiceMap,
 } from '@/lib/voice/provider-voice-binding'
-import { validatePreviewText, validateVoicePrompt } from '@/lib/providers/bailian/voice-design'
+import { validatePreviewText, validateVoicePrompt } from '@/lib/ai-providers/bailian/voice-design'
 import { resolveBuiltinPricing } from '@/lib/model-pricing/lookup'
 import { resolveBuiltinCapabilitiesByModelKey } from '@/lib/model-capabilities/lookup'
 import { composeModelKey, parseModelKeyStrict } from '@/lib/model-config-contract'

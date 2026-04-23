@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createVoiceDesign } from '@/lib/providers/bailian/voice-design'
+import { createVoiceDesign } from '@/lib/ai-providers/bailian/voice-design'
 
 describe('bailian voice design', () => {
   beforeEach(() => {

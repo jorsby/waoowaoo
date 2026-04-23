@@ -25,7 +25,7 @@ const generatorApiMock = vi.hoisted(() => ({
 vi.mock('@/lib/prisma', () => ({ prisma: prismaMock }))
 vi.mock('@/lib/task/service', () => taskServiceMock)
 vi.mock('@/lib/async-poll', () => asyncPollMock)
-vi.mock('@/lib/generator-api', () => generatorApiMock)
+vi.mock('@/lib/ai-exec/engine', () => generatorApiMock)
 vi.mock('@/lib/lipsync', () => ({ generateLipSync: vi.fn() }))
 vi.mock('@/lib/storage', () => ({
   getSignedUrl: vi.fn((value: string) => value),

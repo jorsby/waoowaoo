@@ -1,7 +1,7 @@
 import sharp from 'sharp'
 import type { Job } from 'bullmq'
 import { prisma } from '@/lib/prisma'
-import { generateImage } from '@/lib/generator-api'
+import { generateImage } from '@/lib/ai-exec/engine'
 import { queryFalStatus } from '@/lib/async-submit'
 import { fetchWithTimeoutAndRetry } from '@/lib/ark-api'
 import { getProviderConfig } from '@/lib/api-config'

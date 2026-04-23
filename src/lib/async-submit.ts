@@ -1,5 +1,5 @@
 import { logInfo as _ulogInfo, logError as _ulogError } from '@/lib/logging/core'
-import { buildFalQueueUrl } from '@/lib/providers/fal/base-url'
+import { buildFalQueueUrl } from '@/lib/ai-providers/fal/base-url'
 /**
  * 异步任务提交工具
  * 

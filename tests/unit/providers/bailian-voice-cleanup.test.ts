@@ -29,7 +29,7 @@ vi.mock('@/lib/api-config', () => ({
   getProviderConfig: getProviderConfigMock,
 }))
 
-vi.mock('@/lib/providers/bailian/voice-manage', () => ({
+vi.mock('@/lib/ai-providers/bailian/voice-manage', () => ({
   deleteBailianVoice: deleteBailianVoiceMock,
 }))
 
@@ -38,7 +38,7 @@ import {
   collectProjectBailianManagedVoiceIds,
   cleanupUnreferencedBailianVoices,
   isBailianManagedVoiceBinding,
-} from '@/lib/providers/bailian/voice-cleanup'
+} from '@/lib/ai-providers/bailian/voice-cleanup'
 
 describe('bailian voice cleanup', () => {
   beforeEach(() => {

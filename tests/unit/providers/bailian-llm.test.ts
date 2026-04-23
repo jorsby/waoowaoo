@@ -35,7 +35,7 @@ vi.mock('openai', () => ({
   default: openAiCtorMock,
 }))
 
-import { completeBailianLlm } from '@/lib/providers/bailian/llm'
+import { completeBailianLlm } from '@/lib/ai-providers/bailian/llm'
 
 describe('bailian llm provider', () => {
   beforeEach(() => {

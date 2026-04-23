@@ -1,6 +1,6 @@
 import OpenAI from 'openai'
 import type { ChatCompletionStreamCallbacks } from '@/lib/llm/types'
-import { buildOpenAIChatCompletion } from '@/lib/llm/providers/openai-compat'
+import { buildOpenAIChatCompletion } from '@/lib/ai-providers/llm/openai-compat'
 import { extractStreamDeltaParts } from '@/lib/llm/utils'
 import { withStreamChunkTimeout } from '@/lib/llm/stream-timeout'
 import { emitStreamChunk, emitStreamStage, resolveStreamStepMeta } from '@/lib/llm/stream-helpers'

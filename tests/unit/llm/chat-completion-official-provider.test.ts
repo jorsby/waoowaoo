@@ -71,11 +71,11 @@ vi.mock('@/lib/api-config', () => ({
   getProviderKey: vi.fn((providerId: string) => providerId),
 }))
 
-vi.mock('@/lib/providers/bailian', () => ({
+vi.mock('@/lib/ai-providers/bailian', () => ({
   completeBailianLlm: completeBailianLlmMock,
 }))
 
-vi.mock('@/lib/providers/siliconflow', () => ({
+vi.mock('@/lib/ai-providers/siliconflow', () => ({
   completeSiliconFlowLlm: completeSiliconFlowLlmMock,
 }))
 

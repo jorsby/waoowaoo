@@ -11,7 +11,7 @@ vi.mock('@/lib/api-config', () => ({
   getProviderConfig: getProviderConfigMock,
 }))
 
-import { generateBailianVideo } from '@/lib/providers/bailian/video'
+import { generateBailianVideo } from '@/lib/ai-providers/bailian/video'
 
 describe('bailian video provider', () => {
   beforeEach(() => {

@@ -68,13 +68,13 @@ vi.mock('@/lib/api-config', () => ({
   getProviderKey: vi.fn((providerId: string) => providerId.split(':')[0] || providerId),
 }))
 
-vi.mock('@/lib/providers/bailian', () => ({
+vi.mock('@/lib/ai-providers/bailian', () => ({
   completeBailianLlm: vi.fn(async () => {
     throw new Error('bailian should not be called')
   }),
 }))
 
-vi.mock('@/lib/providers/siliconflow', () => ({
+vi.mock('@/lib/ai-providers/siliconflow', () => ({
   completeSiliconFlowLlm: vi.fn(async () => {
     throw new Error('siliconflow should not be called')
   }),

@@ -1,7 +1,7 @@
 import {
   assertOfficialModelRegistered,
   type OfficialModelModality,
-} from '@/lib/providers/official/model-registry'
+} from '@/lib/ai-providers/official/model-registry'
 import { getProviderConfig } from '@/lib/api-config'
 import type { GenerateResult } from '@/lib/generators/base'
 import { ensureBailianCatalogRegistered } from './catalog'

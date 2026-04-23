@@ -17,7 +17,7 @@ const workerMock = vi.hoisted(() => ({
   assertTaskActive: vi.fn(async () => undefined),
 }))
 
-vi.mock('@/lib/providers/bailian/voice-design', () => bailianMock)
+vi.mock('@/lib/ai-providers/bailian/voice-design', () => bailianMock)
 vi.mock('@/lib/api-config', () => apiConfigMock)
 vi.mock('@/lib/workers/shared', () => ({
   reportTaskProgress: workerMock.reportTaskProgress,

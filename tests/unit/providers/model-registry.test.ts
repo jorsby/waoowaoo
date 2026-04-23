@@ -4,7 +4,7 @@ import {
   isOfficialModelRegistered,
   registerOfficialModel,
   resetOfficialModelRegistryForTest,
-} from '@/lib/providers/official/model-registry'
+} from '@/lib/ai-providers/official/model-registry'
 
 describe('official model registry', () => {
   beforeEach(() => {

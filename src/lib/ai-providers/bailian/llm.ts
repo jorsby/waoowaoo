@@ -2,7 +2,7 @@ import OpenAI from 'openai'
 import {
   assertOfficialModelRegistered,
   type OfficialModelModality,
-} from '@/lib/providers/official/model-registry'
+} from '@/lib/ai-providers/official/model-registry'
 import { ensureBailianCatalogRegistered } from './catalog'
 import type { BailianLlmMessage } from './types'
 

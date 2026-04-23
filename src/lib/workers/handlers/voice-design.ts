@@ -4,7 +4,7 @@ import {
   validatePreviewText,
   validateVoicePrompt,
   type VoiceDesignInput,
-} from '@/lib/providers/bailian/voice-design'
+} from '@/lib/ai-providers/bailian/voice-design'
 import { getProviderConfig } from '@/lib/api-config'
 import { reportTaskProgress } from '@/lib/workers/shared'
 import { assertTaskActive } from '@/lib/workers/utils'

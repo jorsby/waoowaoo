@@ -12,8 +12,8 @@ import {
   getProviderKey,
 } from '../api-config'
 import type { ChatCompletionOptions, ChatCompletionStreamCallbacks } from './types'
-import { extractGoogleParts, extractGoogleUsage, GoogleEmptyResponseError } from './providers/google'
-import { buildOpenAIChatCompletion } from './providers/openai-compat'
+import { extractGoogleParts, extractGoogleUsage, GoogleEmptyResponseError } from '@/lib/ai-providers/llm/google'
+import { buildOpenAIChatCompletion } from '@/lib/ai-providers/llm/openai-compat'
 import {
   buildReasoningAwareContent,
   extractStreamDeltaParts,
@@ -37,8 +37,8 @@ import {
 import { getCompletionParts } from './completion-parts'
 import { withStreamChunkTimeout } from './stream-timeout'
 import { shouldUseOpenAIReasoningProviderOptions } from './reasoning-capability'
-import { completeBailianLlm } from '@/lib/providers/bailian'
-import { completeSiliconFlowLlm } from '@/lib/providers/siliconflow'
+import { completeBailianLlm } from '@/lib/ai-providers/bailian'
+import { completeSiliconFlowLlm } from '@/lib/ai-providers/siliconflow'
 
 const OFFICIAL_ONLY_PROVIDER_KEYS = new Set(['bailian', 'siliconflow'])
 

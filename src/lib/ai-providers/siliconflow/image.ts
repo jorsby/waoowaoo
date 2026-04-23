@@ -1,7 +1,7 @@
 import {
   assertOfficialModelRegistered,
   type OfficialModelModality,
-} from '@/lib/providers/official/model-registry'
+} from '@/lib/ai-providers/official/model-registry'
 import { ensureSiliconFlowCatalogRegistered } from './catalog'
 import type { SiliconFlowGenerateRequestOptions } from './types'
 

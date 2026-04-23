@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { synthesizeWithBailianTTS } from '@/lib/providers/bailian/tts'
+import { synthesizeWithBailianTTS } from '@/lib/ai-providers/bailian/tts'
 
 function buildWavBuffer(durationMs: number): Buffer {
   const sampleRate = 8000

@@ -25,7 +25,7 @@ import {
 import { getProviderConfig } from '@/lib/api-config'
 import { submitFalTask } from '@/lib/async-submit'
 import { normalizeToBase64ForGeneration } from '@/lib/media/outbound-image'
-import { buildFalQueueUrl } from '@/lib/providers/fal/base-url'
+import { buildFalQueueUrl } from '@/lib/ai-providers/fal/base-url'
 
 // ============================================================
 // 图像模型端点映射（modelId → FAL 端点前缀）

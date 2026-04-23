@@ -358,7 +358,7 @@ export function createAssetHubCharacterLibraryOperations(): ProjectAgentOperatio
         if (!character) throw new ApiError('NOT_FOUND')
         if (character.userId !== ctx.userId) throw new ApiError('FORBIDDEN')
 
-        const { collectBailianManagedVoiceIds, cleanupUnreferencedBailianVoices } = await import('@/lib/providers/bailian')
+        const { collectBailianManagedVoiceIds, cleanupUnreferencedBailianVoices } = await import('@/lib/ai-providers/bailian')
         const candidateVoiceIds = collectBailianManagedVoiceIds([
           { voiceId: character.voiceId, voiceType: character.voiceType },
         ])
