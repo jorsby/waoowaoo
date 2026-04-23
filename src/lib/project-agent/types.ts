@@ -91,7 +91,6 @@ export interface AgentDebugPartData {
   interactionMode: ProjectAgentInteractionMode
   routedIntent: 'query' | 'plan' | 'act'
   effectiveIntent: 'query' | 'plan' | 'act'
-  confidence: number
   requestedGroups: string[][]
   alwaysOnOperationIds: string[]
   operationIds: string[]

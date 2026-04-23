@@ -26,14 +26,11 @@ export interface ProjectAgentRouteDecision {
   intent: ProjectAgentIntent
   domains: ProjectAgentDomain[]
   requestedGroups: string[][]
-  confidence: number
   needsClarification: boolean
   clarifyingQuestion: string | null
   reasoning: string[]
   latestUserText: string
 }
-
-const ROUTER_CONFIDENCE_THRESHOLD = 0.8
 
 const routerSchema = z.object({
   intent: z.enum(['query', 'plan', 'act']),
@@ -54,7 +51,6 @@ const routerSchema = z.object({
     'unknown',
   ])).min(1),
   requestedGroups: z.array(z.array(z.string().min(1)).min(1)).max(8),
-  confidence: z.number().min(0).max(1),
   needsClarification: z.boolean(),
   clarifyingQuestion: z.string().nullable(),
   reasoning: z.array(z.string()).max(8),
@@ -179,7 +175,6 @@ function buildRouterPrompt(params: {
       system: [
         'You are a strict project assistant router.',
         'Your task is to classify the user turn before the main assistant acts.',
-        'Use high confidence only when the user goal is genuinely clear.',
         'If the request is ambiguous, set needsClarification=true and provide one short clarifyingQuestion.',
         'If any tool group might be needed, include it. Prefer recall over aggressive exclusion.',
         'Do not rely on previous rule routing. Output only from the provided schema.',
@@ -207,7 +202,6 @@ function buildRouterPrompt(params: {
     system: [
       '你是一个严格的项目 assistant 路由器。',
       '你的任务是在主 assistant 执行前，对当前用户请求做结构化分类。',
-      '只有当用户目标真的明确时，才能给高置信度。',
       '如果请求有歧义，必须设置 needsClarification=true，并提供一个简短的 clarifyingQuestion。',
       '如果某个工具 group 可能需要用到，就把它包含进去。宁可高召回，不要激进排除。',
       '禁止依赖旧的规则路由，必须只按 schema 输出。',
@@ -244,7 +238,6 @@ export async function routeProjectAgentRequest(input: {
       intent: 'query',
       domains: ['unknown'],
       requestedGroups: [],
-      confidence: 0,
       needsClarification: true,
       clarifyingQuestion: normalizeProjectAgentLocale(input.context.locale) === 'en'
         ? 'What do you want me to help with in this project?'
@@ -273,8 +266,7 @@ export async function routeProjectAgentRequest(input: {
   })
 
   const object = result.object
-  const confidence = Math.max(0, Math.min(1, Math.round(object.confidence * 100) / 100))
-  const clarificationRequired = object.needsClarification || confidence < ROUTER_CONFIDENCE_THRESHOLD
+  const clarificationRequired = object.needsClarification
   const clarifyingQuestion = clarificationRequired
     ? (object.clarifyingQuestion?.trim()
       || (locale === 'en'
@@ -293,7 +285,6 @@ export async function routeProjectAgentRequest(input: {
     intent: object.intent,
     domains: Array.from(new Set(object.domains)),
     requestedGroups,
-    confidence,
     needsClarification: clarificationRequired,
     clarifyingQuestion,
     reasoning,

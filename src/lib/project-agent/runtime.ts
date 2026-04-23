@@ -157,7 +157,6 @@ export async function createProjectAgentChatResponse(input: {
           interactionMode: executionMode.interactionMode,
           routedIntent: route.intent,
           effectiveIntent: executionMode.effectiveIntent,
-          confidence: route.confidence,
           domains: route.domains,
           requestedGroups: route.requestedGroups,
           latestUserTextPreview: buildMessagePreview(route.latestUserText),
@@ -197,7 +196,6 @@ export async function createProjectAgentChatResponse(input: {
           `interactionMode=${executionMode.interactionMode}`,
           `routedIntent=${route.intent}`,
           `effectiveIntent=${executionMode.effectiveIntent}`,
-          `confidence=${String(route.confidence)}`,
           `requestedGroups=${JSON.stringify(route.requestedGroups)}`,
           `alwaysOn=${String(selection.alwaysOnOperationIds.length)}`,
           `tools=${String(selection.operationIds.length)}`,
@@ -207,7 +205,6 @@ export async function createProjectAgentChatResponse(input: {
           interactionMode: executionMode.interactionMode,
           routedIntent: route.intent,
           effectiveIntent: executionMode.effectiveIntent,
-          confidence: route.confidence,
           requestedGroups: route.requestedGroups,
           alwaysOnOperationIds: selection.alwaysOnOperationIds,
           operationIds: selection.operationIds,
@@ -226,7 +223,6 @@ export async function createProjectAgentChatResponse(input: {
           requestedGroups: selection.requestedGroups,
           toolChannelCount: Object.values(operations).filter((operation) => operation.channels.tool).length,
           operationIds: selection.operationIds,
-          confidence: route.confidence,
         },
       })
       const toolEntries = selection.operationIds.map((operationId) => {

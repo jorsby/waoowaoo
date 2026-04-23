@@ -50,13 +50,12 @@ describe('routeProjectAgentRequest', () => {
     vi.clearAllMocks()
   })
 
-  it('[clear storyboard edit request] -> returns high-confidence categories without clarification', async () => {
+  it('[clear storyboard edit request] -> returns categories without clarification', async () => {
     aiMock.generateObject.mockResolvedValueOnce({
       object: {
         intent: 'act',
         domains: ['storyboard', 'asset'],
         requestedGroups: [['storyboard', 'edit'], ['asset', 'character']],
-        confidence: 0.92,
         needsClarification: false,
         clarifyingQuestion: null,
         reasoning: ['user wants to update storyboard text'],
@@ -78,13 +77,12 @@ describe('routeProjectAgentRequest', () => {
     expect(route.clarifyingQuestion).toBeNull()
   })
 
-  it('[low confidence output] -> forces clarification even if model says no clarification', async () => {
+  it('[ambiguous output without clarification] -> does not force clarification in router layer', async () => {
     aiMock.generateObject.mockResolvedValueOnce({
       object: {
         intent: 'query',
         domains: ['unknown'],
         requestedGroups: [['project', 'read']],
-        confidence: 0.56,
         needsClarification: false,
         clarifyingQuestion: null,
         reasoning: ['request is vague'],
@@ -99,8 +97,8 @@ describe('routeProjectAgentRequest', () => {
       allowedRequestedGroups: [['project', 'read'], ['workflow', 'plan'], ['storyboard', 'edit']],
     })
 
-    expect(route.needsClarification).toBe(true)
-    expect(route.clarifyingQuestion).toBe('请补充你希望我执行的具体动作或目标结果。')
+    expect(route.needsClarification).toBe(false)
+    expect(route.clarifyingQuestion).toBeNull()
   })
 
   it('[empty user text] -> returns direct clarification without model call', async () => {
