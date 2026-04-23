@@ -62,6 +62,20 @@ function mergeConfirmation(
   }
 }
 
+function assertOperationFolderGroupConsistency(params: {
+  operationId: string
+  groupPath: OperationGroupPath
+  defaultsGroupPath: OperationGroupPath
+}): void {
+  const defaultsFolderGroup = params.defaultsGroupPath[0]
+  const operationFolderGroup = params.groupPath[0]
+  if (operationFolderGroup !== defaultsFolderGroup) {
+    throw new Error(
+      `PROJECT_AGENT_OPERATION_GROUP_PATH_FOLDER_MISMATCH:${params.operationId}:${operationFolderGroup}:${defaultsFolderGroup}`,
+    )
+  }
+}
+
 export function withOperationPack(
   registry: ProjectAgentOperationRegistryDraft,
   defaults: OperationPackDefaults,
@@ -75,10 +89,16 @@ export function withOperationPack(
 
   const out: ProjectAgentOperationRegistry = {}
   for (const [operationId, operation] of Object.entries(registry)) {
+    const groupPath = normalizeGroupPath(operation.groupPath ?? normalizedDefaults.groupPath)
+    assertOperationFolderGroupConsistency({
+      operationId,
+      groupPath,
+      defaultsGroupPath: normalizedDefaults.groupPath,
+    })
     out[operationId] = {
       ...operation,
       summary: normalizeOperationSummary(operation),
-      groupPath: normalizeGroupPath(operation.groupPath ?? normalizedDefaults.groupPath),
+      groupPath,
       channels: normalizeChannels(operation.channels ?? normalizedDefaults.channels),
       prerequisites: mergePrerequisites(operation, normalizedDefaults),
       confirmation: mergeConfirmation(operation, normalizedDefaults),

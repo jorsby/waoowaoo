@@ -27,10 +27,10 @@ describe('project agent operation registry', () => {
     }
   })
 
-  it('keeps legacy mutate_storyboard as api-only facade while explicit storyboard tools stay assistant-visible', () => {
+  it('keeps storyboard tools atomic and assistant-visible', () => {
     const registry = createProjectAgentOperationRegistry()
 
-    expect(registry.mutate_storyboard?.channels).toEqual({ tool: false, api: true })
+    expect(registry.mutate_storyboard).toBeUndefined()
     expect(registry.modify_asset_image?.channels).toEqual({ tool: false, api: true })
     expect(registry.voice_generate?.channels).toEqual({ tool: false, api: true })
     expect(registry.generate_video?.channels).toEqual({ tool: false, api: true })
@@ -40,5 +40,14 @@ describe('project agent operation registry', () => {
     expect(registry.modify_character_image?.channels?.tool ?? true).toBe(true)
     expect(registry.generate_voice_line_audio?.channels?.tool ?? true).toBe(true)
     expect(registry.generate_panel_video?.channels?.tool ?? true).toBe(true)
+
+    expect(registry.delete_storyboard_panel?.groupPath).toEqual(['storyboard', 'edit'])
+    expect(registry.update_storyboard_panel_prompt?.groupPath).toEqual(['storyboard', 'edit'])
+    expect(registry.insert_storyboard_panel?.groupPath).toEqual(['storyboard', 'edit'])
+
+    for (const operation of Object.values(registry)) {
+      if (!operation.channels.tool) continue
+      expect(operation.groupPath).not.toEqual(['storyboard'])
+    }
   })
 })

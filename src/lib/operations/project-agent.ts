@@ -2262,7 +2262,7 @@ export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegi
       id: 'modify_asset_image',
       summary: 'Modify an asset image (character/location) using edit model (async task submission).',
       intent: 'act',
-      groupPath: ['asset'],
+      groupPath: ['asset', 'edit'],
       channels: CHANNELS_API_ONLY,
       prerequisites: PREREQ_EPISODE_OPTIONAL,
       effects: {
@@ -2354,7 +2354,7 @@ export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegi
       id: 'regenerate_panel_image',
       summary: 'Regenerate storyboard panel images (async task submission).',
       intent: 'act',
-      groupPath: ['storyboard'],
+      groupPath: ['storyboard', 'edit'],
       channels: CHANNELS_TOOL_API,
       prerequisites: PREREQ_EPISODE_OPTIONAL,
       effects: {
@@ -2486,7 +2486,7 @@ export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegi
       id: 'panel_variant',
       summary: 'Insert a variant panel after an existing panel and enqueue image generation (async task submission).',
       intent: 'act',
-      groupPath: ['storyboard'],
+      groupPath: ['storyboard', 'edit'],
       channels: CHANNELS_TOOL_API,
       prerequisites: PREREQ_EPISODE_OPTIONAL,
       effects: {
@@ -2669,32 +2669,11 @@ export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegi
         return { ...result, panelId: createdPanel.id, mutationBatchId: mutationBatch.id }
       },
     }),
-    mutate_storyboard: definePackedOperation({
-      id: 'mutate_storyboard',
-      summary: 'Apply storyboard mutations, including delete panel, insert panel, update prompts, reorder panels, select candidates, and update panel fields.',
-      intent: 'act',
-      groupPath: ['storyboard'],
-      channels: CHANNELS_API_ONLY,
-      prerequisites: PREREQ_EPISODE_OPTIONAL,
-      effects: {
-        writes: true,
-        billable: true,
-        destructive: true,
-        overwrite: true,
-        bulk: true,
-        externalSideEffects: true,
-        longRunning: true,
-      },
-      confirmation: CONFIRM_NONE,
-      inputSchema: storyboardMutationInputSchema,
-      outputSchema: z.unknown(),
-      execute: async (ctx, input) => executeStoryboardMutationOperation(ctx, input, 'mutate_storyboard'),
-    }),
     create_storyboard_panel: definePackedOperation({
       id: 'create_storyboard_panel',
       summary: 'Create a new storyboard panel at the end of a storyboard.',
       intent: 'act',
-      groupPath: ['storyboard'],
+      groupPath: ['storyboard', 'edit'],
       channels: CHANNELS_TOOL_API,
       prerequisites: PREREQ_EPISODE_OPTIONAL,
       effects: {
@@ -2718,7 +2697,7 @@ export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegi
       id: 'delete_storyboard_panel',
       summary: 'Delete a storyboard panel by panelId or by storyboardId plus panelIndex.',
       intent: 'act',
-      groupPath: ['storyboard'],
+      groupPath: ['storyboard', 'edit'],
       channels: CHANNELS_TOOL_API,
       prerequisites: PREREQ_EPISODE_OPTIONAL,
       effects: {
@@ -2745,7 +2724,7 @@ export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegi
       id: 'update_storyboard_panel_prompt',
       summary: 'Update prompt fields for a storyboard panel.',
       intent: 'act',
-      groupPath: ['storyboard'],
+      groupPath: ['storyboard', 'edit'],
       channels: CHANNELS_TOOL_API,
       prerequisites: PREREQ_EPISODE_OPTIONAL,
       effects: {
@@ -2772,7 +2751,7 @@ export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegi
       id: 'update_storyboard_panel_fields',
       summary: 'Update structured storyboard panel fields such as shot, description, timing, or linkage.',
       intent: 'act',
-      groupPath: ['storyboard'],
+      groupPath: ['storyboard', 'edit'],
       channels: CHANNELS_TOOL_API,
       prerequisites: PREREQ_EPISODE_OPTIONAL,
       effects: {
@@ -2799,7 +2778,7 @@ export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegi
       id: 'reorder_storyboard_panels',
       summary: 'Reorder all panels in a storyboard using an explicit orderedPanelIds list.',
       intent: 'act',
-      groupPath: ['storyboard'],
+      groupPath: ['storyboard', 'edit'],
       channels: CHANNELS_TOOL_API,
       prerequisites: PREREQ_EPISODE_OPTIONAL,
       effects: {
@@ -2826,7 +2805,7 @@ export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegi
       id: 'select_storyboard_panel_candidate',
       summary: 'Select one storyboard panel candidate image as the final panel image.',
       intent: 'act',
-      groupPath: ['storyboard'],
+      groupPath: ['storyboard', 'edit'],
       channels: CHANNELS_TOOL_API,
       prerequisites: PREREQ_EPISODE_OPTIONAL,
       effects: {
@@ -2853,7 +2832,7 @@ export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegi
       id: 'cancel_storyboard_panel_candidates',
       summary: 'Cancel and clear candidate images for a storyboard panel.',
       intent: 'act',
-      groupPath: ['storyboard'],
+      groupPath: ['storyboard', 'edit'],
       channels: CHANNELS_TOOL_API,
       prerequisites: PREREQ_EPISODE_OPTIONAL,
       effects: {
@@ -2880,7 +2859,7 @@ export function createProjectAgentOperationRegistry(): ProjectAgentOperationRegi
       id: 'insert_storyboard_panel',
       summary: 'Insert a new storyboard panel after an existing panel and enqueue generation.',
       intent: 'act',
-      groupPath: ['storyboard'],
+      groupPath: ['storyboard', 'edit'],
       channels: CHANNELS_TOOL_API,
       prerequisites: PREREQ_EPISODE_OPTIONAL,
       effects: {
