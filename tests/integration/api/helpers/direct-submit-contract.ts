@@ -3,8 +3,12 @@ import { TASK_TYPE, type TaskType } from '@/lib/task/types'
 import { buildMockRequest } from '../../../helpers/request'
 
 export type SubmitResult = {
+  success: true
   taskId: string
   async: true
+  status: 'queued'
+  runId: null
+  deduped: false
 }
 
 export type RouteContext = {
@@ -205,8 +209,12 @@ export function resetDirectSubmitMocks() {
   authState.authenticated = true
   let seq = 0
   submitTaskMock.mockImplementation(async () => ({
+    success: true,
     taskId: `task-${++seq}`,
     async: true,
+    status: 'queued',
+    runId: null,
+    deduped: false,
   }))
 }
 

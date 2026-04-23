@@ -13,12 +13,14 @@ const submitTaskMock = vi.hoisted(() => vi.fn<(input: unknown) => Promise<{
   async: boolean
   taskId: string
   status: string
+  runId: string | null
   deduped: boolean
 }>>(async () => ({
   success: true,
   async: true,
   taskId: 'task-1',
   status: 'queued',
+  runId: null,
   deduped: false,
 })))
 

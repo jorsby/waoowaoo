@@ -1,7 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { TASK_TYPE } from '@/lib/task/types'
 
-const submitTaskMock = vi.hoisted(() => vi.fn(async () => ({ taskId: 'task-1', async: true })))
+const submitTaskMock = vi.hoisted(() => vi.fn(async () => ({
+  success: true,
+  taskId: 'task-1',
+  async: true,
+  status: 'queued',
+  runId: null,
+  deduped: false,
+})))
 vi.mock('@/lib/task/submitter', () => ({
   submitTask: submitTaskMock,
 }))
@@ -134,4 +141,3 @@ describe('media operations', () => {
     }))
   })
 })
-
