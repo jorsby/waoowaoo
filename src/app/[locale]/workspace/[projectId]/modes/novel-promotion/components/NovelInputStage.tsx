@@ -65,6 +65,7 @@ export default function NovelInputStage({
 }: NovelInputStageProps) {
   const t = useTranslations('novelPromotion')
   const homeT = useTranslations('home')
+  const tc = useTranslations('common')
 
   // ── IME 组合输入处理 ──
   // 中文/日文/韩文输入法在组合（composing）期间会持续触发 onChange，
@@ -193,6 +194,7 @@ export default function NovelInputStage({
           onArtStyleChange={(value) => onArtStyleChange?.(value)}
           styleOptions={ART_STYLES.map((option) => ({
             ...option,
+            label: tc(option.labelKey),
             recommended: option.value === 'realistic'
           }))}
           stylePresetValue={stylePresetValue}

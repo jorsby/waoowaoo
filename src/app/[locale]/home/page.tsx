@@ -146,8 +146,8 @@ export default function HomePage() {
 
   // 风格选项（带推荐标签）
   const styleOptions = useMemo(
-    () => ART_STYLES.map((s) => ({ ...s, recommended: s.value === 'realistic' })),
-    []
+    () => ART_STYLES.map((s) => ({ ...s, label: tc(s.labelKey), recommended: s.value === 'realistic' })),
+    [tc]
   )
   // 时间格式化
   const formatTimeAgo = (dateString: string): string => {

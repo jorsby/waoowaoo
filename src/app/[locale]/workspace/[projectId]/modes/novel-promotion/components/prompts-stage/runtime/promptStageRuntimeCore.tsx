@@ -36,13 +36,15 @@ export function usePromptStageActions({
   onAppendContent,
 }: PromptsStageShellProps) {
   const t = useTranslations('storyboard')
+  const tc = useTranslations('common')
   const aiModifyShotPrompt = useAiModifyProjectShotPrompt(projectId)
 
   const isShotTaskRunning = useCallback((shot: NovelPromotionShot) => {
     return Boolean((shot as NovelPromotionShot & { imageTaskRunning?: boolean }).imageTaskRunning)
   }, [])
 
-  const styleLabel = ART_STYLES.find((style) => style.value === artStyle)?.label || t('prompts.customStyle')
+  const matchedArtStyle = ART_STYLES.find((style) => style.value === artStyle)
+  const styleLabel = matchedArtStyle ? tc(matchedArtStyle.labelKey) : t('prompts.customStyle')
   const runningCount = shots.filter((shot) => isShotTaskRunning(shot)).length
   const [previewImage, setPreviewImage] = useState<string | null>(null)
 

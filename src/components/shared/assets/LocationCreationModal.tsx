@@ -48,6 +48,7 @@ export function LocationCreationModal({
     onSuccess
 }: LocationCreationModalProps) {
     const t = useTranslations('assetModal')
+    const tc = useTranslations('common')
     const aiDesignAssetHubLocation = useAiDesignLocation()
     const createAssetHubLocation = useCreateAssetHubLocation()
     const generateAssetHubLocation = useGenerateLocationImage()
@@ -309,7 +310,7 @@ export function LocationCreationModal({
                                                 : 'glass-btn-soft border-[var(--glass-stroke-base)] text-[var(--glass-text-secondary)]'
                                                 }`}
                                         >
-                                            <span>{style.label}</span>
+                                            <span>{tc(style.labelKey)}</span>
                                         </button>
                                     ))}
                                 </div>

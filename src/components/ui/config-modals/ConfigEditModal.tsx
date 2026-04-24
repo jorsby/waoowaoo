@@ -151,6 +151,7 @@ export function SettingsModal({
     onTTSRateChange,
 }: SettingsModalProps) {
     const t = useTranslations('configModal')
+    const tc = useTranslations('common')
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saved'>('idle')
     const userModels = useMemo<UserModels>(() => ({
         llm: Array.isArray(availableModels?.llm) ? availableModels.llm : [],
@@ -373,7 +374,7 @@ export function SettingsModal({
                                 <StyleSelector
                                     value={artStyle}
                                     onChange={(value) => handleChange(onArtStyleChange)(value)}
-                                    options={ART_STYLES}
+                                    options={ART_STYLES.map((style) => ({ ...style, label: tc(style.labelKey) }))}
                                 />
                             </div>
                             <div className="space-y-2">

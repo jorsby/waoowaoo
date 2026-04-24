@@ -28,6 +28,7 @@ const SparklesIcon = ({ className }: { className?: string }) => (
 
 export function AddLocationModal({ folderId, onClose, onSuccess }: AddLocationModalProps) {
     const t = useTranslations('assetHub')
+    const tc = useTranslations('common')
 
     // 表单字段
     const [name, setName] = useState('')
@@ -180,7 +181,7 @@ export function AddLocationModal({ folderId, onClose, onSuccess }: AddLocationMo
                                             : 'glass-btn-soft border-[var(--glass-stroke-base)] text-[var(--glass-text-secondary)] hover:border-[var(--glass-stroke-strong)]'
                                             }`}
                                     >
-                                        <span>{style.label}</span>
+                                        <span>{tc(style.labelKey)}</span>
                                     </button>
                                 ))}
                             </div>

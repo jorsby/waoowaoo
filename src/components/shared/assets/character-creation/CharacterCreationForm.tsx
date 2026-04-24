@@ -89,6 +89,7 @@ export default function CharacterCreationForm({
   isExtracting,
 }: CharacterCreationFormProps) {
   const t = useTranslations('assetModal')
+  const tc = useTranslations('common')
 
   return (
     <div className="space-y-5">
@@ -185,7 +186,7 @@ export default function CharacterCreationForm({
                   : 'glass-btn-soft border-[var(--glass-stroke-base)] text-[var(--glass-text-secondary)]'
                   }`}
               >
-                <span>{style.label}</span>
+                <span>{tc(style.labelKey)}</span>
               </button>
             ))}
           </div>

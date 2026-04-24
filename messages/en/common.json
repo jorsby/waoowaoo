@@ -71,6 +71,12 @@
     "operationFailed": "Operation failed",
     "pleaseRetry": "Please retry",
     "recommended": "Recommended",
+    "artStyles": {
+        "americanComic": "Manga",
+        "chineseComic": "Chinese Anime",
+        "japaneseAnime": "Japanese Anime",
+        "realistic": "Realistic"
+    },
     "language": {
         "select": "Select language",
         "zh": "Chinese",

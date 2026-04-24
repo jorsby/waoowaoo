@@ -179,7 +179,7 @@ export default function AddLocationModal({
                       : 'border-[var(--glass-stroke-base)] hover:border-[var(--glass-stroke-strong)] text-[var(--glass-text-secondary)]'
                       }`}
                   >
-                    <span>{style.label}</span>
+                    <span>{tc(style.labelKey)}</span>
                   </button>
                 ))}
               </div>

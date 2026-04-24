@@ -71,6 +71,12 @@
     "operationFailed": "操作失败",
     "pleaseRetry": "请重试",
     "recommended": "推荐",
+    "artStyles": {
+        "americanComic": "漫画风",
+        "chineseComic": "精致国漫",
+        "japaneseAnime": "日系动漫风",
+        "realistic": "真人风格"
+    },
     "language": {
         "select": "选择语言",
         "zh": "中文",
