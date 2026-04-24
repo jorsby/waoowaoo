@@ -171,6 +171,7 @@
       "ark_step2": "On the model management page, click 'Enable All Models' button in the top right corner",
       "openrouter_step1": "Go to OpenRouter platform and create an API Key (must select models with image capabilities)",
       "fal_step1": "Go to FAL platform and create an API Key",
+      "kie_step1": "Go to KIE.ai and create an API Key",
       "google_step1": "Go to Google AI Studio and create an API Key",
       "minimax_step1": "Go to MiniMax platform and get an API Key",
       "vidu_step1": "Go to the Vidu platform and click 'Create API Key'",

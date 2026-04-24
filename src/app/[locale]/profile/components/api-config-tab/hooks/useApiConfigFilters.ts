@@ -23,12 +23,14 @@ const DEFAULT_AUDIO_EXCLUDED_MODEL_IDS = new Set([
 ])
 const MODEL_PROVIDER_KEYS = [
   'ark',
+  'modelark',
   'google',
   'bailian',
   'openrouter',
   'minimax',
   'vidu',
   'fal',
+  'kie',
   'gemini-compatible',
   'openai-compatible',
 ]

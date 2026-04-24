@@ -14,13 +14,13 @@ import {
   toSignedUrlIfCos,
   uploadVideoSourceToCos,
 } from './utils'
-import { normalizeToBase64ForGeneration } from '@/lib/media/outbound-image'
+import { normalizeToBase64ForGeneration, resolveAbsolutePublicUrl } from '@/lib/media/outbound-image'
 import { resolveBuiltinCapabilitiesByModelKey } from '@/lib/model-capabilities/lookup'
 import { parseModelKeyStrict } from '@/lib/model-config-contract'
 import { getProviderConfig } from '@/lib/api-config'
 
 type AnyObj = Record<string, unknown>
-type VideoOptionValue = string | number | boolean
+type VideoOptionValue = string | number | boolean | string[]
 type VideoOptionMap = Record<string, VideoOptionValue>
 type VideoGenerationMode = 'normal' | 'firstlastframe'
 type PanelRecord = NonNullable<Awaited<ReturnType<typeof prisma.novelPromotionPanel.findUnique>>>
@@ -41,6 +41,10 @@ function extractGenerationOptions(payload: AnyObj): VideoOptionMap {
     if (key === 'aspectRatio') continue
     if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
       next[key] = value
+      continue
+    }
+    if (Array.isArray(value) && value.every((item) => typeof item === 'string')) {
+      next[key] = value as string[]
     }
   }
   return next
@@ -105,9 +109,8 @@ async function generateVideoForPanel(
   if (!sourceImageUrl) {
     throw new Error(`Panel ${panel.id} image url invalid`)
   }
-  const sourceImageBase64 = await normalizeToBase64ForGeneration(sourceImageUrl)
 
-  let lastFrameImageBase64: string | undefined
+  let lastFramePanelImageUrl: string | undefined
   const generationMode: VideoGenerationMode = firstLastFramePayload ? 'firstlastframe' : 'normal'
   const requestedGenerateAudio = typeof generationOptions.generateAudio === 'boolean'
     ? generationOptions.generateAudio
@@ -133,25 +136,51 @@ async function generateVideoForPanel(
         Number(firstLastFramePayload.lastFramePanelIndex),
       )
       if (lastPanel?.imageUrl) {
-        const lastFrameUrl = toSignedUrlIfCos(lastPanel.imageUrl, 3600)
-        if (lastFrameUrl) {
-          lastFrameImageBase64 = await normalizeToBase64ForGeneration(lastFrameUrl)
-        }
+        lastFramePanelImageUrl = lastPanel.imageUrl
       }
     }
   }
 
+  // KIE requires public HTTPS URLs for first_frame_url / last_frame_url (its servers fetch the
+  // image directly). Other providers (ModelArk, fal, Bailian, SiliconFlow) accept base64 data
+  // URIs via their own ingest. Route the image payload based on provider capability.
+  const isKieModel = parseModelKeyStrict(model)?.provider === 'kie'
+  const sourceImageForGenerator = isKieModel
+    ? await resolveAbsolutePublicUrl(panel.imageUrl)
+    : await normalizeToBase64ForGeneration(sourceImageUrl)
+
+  let lastFrameInputForGenerator: string | undefined
+  if (lastFramePanelImageUrl) {
+    if (isKieModel) {
+      lastFrameInputForGenerator = await resolveAbsolutePublicUrl(lastFramePanelImageUrl)
+    } else {
+      const lastFrameSignedUrl = toSignedUrlIfCos(lastFramePanelImageUrl, 3600)
+      if (lastFrameSignedUrl) {
+        lastFrameInputForGenerator = await normalizeToBase64ForGeneration(lastFrameSignedUrl)
+      }
+    }
+  }
+
+  // KIE servers fetch reference images by URL too — resolve to absolute public URLs
+  // (covers Grok Imagine `image_urls` and Seedance `reference_image_urls`).
+  const rawReferenceImageUrls = generationOptions.referenceImageUrls
+  const resolvedReferenceImageUrls =
+    isKieModel && Array.isArray(rawReferenceImageUrls) && rawReferenceImageUrls.length > 0
+      ? await Promise.all(rawReferenceImageUrls.map((u) => resolveAbsolutePublicUrl(u)))
+      : undefined
+
   const generatedVideo = await resolveVideoSourceFromGeneration(job, {
     userId: job.data.userId,
     modelId: model,
-    imageUrl: sourceImageBase64,
+    imageUrl: sourceImageForGenerator,
     options: {
       prompt,
       ...(projectVideoRatio ? { aspectRatio: projectVideoRatio } : {}),
       ...generationOptions,
+      ...(resolvedReferenceImageUrls ? { referenceImageUrls: resolvedReferenceImageUrls } : {}),
       generationMode,
       ...(typeof requestedGenerateAudio === 'boolean' ? { generateAudio: requestedGenerateAudio } : {}),
-      ...(lastFrameImageBase64 ? { lastFrameImageUrl: lastFrameImageBase64 } : {}),
+      ...(lastFrameInputForGenerator ? { lastFrameImageUrl: lastFrameInputForGenerator } : {}),
     },
   })
 

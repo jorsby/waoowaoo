@@ -188,7 +188,9 @@ export async function generateVideo(
         aspectRatio?: string     // '16:9' | '9:16'
         generateAudio?: boolean  // 仅 Seedance 1.5 Pro 支持
         lastFrameImageUrl?: string  // 首尾帧模式的尾帧图片
-        [key: string]: string | number | boolean | undefined
+        referenceImageUrls?: string[]  // KIE Multimodal Reference-to-Video
+        nsfwChecker?: boolean    // KIE NSFW 过滤开关
+        [key: string]: string | number | boolean | string[] | undefined
     }
 ): Promise<GenerateResult> {
     const selection = await resolveModelSelection(userId, modelKey, 'video')

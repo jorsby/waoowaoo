@@ -47,6 +47,7 @@ export const IMAGE_MODELS = [
 export const IMAGE_MODEL_OPTIONS = [
   { value: 'banana', label: 'Banana Pro (FAL)' },
   { value: 'banana-2', label: 'Banana 2 (FAL)' },
+  { value: 'gpt-image-2', label: 'GPT Image 2 (FAL)' },
   { value: 'gemini-3-pro-image-preview', label: 'Banana (Google)' },
   { value: 'gemini-3-pro-image-preview-batch', label: 'Banana (Google Batch) 省50%' },
   { value: 'doubao-seedream-4-0-250828', label: 'Seedream 4.0' },

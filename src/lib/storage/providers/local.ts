@@ -53,6 +53,10 @@ export class LocalStorageProvider implements StorageProvider {
     return `/api/files/${encodeURIComponent(normalizeKey(params.key))}`
   }
 
+  async getSignedPublicObjectUrl(params: SignedUrlParams): Promise<string> {
+    return await this.getSignedObjectUrl(params)
+  }
+
   async getObjectBuffer(key: string): Promise<Buffer> {
     return await fs.readFile(resolveUploadPath(key))
   }

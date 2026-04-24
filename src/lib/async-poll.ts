@@ -16,7 +16,7 @@ import { logInfo as _ulogInfo, logError as _ulogError } from '@/lib/logging/core
  * - 仅接受标准 externalId（不再兼容历史拼装格式）
  */
 
-import { queryFalStatus } from './async-submit'
+import { queryFalStatus, queryKieStatus } from './async-submit'
 import { queryGeminiBatchStatus, querySeedanceVideoStatus, queryGoogleVideoStatus } from './async-task-utils'
 import { getProviderConfig, getUserModels } from './api-config'
 import { buildRenderedTemplateRequest, buildTemplateVariables, normalizeResponseJson, readJsonPath } from './openai-compat-template-runtime'
@@ -48,7 +48,7 @@ function getErrorMessage(error: unknown): string {
  * 解析 externalId 获取 provider、type 和请求信息
  */
 export function parseExternalId(externalId: string): {
-    provider: 'FAL' | 'ARK' | 'GEMINI' | 'GOOGLE' | 'MINIMAX' | 'VIDU' | 'OPENAI' | 'OCOMPAT' | 'BAILIAN' | 'SILICONFLOW' | 'UNKNOWN'
+    provider: 'FAL' | 'KIE' | 'ARK' | 'MODELARK' | 'GEMINI' | 'GOOGLE' | 'MINIMAX' | 'VIDU' | 'OPENAI' | 'OCOMPAT' | 'BAILIAN' | 'SILICONFLOW' | 'UNKNOWN'
     type: 'VIDEO' | 'IMAGE' | 'BATCH' | 'UNKNOWN'
     endpoint?: string
     requestId: string
@@ -78,6 +78,30 @@ export function parseExternalId(externalId: string): {
         throw new Error(`无效 FAL externalId: "${externalId}"，TYPE 仅支持 VIDEO/IMAGE`)
     }
 
+    if (externalId.startsWith('KIE:')) {
+        const parts = externalId.split(':')
+
+        if (parts[1] === 'VIDEO' || parts[1] === 'IMAGE') {
+            if (parts.length < 4) {
+                throw new Error(`无效 KIE externalId: "${externalId}"，应为 KIE:TYPE:modelId:taskId`)
+            }
+            // modelId (e.g. 'bytedance/seedance-2') 可能包含 '/'，但不包含 ':'
+            // 格式: KIE:TYPE:<modelId>:<taskId>，其中 taskId 是最后一段
+            const endpoint = parts.slice(2, -1).join(':')
+            const requestId = parts[parts.length - 1]
+            if (!endpoint || !requestId) {
+                throw new Error(`无效 KIE externalId: "${externalId}"，缺少 modelId 或 taskId`)
+            }
+            return {
+                provider: 'KIE',
+                type: parts[1] as 'VIDEO' | 'IMAGE',
+                endpoint,
+                requestId,
+            }
+        }
+        throw new Error(`无效 KIE externalId: "${externalId}"，TYPE 仅支持 VIDEO/IMAGE`)
+    }
+
     if (externalId.startsWith('ARK:')) {
         const parts = externalId.split(':')
         const type = parts[1]
@@ -87,6 +111,20 @@ export function parseExternalId(externalId: string): {
         }
         return {
             provider: 'ARK',
+            type: type as 'VIDEO' | 'IMAGE',
+            requestId,
+        }
+    }
+
+    if (externalId.startsWith('MODELARK:')) {
+        const parts = externalId.split(':')
+        const type = parts[1]
+        const requestId = parts.slice(2).join(':')
+        if ((type !== 'VIDEO' && type !== 'IMAGE') || !requestId) {
+            throw new Error(`无效 MODELARK externalId: "${externalId}"，应为 MODELARK:TYPE:requestId`)
+        }
+        return {
+            provider: 'MODELARK',
             type: type as 'VIDEO' | 'IMAGE',
             requestId,
         }
@@ -212,7 +250,7 @@ export function parseExternalId(externalId: string): {
 
     throw new Error(
         `无法识别的 externalId 格式: "${externalId}". ` +
-        `支持的格式: FAL:TYPE:endpoint:requestId, ARK:TYPE:requestId, GEMINI:BATCH:batchName, GOOGLE:VIDEO:operationName, MINIMAX:TYPE:taskId, VIDU:TYPE:taskId, OPENAI:VIDEO:providerToken:videoId, OCOMPAT:TYPE:providerToken:modelKeyToken:taskId, BAILIAN:TYPE:requestId, SILICONFLOW:TYPE:requestId`
+        `支持的格式: FAL:TYPE:endpoint:requestId, KIE:TYPE:modelId:taskId, ARK:TYPE:requestId, GEMINI:BATCH:batchName, GOOGLE:VIDEO:operationName, MINIMAX:TYPE:taskId, VIDU:TYPE:taskId, OPENAI:VIDEO:providerToken:videoId, OCOMPAT:TYPE:providerToken:modelKeyToken:taskId, BAILIAN:TYPE:requestId, SILICONFLOW:TYPE:requestId`
     )
 }
 
@@ -234,8 +272,12 @@ export async function pollAsyncTask(
     switch (parsed.provider) {
         case 'FAL':
             return await pollFalTask(parsed.endpoint!, parsed.requestId, userId)
+        case 'KIE':
+            return await pollKieTask(parsed.requestId, userId)
         case 'ARK':
-            return await pollArkTask(parsed.requestId, userId)
+            return await pollArkTask(parsed.requestId, userId, 'ark')
+        case 'MODELARK':
+            return await pollArkTask(parsed.requestId, userId, 'modelark')
         case 'GEMINI':
             return await pollGeminiTask(parsed.requestId, userId)
         case 'GOOGLE':
@@ -501,14 +543,38 @@ async function pollFalTask(
 }
 
 /**
- * Ark 任务轮询
+ * KIE.ai 任务轮询
  */
-async function pollArkTask(
+async function pollKieTask(
     taskId: string,
     userId: string
 ): Promise<PollResult> {
-    const { apiKey } = await getProviderConfig(userId, 'ark')
-    const result = await querySeedanceVideoStatus(taskId, apiKey)
+    const { apiKey } = await getProviderConfig(userId, 'kie')
+    const result = await queryKieStatus(taskId, apiKey)
+
+    return {
+        status: result.completed ? (result.failed ? 'failed' : 'completed') : 'pending',
+        resultUrl: result.resultUrl,
+        imageUrl: result.resultUrl,
+        videoUrl: result.resultUrl,
+        error: result.error,
+    }
+}
+
+/**
+ * Ark 任务轮询（ark = Volcengine 中国 / modelark = BytePlus 国际）
+ */
+async function pollArkTask(
+    taskId: string,
+    userId: string,
+    providerKey: 'ark' | 'modelark' = 'ark'
+): Promise<PollResult> {
+    const { apiKey, baseUrl: configuredBaseUrl } = await getProviderConfig(userId, providerKey)
+    const defaultBaseUrl = providerKey === 'modelark'
+        ? 'https://ark.ap-southeast.bytepluses.com/api/v3'
+        : 'https://ark.cn-beijing.volces.com/api/v3'
+    const effectiveBaseUrl = configuredBaseUrl || defaultBaseUrl
+    const result = await querySeedanceVideoStatus(taskId, apiKey, effectiveBaseUrl)
 
     return {
         status: result.status,
@@ -950,7 +1016,7 @@ async function queryViduTaskStatus(
  * 创建标准格式的 externalId
  */
 export function formatExternalId(
-    provider: 'FAL' | 'ARK' | 'GEMINI' | 'GOOGLE' | 'MINIMAX' | 'VIDU' | 'OPENAI' | 'OCOMPAT' | 'BAILIAN' | 'SILICONFLOW',
+    provider: 'FAL' | 'KIE' | 'ARK' | 'GEMINI' | 'GOOGLE' | 'MINIMAX' | 'VIDU' | 'OPENAI' | 'OCOMPAT' | 'BAILIAN' | 'SILICONFLOW',
     type: 'VIDEO' | 'IMAGE' | 'BATCH',
     requestId: string,
     endpoint?: string,
@@ -962,6 +1028,12 @@ export function formatExternalId(
             throw new Error('FAL externalId requires endpoint')
         }
         return `FAL:${type}:${endpoint}:${requestId}`
+    }
+    if (provider === 'KIE') {
+        if (!endpoint) {
+            throw new Error('KIE externalId requires modelId (passed as endpoint)')
+        }
+        return `KIE:${type}:${endpoint}:${requestId}`
     }
     if (provider === 'OPENAI') {
         if (!providerToken) {

@@ -299,14 +299,16 @@ export async function queryGoogleVideoStatus(operationName: string, apiKey: stri
  * @param taskId 任务ID
  * @param apiKey 火山引擎 API Key
  */
-export async function querySeedanceVideoStatus(taskId: string, apiKey: string): Promise<TaskStatus> {
+export async function querySeedanceVideoStatus(taskId: string, apiKey: string, baseUrl?: string): Promise<TaskStatus> {
     if (!apiKey) {
         throw new Error('请配置火山引擎 API Key')
     }
 
+    const effectiveBaseUrl = baseUrl || 'https://ark.cn-beijing.volces.com/api/v3'
+
     try {
         const queryResponse = await fetch(
-            `https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks/${taskId}`,
+            `${effectiveBaseUrl}/contents/generations/tasks/${taskId}`,
             {
                 method: 'GET',
                 headers: {

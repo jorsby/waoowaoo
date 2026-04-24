@@ -74,6 +74,18 @@ export async function getSignedObjectUrl(key: string, expiresInSeconds: number =
   })
 }
 
+/**
+ * 为外部 API（KIE、fal 等）生成可公网访问的绝对 URL。
+ * 当 MINIO_PUBLIC_ENDPOINT 设置时，URL 的 host 指向公开端点（如 ngrok 隧道），
+ * 不影响内部上传下载仍然走 MINIO_ENDPOINT（本地 MinIO）。
+ */
+export async function getSignedPublicObjectUrl(key: string, expiresInSeconds: number = DEFAULT_SIGNED_URL_EXPIRES_SECONDS): Promise<string> {
+  return await getStorageProvider().getSignedPublicObjectUrl({
+    key,
+    expiresInSeconds,
+  })
+}
+
 export function getSignedUrl(key: string, expiresInSeconds: number = DEFAULT_SIGNED_URL_EXPIRES_SECONDS): string {
   const provider = getStorageProvider()
   if (provider.kind === 'local') {

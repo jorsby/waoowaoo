@@ -26,6 +26,11 @@ export interface StorageProvider {
   deleteObject(key: string): Promise<void>
   deleteObjects(keys: string[]): Promise<DeleteObjectsResult>
   getSignedObjectUrl(params: SignedUrlParams): Promise<string>
+  /**
+   * 生成供外部 API（KIE、fal 等）拉取使用的绝对 URL。
+   * 优先使用 MINIO_PUBLIC_ENDPOINT；未配置时回退到 getSignedObjectUrl。
+   */
+  getSignedPublicObjectUrl(params: SignedUrlParams): Promise<string>
   getObjectBuffer(key: string): Promise<Buffer>
   extractStorageKey(input: string | null | undefined): string | null
   toFetchableUrl(inputUrl: string): string

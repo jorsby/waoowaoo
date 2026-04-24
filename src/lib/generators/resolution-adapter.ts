@@ -18,7 +18,7 @@ import { logInfo as _ulogInfo, logWarn as _ulogWarn } from '@/lib/logging/core'
 // 类型定义
 // ============================================================
 
-export type VideoProvider = 'minimax' | 'fal' | 'ark' | 'vidu'
+export type VideoProvider = 'minimax' | 'fal' | 'ark' | 'modelark' | 'vidu'
 
 // ============================================================
 // 分辨率适配规则
@@ -80,6 +80,16 @@ const RESOLUTION_ADAPTERS: Record<VideoProvider, (input: string) => string> = {
 
         if (normalized.includes('720')) return '720p'
         return '1080p' // 默认和高于1080p的都映射到1080p
+    },
+
+    /**
+     * ModelArk 模型 (BytePlus Seedance) — 同 ark 规则（同一底座模型，仅部署区域不同）
+     */
+    modelark: (input: string): string => {
+        const normalized = input.toLowerCase()
+
+        if (normalized.includes('720')) return '720p'
+        return '1080p'
     },
 
     /**
@@ -145,6 +155,7 @@ export function getSupportedResolutions(provider: string): string[] {
         minimax: ['768P', '1080P'],
         fal: ['720p', '1080p', '1440p', '4K'],
         ark: ['720p', '1080p'],
+        modelark: ['720p', '1080p'],
         vidu: ['720p', '1080p', '2K']
     }
 

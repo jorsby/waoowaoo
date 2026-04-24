@@ -41,7 +41,11 @@ describe('async poll ark task', () => {
     const result = await pollAsyncTask('ARK:VIDEO:task-1', 'user-1')
 
     expect(getProviderConfigMock).toHaveBeenCalledWith('user-1', 'ark')
-    expect(asyncTaskUtilsMock.querySeedanceVideoStatus).toHaveBeenCalledWith('task-1', 'ark-key')
+    expect(asyncTaskUtilsMock.querySeedanceVideoStatus).toHaveBeenCalledWith(
+      'task-1',
+      'ark-key',
+      'https://ark.cn-beijing.volces.com/api/v3',
+    )
     expect(result).toEqual({
       status: 'completed',
       resultUrl: 'https://ark.example/result.mp4',

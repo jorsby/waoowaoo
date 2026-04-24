@@ -17,7 +17,7 @@ export interface TestProviderResult {
   steps: TestStep[]
 }
 
-type PresetProviderType = 'ark' | 'google' | 'openrouter' | 'minimax' | 'fal' | 'vidu'
+type PresetProviderType = 'ark' | 'modelark' | 'google' | 'openrouter' | 'minimax' | 'fal' | 'kie' | 'vidu'
   | 'bailian'
   | 'siliconflow'
 type CompatibleProviderType = 'openai-compatible' | 'gemini-compatible'
@@ -425,6 +425,56 @@ async function testArkProvider(apiKey: string): Promise<TestProviderResult> {
 }
 
 // ---------------------------------------------------------------------------
+// ModelArk / BytePlus Ark (international) — tests the API key against a lightweight
+// GET /contents/generations/tasks/{bogus} call. We expect 401/403 for a bad key,
+// and 404 ("task not found") for a working key.
+// ---------------------------------------------------------------------------
+
+async function testModelArkProvider(apiKey: string): Promise<TestProviderResult> {
+  const steps: TestStep[] = []
+
+  try {
+    const probeTaskId = 'probe-' + Math.random().toString(36).slice(2, 10)
+    const response = await fetch(
+      `https://ark.ap-southeast.bytepluses.com/api/v3/contents/generations/tasks/${probeTaskId}`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        signal: AbortSignal.timeout(30_000),
+      },
+    )
+
+    if (response.status === 401 || response.status === 403) {
+      const errorText = await response.text().catch(() => '')
+      steps.push({
+        name: 'models',
+        status: 'fail',
+        message: `Authentication failed (${response.status})`,
+        detail: errorText.slice(0, 500),
+      })
+      return { success: false, steps }
+    }
+
+    // 200/404 both imply auth succeeded. 404 = expected (probe task doesn't exist).
+    steps.push({
+      name: 'models',
+      status: 'pass',
+      message: `ModelArk reachable (HTTP ${response.status})`,
+    })
+    return { success: true, steps }
+  } catch (error) {
+    steps.push({
+      name: 'models',
+      status: 'fail',
+      message: toNetworkErrorMessage(error),
+    })
+    return { success: false, steps }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Google AI Studio (official)
 // ---------------------------------------------------------------------------
 
@@ -613,6 +663,54 @@ async function testFalProvider(apiKey: string): Promise<TestProviderResult> {
       name: 'models',
       status: 'pass',
       message: `API Key valid (${modelCount} models returned)`,
+    })
+    return { success: true, steps }
+  } catch (error) {
+    steps.push({
+      name: 'models',
+      status: 'fail',
+      message: toErrorMessage(error),
+    })
+    return { success: false, steps }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// KIE.ai
+// ---------------------------------------------------------------------------
+
+async function testKieProvider(apiKey: string): Promise<TestProviderResult> {
+  await setProxy()
+  console.log('[provider-test] testKieProvider')
+  const steps: TestStep[] = []
+
+  // KIE.ai 没有公开的 /models 或 /balance 端点。
+  // 用一个明显伪造的 taskId 调 /jobs/recordInfo 做鉴权探针：
+  //   - 401/403 → 鉴权失败
+  //   - 其他 (200/400/404) → 鉴权通过，服务可达
+  try {
+    const response = await fetch('https://api.kie.ai/api/v1/jobs/recordInfo?taskId=kie-connection-test', {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      signal: AbortSignal.timeout(15_000),
+    })
+
+    if (response.status === 401 || response.status === 403) {
+      const errorText = await response.text().catch(() => '')
+      steps.push({
+        name: 'models',
+        status: 'fail',
+        message: `Authentication failed (${response.status})`,
+        detail: errorText.slice(0, 500) || undefined,
+      })
+      return { success: false, steps }
+    }
+
+    steps.push({
+      name: 'models',
+      status: 'pass',
+      message: `API Key valid (HTTP ${response.status})`,
     })
     return { success: true, steps }
   } catch (error) {
@@ -857,6 +955,8 @@ export async function testProviderConnection(payload: TestProviderPayload): Prom
       return testCompatibleProvider(baseUrl!, apiKey, llmModel)
     case 'ark':
       return testArkProvider(apiKey)
+    case 'modelark':
+      return testModelArkProvider(apiKey)
     case 'google':
       return testGoogleOfficial(apiKey)
     case 'openrouter':
@@ -865,6 +965,8 @@ export async function testProviderConnection(payload: TestProviderPayload): Prom
       return testMiniMaxProvider(apiKey)
     case 'fal':
       return testFalProvider(apiKey)
+    case 'kie':
+      return testKieProvider(apiKey)
     case 'vidu':
       return testViduProvider(apiKey)
     case 'bailian':

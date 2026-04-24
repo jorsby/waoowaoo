@@ -420,7 +420,9 @@ export async function resolveVideoSourceFromGeneration(
       generateAudio?: boolean
       lastFrameImageUrl?: string
       generationMode?: 'normal' | 'firstlastframe'
-      [key: string]: string | number | boolean | undefined
+      referenceImageUrls?: string[]
+      nsfwChecker?: boolean
+      [key: string]: string | number | boolean | string[] | undefined
     }
     pollProgress?: { start?: number; end?: number }
   },
@@ -474,6 +476,9 @@ export async function resolveVideoSourceFromGeneration(
   if (typeof params.options?.generateAudio === 'boolean') {
     runtimeSelections.generateAudio = params.options.generateAudio
   }
+  if (typeof params.options?.nsfwChecker === 'boolean') {
+    runtimeSelections.nsfwChecker = params.options.nsfwChecker
+  }
 
   const capabilityOptions = await resolveProjectModelCapabilityGenerationOptions({
     projectId: job.data.projectId,
@@ -485,7 +490,7 @@ export async function resolveVideoSourceFromGeneration(
 
   const providerCapabilityOptions: Record<string, string | number | boolean> = { ...capabilityOptions }
   delete providerCapabilityOptions.generationMode
-  const providerRequestOptions: Record<string, string | number | boolean> = {}
+  const providerRequestOptions: Record<string, string | number | boolean | string[]> = {}
   for (const [key, value] of Object.entries(params.options || {})) {
     if (key === 'generationMode' || value === undefined) continue
     providerRequestOptions[key] = value

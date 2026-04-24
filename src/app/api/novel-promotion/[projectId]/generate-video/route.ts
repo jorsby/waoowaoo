@@ -40,10 +40,13 @@ function resolveVideoGenerationMode(payload: unknown): 'normal' | 'firstlastfram
 function isSeedance2Model(modelKey: string): boolean {
   const parsed = parseModelKeyStrict(modelKey)
   if (!parsed) return false
-  return parsed.provider === 'ark'
+  const isArkFamily = parsed.provider === 'ark' || parsed.provider === 'modelark'
+  return isArkFamily
     && (
       parsed.modelId === 'doubao-seedance-2-0-260128'
       || parsed.modelId === 'doubao-seedance-2-0-fast-260128'
+      || parsed.modelId === 'dreamina-seedance-2-0-260128'
+      || parsed.modelId === 'dreamina-seedance-2-0-fast-260128'
     )
 }
 

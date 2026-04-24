@@ -24,8 +24,17 @@ import {
     GenerateResult
 } from './base'
 import { getProviderConfig } from '@/lib/api-config'
-import { arkImageGeneration, arkCreateVideoTask } from '@/lib/ark-api'
+import {
+    arkImageGeneration,
+    arkCreateVideoTask,
+    ARK_BASE_URL_VOLCENGINE,
+    ARK_BASE_URL_BYTEPLUS,
+} from '@/lib/ark-api'
 import { normalizeToBase64ForGeneration } from '@/lib/media/outbound-image'
+
+function defaultArkBaseUrl(providerKey: 'ark' | 'modelark'): string {
+    return providerKey === 'modelark' ? ARK_BASE_URL_BYTEPLUS : ARK_BASE_URL_VOLCENGINE
+}
 
 interface ArkImageOptions {
     aspectRatio?: string
@@ -138,6 +147,34 @@ const ARK_SEEDANCE_MODEL_SPECS: Record<string, ArkSeedanceModelSpec> = {
         supportsFrames: false,
         resolutionOptions: ['480p', '720p'],
     },
+    // BytePlus ModelArk — same underlying models, different regional naming
+    'dreamina-seedance-2-0-260128': {
+        durationMin: 4,
+        durationMax: 15,
+        supportsFirstLastFrame: true,
+        supportsGenerateAudio: true,
+        supportsDraft: false,
+        supportsFrames: false,
+        resolutionOptions: ['480p', '720p'],
+    },
+    'dreamina-seedance-2-0-fast-260128': {
+        durationMin: 4,
+        durationMax: 15,
+        supportsFirstLastFrame: true,
+        supportsGenerateAudio: true,
+        supportsDraft: false,
+        supportsFrames: false,
+        resolutionOptions: ['480p', '720p'],
+    },
+    'seedance-1-5-pro-251215': {
+        durationMin: 4,
+        durationMax: 12,
+        supportsFirstLastFrame: true,
+        supportsGenerateAudio: true,
+        supportsDraft: true,
+        supportsFrames: false,
+        resolutionOptions: ['480p', '720p', '1080p'],
+    },
 }
 
 const ARK_VIDEO_ALLOWED_RATIOS = new Set(['16:9', '4:3', '1:1', '3:4', '9:16', '21:9', 'adaptive'])
@@ -190,10 +227,15 @@ function getSizeMapForModel(modelId: string): Record<string, string> {
 // ============================================================
 
 export class ArkImageGenerator extends BaseImageGenerator {
+    constructor(protected readonly providerKey: 'ark' | 'modelark' = 'ark') {
+        super()
+    }
+
     protected async doGenerate(params: ImageGenerateParams): Promise<GenerateResult> {
         const { userId, prompt, referenceImages = [], options = {} } = params
 
-        const { apiKey } = await getProviderConfig(userId, 'ark')
+        const { apiKey, baseUrl: configuredBaseUrl } = await getProviderConfig(userId, this.providerKey)
+        const effectiveBaseUrl = configuredBaseUrl || defaultArkBaseUrl(this.providerKey)
         const {
             aspectRatio,
             modelId = 'doubao-seedream-4-5-251128',
@@ -278,6 +320,7 @@ export class ArkImageGenerator extends BaseImageGenerator {
         // 调用 ARK API
         const arkData = await arkImageGeneration(requestBody, {
             apiKey,
+            baseUrl: effectiveBaseUrl,
             logPrefix: '[ARK Image]'
         })
 
@@ -305,12 +348,20 @@ export class ArkImageGenerator extends BaseImageGenerator {
 // ============================================================
 
 export class ArkVideoGenerator extends BaseVideoGenerator {
+    constructor(protected readonly providerKey: 'ark' | 'modelark' = 'ark') {
+        super()
+    }
+
     protected async doGenerate(params: VideoGenerateParams): Promise<GenerateResult> {
         const { userId, imageUrl, prompt = '', options = {} } = params
 
-        const { apiKey } = await getProviderConfig(userId, 'ark')
+        const { apiKey, baseUrl: configuredBaseUrl } = await getProviderConfig(userId, this.providerKey)
+        const effectiveBaseUrl = configuredBaseUrl || defaultArkBaseUrl(this.providerKey)
+        const defaultVideoModel = this.providerKey === 'modelark'
+            ? 'dreamina-seedance-2-0-fast-260128'
+            : 'doubao-seedance-1-0-pro-fast-251015'
         const {
-            modelId = 'doubao-seedance-1-0-pro-fast-251015',
+            modelId = defaultVideoModel,
             resolution,
             duration,
             frames,
@@ -531,7 +582,8 @@ export class ArkVideoGenerator extends BaseVideoGenerator {
         try {
             const taskData = await arkCreateVideoTask(requestBody, {
                 apiKey,
-                logPrefix: '[ARK Video]'
+                baseUrl: effectiveBaseUrl,
+                logPrefix: this.providerKey === 'modelark' ? '[ModelArk Video]' : '[ARK Video]'
             })
 
             const taskId = taskData.id
@@ -540,13 +592,14 @@ export class ArkVideoGenerator extends BaseVideoGenerator {
                 throw new Error('ARK 未返回 task_id')
             }
 
-            _ulogInfo(`[ARK Video] 任务已创建: ${taskId}`)
+            _ulogInfo(`[${this.providerKey === 'modelark' ? 'ModelArk' : 'ARK'} Video] 任务已创建: ${taskId}`)
 
+            const externalPrefix = this.providerKey === 'modelark' ? 'MODELARK' : 'ARK'
             return {
                 success: true,
                 async: true,
                 requestId: taskId,  // 向后兼容
-                externalId: `ARK:VIDEO:${taskId}`  // 🔥 标准格式
+                externalId: `${externalPrefix}:VIDEO:${taskId}`
             }
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : '未知错误'

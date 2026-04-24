@@ -15,6 +15,8 @@ export interface GenerateOptions {
     outputFormat?: string      // 输出格式，如 'png', 'jpg'
     duration?: number          // 视频时长（秒）
     fps?: number              // 帧率
+    referenceImageUrls?: string[]  // 参考图片 URL 列表（KIE Multimodal Reference-to-Video 等）
+    nsfwChecker?: boolean      // NSFW 内容过滤开关（KIE 等）
     [key: string]: unknown        // 其他厂商特定参数
 }
 

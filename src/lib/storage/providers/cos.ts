@@ -24,6 +24,10 @@ export class CosStorageProvider implements StorageProvider {
     throw new StorageProviderNotImplementedError('cos')
   }
 
+  async getSignedPublicObjectUrl(_params: SignedUrlParams): Promise<string> {
+    throw new StorageProviderNotImplementedError('cos')
+  }
+
   async getObjectBuffer(_key: string): Promise<Buffer> {
     throw new StorageProviderNotImplementedError('cos')
   }

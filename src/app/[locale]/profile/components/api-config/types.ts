@@ -122,6 +122,7 @@ export const PRESET_MODELS: PresetModel[] = [
     // 图像模型
     { modelId: 'banana', name: 'Banana Pro', type: 'image', provider: 'fal' },
     { modelId: 'banana-2', name: 'Banana 2', type: 'image', provider: 'fal' },
+    { modelId: 'gpt-image-2', name: 'GPT Image 2', type: 'image', provider: 'fal' },
     { modelId: 'doubao-seedream-4-5-251128', name: 'Seedream 4.5', type: 'image', provider: 'ark' },
     { modelId: 'doubao-seedream-4-0-250828', name: 'Seedream 4.0', type: 'image', provider: 'ark' },
     { modelId: 'doubao-seedream-5-0-260128', name: 'Seedream 5.0 Lite', type: 'image', provider: 'ark' },
@@ -139,6 +140,10 @@ export const PRESET_MODELS: PresetModel[] = [
     { modelId: 'doubao-seedance-2-0-260128', name: 'Seedance 2.0', type: 'video', provider: 'ark' },
     { modelId: 'doubao-seedance-2-0-fast-260128', name: 'Seedance 2.0 Fast', type: 'video', provider: 'ark' },
     { modelId: 'doubao-seedance-1-0-pro-250528', name: 'Seedance 1.0 Pro', type: 'video', provider: 'ark' },
+    // BytePlus ModelArk (international) video models
+    { modelId: 'dreamina-seedance-2-0-260128', name: 'Seedance 2.0 (ModelArk)', type: 'video', provider: 'modelark' },
+    { modelId: 'dreamina-seedance-2-0-fast-260128', name: 'Seedance 2.0 Fast (ModelArk)', type: 'video', provider: 'modelark' },
+    { modelId: 'seedance-1-5-pro-251215', name: 'Seedance 1.5 Pro (ModelArk)', type: 'video', provider: 'modelark' },
     // Google Veo
     { modelId: 'veo-3.1-generate-preview', name: 'Veo 3.1', type: 'video', provider: 'google' },
     { modelId: 'veo-3.1-fast-generate-preview', name: 'Veo 3.1 Fast', type: 'video', provider: 'google' },
@@ -159,6 +164,10 @@ export const PRESET_MODELS: PresetModel[] = [
     { modelId: 'fal-ai/kling-video/v2.5-turbo/pro/image-to-video', name: 'Kling 2.5 Turbo Pro', type: 'video', provider: 'fal' },
     { modelId: 'fal-ai/kling-video/v3/standard/image-to-video', name: 'Kling 3 Standard', type: 'video', provider: 'fal' },
     { modelId: 'fal-ai/kling-video/v3/pro/image-to-video', name: 'Kling 3 Pro', type: 'video', provider: 'fal' },
+    // KIE.ai Seedance 2.0 (ByteDance proxy without real-person filter)
+    { modelId: 'bytedance/seedance-2', name: 'Seedance 2.0', type: 'video', provider: 'kie' },
+    { modelId: 'bytedance/seedance-2-fast', name: 'Seedance 2.0 Fast', type: 'video', provider: 'kie' },
+    { modelId: 'grok-imagine/image-to-video', name: 'Grok Imagine', type: 'video', provider: 'kie' },
 
     // 音频模型
     { modelId: 'fal-ai/index-tts-2/text-to-speech', name: 'IndexTTS 2', type: 'audio', provider: 'fal' },
@@ -199,16 +208,19 @@ export function isPresetComingSoonModelKey(modelKey: string): boolean {
 // 预设提供商（API Key 唯一归属于 provider id）
 export const PRESET_PROVIDERS: Omit<Provider, 'apiKey' | 'hasApiKey'>[] = [
     { id: 'ark', name: 'Volcengine Ark' },
+    { id: 'modelark', name: 'ModelArk (BytePlus)', baseUrl: 'https://ark.ap-southeast.bytepluses.com/api/v3' },
     { id: 'google', name: 'Google AI Studio' },
     { id: 'bailian', name: 'Alibaba Bailian' },
     { id: 'openrouter', name: 'OpenRouter', baseUrl: 'https://openrouter.ai/api/v1' },
     { id: 'minimax', name: 'MiniMax Hailuo', baseUrl: 'https://api.minimaxi.com/v1' },
     { id: 'vidu', name: 'Vidu' },
     { id: 'fal', name: 'FAL' },
+    { id: 'kie', name: 'KIE.ai' },
 ]
 
 const ZH_PROVIDER_NAME_MAP: Record<string, string> = {
     ark: '火山引擎 Ark',
+    modelark: 'ModelArk (字节国际)',
     minimax: '海螺 MiniMax',
     vidu: '生数科技 Vidu',
     bailian: '阿里云百炼',
@@ -326,6 +338,15 @@ export const PROVIDER_TUTORIALS: ProviderTutorial[] = [
             {
                 text: 'fal_step1',
                 url: 'https://fal.ai/dashboard/keys'
+            }
+        ]
+    },
+    {
+        providerId: 'kie',
+        steps: [
+            {
+                text: 'kie_step1',
+                url: 'https://kie.ai/api-key'
             }
         ]
     },

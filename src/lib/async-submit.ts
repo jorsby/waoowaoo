@@ -230,7 +230,7 @@ export async function queryFalStatus(endpoint: string, requestId: string, apiKey
  * @param taskId Ark任务ID
  * @param apiKey ARK API Key
  */
-export async function queryArkVideoStatus(taskId: string, apiKey: string): Promise<{
+export async function queryArkVideoStatus(taskId: string, apiKey: string, baseUrl?: string): Promise<{
     status: string
     completed: boolean
     failed: boolean
@@ -241,8 +241,10 @@ export async function queryArkVideoStatus(taskId: string, apiKey: string): Promi
         throw new Error('请配置火山引擎 API Key')
     }
 
+    const effectiveBaseUrl = baseUrl || 'https://ark.cn-beijing.volces.com/api/v3'
+
     const response = await fetch(
-        `https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks/${taskId}`,
+        `${effectiveBaseUrl}/contents/generations/tasks/${taskId}`,
         {
             headers: {
                 'Content-Type': 'application/json',
@@ -297,9 +299,138 @@ export async function queryArkVideoStatus(taskId: string, apiKey: string): Promi
     }
 }
 
+// ==================== KIE.ai 任务 ====================
+
+const KIE_BASE_URL = 'https://api.kie.ai/api/v1'
+
+/**
+ * 提交 KIE.ai 任务
+ * @param body 完整请求体（含 model + input）
+ * @param apiKey KIE.ai API Key
+ * @returns taskId
+ */
+export async function submitKieTask(body: Record<string, unknown>, apiKey: string): Promise<string> {
+    if (!apiKey) {
+        throw new Error('请配置 KIE.ai API Key')
+    }
+
+    const response = await fetch(`${KIE_BASE_URL}/jobs/createTask`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(body),
+    })
+
+    const raw = await response.text()
+    let data: { code?: number; msg?: string; data?: { taskId?: string } } = {}
+    if (raw) {
+        try {
+            data = JSON.parse(raw)
+        } catch {
+            throw new Error(`KIE 提交失败: 响应不是有效 JSON (${response.status})`)
+        }
+    }
+
+    if (!response.ok || data.code !== 200) {
+        const msg = data.msg || `HTTP ${response.status}`
+        throw new Error(`KIE 提交失败 (${response.status}): ${msg}`)
+    }
+
+    const taskId = data.data?.taskId
+    if (!taskId) {
+        throw new Error('KIE 未返回 taskId')
+    }
+
+    _ulogInfo(`[KIE] 任务已提交: ${taskId}`)
+    return taskId
+}
+
+/**
+ * 查询 KIE.ai 任务状态
+ */
+export async function queryKieStatus(taskId: string, apiKey: string): Promise<{
+    status: string
+    completed: boolean
+    failed: boolean
+    resultUrl?: string
+    error?: string
+}> {
+    if (!apiKey) {
+        throw new Error('请配置 KIE.ai API Key')
+    }
+
+    const url = `${KIE_BASE_URL}/jobs/recordInfo?taskId=${encodeURIComponent(taskId)}`
+    const response = await fetch(url, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${apiKey}` },
+    })
+
+    if (!response.ok) {
+        // 404/500 等临时错误，交给轮询重试
+        return { status: 'unknown', completed: false, failed: false }
+    }
+
+    const payload = await response.json() as {
+        code?: number
+        msg?: string
+        data?: {
+            state?: string
+            resultJson?: string
+            failCode?: string
+            failMsg?: string
+        }
+    }
+
+    const state = payload.data?.state || ''
+
+    if (state === 'success') {
+        let resultUrl: string | undefined
+        const resultJson = payload.data?.resultJson
+        if (resultJson) {
+            try {
+                const parsed = JSON.parse(resultJson) as { resultUrls?: unknown }
+                if (Array.isArray(parsed.resultUrls) && typeof parsed.resultUrls[0] === 'string') {
+                    resultUrl = parsed.resultUrls[0]
+                }
+            } catch {
+                // fallthrough — treat as failed below
+            }
+        }
+        if (!resultUrl) {
+            return {
+                status: 'success',
+                completed: true,
+                failed: true,
+                error: 'KIE 任务完成但未返回结果 URL',
+            }
+        }
+        return {
+            status: 'success',
+            completed: true,
+            failed: false,
+            resultUrl,
+        }
+    }
+
+    if (state === 'fail') {
+        const msg = payload.data?.failMsg || payload.data?.failCode || '任务失败'
+        return {
+            status: 'fail',
+            completed: true,
+            failed: true,
+            error: `KIE: ${msg}`,
+        }
+    }
+
+    // waiting / queuing / generating → pending
+    return { status: state || 'pending', completed: false, failed: false }
+}
+
 // ==================== 通用接口 ====================
 
-export type AsyncTaskProvider = 'fal' | 'ark'
+export type AsyncTaskProvider = 'fal' | 'ark' | 'modelark' | 'kie'
 export type AsyncTaskType = 'video' | 'image' | 'tts' | 'lipsync'
 
 /**
@@ -308,12 +439,14 @@ export type AsyncTaskType = 'video' | 'image' | 'tts' | 'lipsync'
  * @param taskId 任务ID
  * @param apiKey API Key
  * @param endpoint FAL端点（仅FAL需要）
+ * @param baseUrl Ark 家族（ark / modelark）的基础 URL
  */
 export async function queryAsyncTaskStatus(
     provider: AsyncTaskProvider,
     taskId: string,
     apiKey: string,
-    endpoint?: string
+    endpoint?: string,
+    baseUrl?: string
 ): Promise<{
     status: string
     completed: boolean
@@ -323,8 +456,10 @@ export async function queryAsyncTaskStatus(
 }> {
     if (provider === 'fal' && endpoint) {
         return queryFalStatus(endpoint, taskId, apiKey)
-    } else if (provider === 'ark') {
-        return queryArkVideoStatus(taskId, apiKey)
+    } else if (provider === 'ark' || provider === 'modelark') {
+        return queryArkVideoStatus(taskId, apiKey, baseUrl)
+    } else if (provider === 'kie') {
+        return queryKieStatus(taskId, apiKey)
     }
 
     return {

@@ -11,7 +11,9 @@ import { logInfo as _ulogInfo, logError as _ulogError } from '@/lib/logging/core
  * - 详细的错误日志
  */
 
-const ARK_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3'
+export const ARK_BASE_URL_VOLCENGINE = 'https://ark.cn-beijing.volces.com/api/v3'
+export const ARK_BASE_URL_BYTEPLUS = 'https://ark.ap-southeast.bytepluses.com/api/v3'
+const ARK_BASE_URL_DEFAULT = ARK_BASE_URL_VOLCENGINE
 
 // 超时配置
 const DEFAULT_TIMEOUT_MS = 60 * 1000  // 60秒
@@ -417,6 +419,7 @@ export async function arkImageGeneration(
     request: ArkImageGenerationRequest,
     options?: {
         apiKey: string  // 必须传入 API Key
+        baseUrl?: string
         timeoutMs?: number
         maxRetries?: number
         logPrefix?: string
@@ -428,12 +431,13 @@ export async function arkImageGeneration(
 
     const {
         apiKey,
+        baseUrl = ARK_BASE_URL_DEFAULT,
         timeoutMs = DEFAULT_TIMEOUT_MS,
         maxRetries = MAX_RETRIES,
         logPrefix = '[Ark Image]'
     } = options
 
-    const url = `${ARK_BASE_URL}/images/generations`
+    const url = `${baseUrl}/images/generations`
 
     _ulogInfo(`${logPrefix} 开始图片生成请求, 模型: ${request.model}`)
     _ulogInfo(`${logPrefix} 请求参数:`, JSON.stringify({
@@ -477,6 +481,7 @@ export async function arkCreateVideoTask(
     request: ArkVideoTaskRequest,
     options: {
         apiKey: string  // 必须传入 API Key
+        baseUrl?: string
         timeoutMs?: number
         maxRetries?: number
         logPrefix?: string
@@ -489,12 +494,13 @@ export async function arkCreateVideoTask(
 
     const {
         apiKey,
+        baseUrl = ARK_BASE_URL_DEFAULT,
         timeoutMs = DEFAULT_TIMEOUT_MS,
         maxRetries = MAX_RETRIES,
         logPrefix = '[Ark Video]'
     } = options
 
-    const url = `${ARK_BASE_URL}/contents/generations/tasks`
+    const url = `${baseUrl}/contents/generations/tasks`
 
     _ulogInfo(`${logPrefix} 创建视频任务, 模型: ${request.model}`)
 
@@ -531,6 +537,7 @@ export async function arkQueryVideoTask(
     taskId: string,
     options: {
         apiKey: string  // 必须传入 API Key
+        baseUrl?: string
         timeoutMs?: number
         maxRetries?: number
         logPrefix?: string
@@ -542,12 +549,13 @@ export async function arkQueryVideoTask(
 
     const {
         apiKey,
+        baseUrl = ARK_BASE_URL_DEFAULT,
         timeoutMs = DEFAULT_TIMEOUT_MS,
         maxRetries = MAX_RETRIES,
         logPrefix = '[Ark Video]'
     } = options
 
-    const url = `${ARK_BASE_URL}/contents/generations/tasks/${taskId}`
+    const url = `${baseUrl}/contents/generations/tasks/${taskId}`
 
     const response = await fetchWithRetry(
         url,

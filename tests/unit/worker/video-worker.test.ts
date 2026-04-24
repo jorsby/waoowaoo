@@ -84,15 +84,18 @@ vi.mock('@/lib/workers/shared', () => ({
 }))
 vi.mock('@/lib/workers/utils', () => utilsMock)
 vi.mock('@/lib/prisma', () => ({ prisma: prismaMock }))
-vi.mock('@/lib/media/outbound-image', () => ({
-  normalizeToBase64ForGeneration: vi.fn(async (input: string) => input),
+const outboundImageMock = vi.hoisted(() => ({
+  normalizeToBase64ForGeneration: vi.fn(async (input: string) => `BASE64:${input}`),
+  resolveAbsolutePublicUrl: vi.fn(async (input: string) => `https://public.example/${input}`),
 }))
+vi.mock('@/lib/media/outbound-image', () => outboundImageMock)
 vi.mock('@/lib/model-capabilities/lookup', () => ({
   resolveBuiltinCapabilitiesByModelKey: vi.fn(() => ({ video: { firstlastframe: true } })),
 }))
-vi.mock('@/lib/model-config-contract', () => ({
+const modelConfigContractMock = vi.hoisted(() => ({
   parseModelKeyStrict: vi.fn(() => ({ provider: 'fal' })),
 }))
+vi.mock('@/lib/model-config-contract', () => modelConfigContractMock)
 vi.mock('@/lib/api-config', () => ({
   getProviderConfig: vi.fn(async () => ({ apiKey: 'api-key' })),
 }))
@@ -286,5 +289,51 @@ describe('worker video processor behavior', () => {
     })
 
     await expect(processor!(unsupportedJob)).rejects.toThrow('Unsupported video task type')
+  })
+
+  it('VIDEO_PANEL: KIE 模型走绝对公网 URL，而不是 base64', async () => {
+    const processor = workerState.processor
+    expect(processor).toBeTruthy()
+
+    modelConfigContractMock.parseModelKeyStrict.mockReturnValue({ provider: 'kie' })
+
+    const job = buildJob({
+      type: TASK_TYPE.VIDEO_PANEL,
+      payload: {
+        videoModel: 'kie::bytedance/seedance-2',
+        generationOptions: {
+          duration: 5,
+          resolution: '720p',
+        },
+      },
+    })
+
+    await processor!(job)
+
+    expect(outboundImageMock.resolveAbsolutePublicUrl).toHaveBeenCalledWith('cos/panel-image.png')
+    expect(outboundImageMock.normalizeToBase64ForGeneration).not.toHaveBeenCalled()
+  })
+
+  it('VIDEO_PANEL: 非 KIE 模型保持原有 base64 路径', async () => {
+    const processor = workerState.processor
+    expect(processor).toBeTruthy()
+
+    modelConfigContractMock.parseModelKeyStrict.mockReturnValue({ provider: 'fal' })
+
+    const job = buildJob({
+      type: TASK_TYPE.VIDEO_PANEL,
+      payload: {
+        videoModel: 'fal::seedance/video',
+        generationOptions: {
+          duration: 5,
+          resolution: '720p',
+        },
+      },
+    })
+
+    await processor!(job)
+
+    expect(outboundImageMock.normalizeToBase64ForGeneration).toHaveBeenCalled()
+    expect(outboundImageMock.resolveAbsolutePublicUrl).not.toHaveBeenCalled()
   })
 })

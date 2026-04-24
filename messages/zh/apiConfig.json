@@ -171,6 +171,7 @@
       "ark_step2": "在模型管理页面，点击右上角「一键开通所有模型」",
       "openrouter_step1": "进入 OpenRouter 平台，创建 API Key（必须选择带有图像功能的模型）",
       "fal_step1": "进入 FAL 平台，创建 API Key",
+      "kie_step1": "进入 KIE.ai 平台，创建 API Key",
       "google_step1": "进入 Google AI Studio，创建 API Key",
       "minimax_step1": "进入海螺 MiniMax 平台，获取 API Key",
       "vidu_step1": "进入生数科技 Vidu 平台，点击「新建 API Key」",

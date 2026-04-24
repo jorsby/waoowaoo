@@ -24,14 +24,17 @@ export class MinioStorageProvider implements StorageProvider {
 
   private readonly bucket: string
   private readonly endpoint: string
+  private readonly publicEndpoint: string | null
   private readonly region: string
   private readonly forcePathStyle: boolean
   private readonly accessKeyId: string
   private readonly secretAccessKey: string
   private clientPromise: Promise<S3ClientLike> | null = null
+  private publicClientPromise: Promise<S3ClientLike> | null = null
 
   constructor() {
     this.endpoint = requireEnv('MINIO_ENDPOINT')
+    this.publicEndpoint = process.env.MINIO_PUBLIC_ENDPOINT?.trim() || null
     this.accessKeyId = requireEnv('MINIO_ACCESS_KEY')
     this.secretAccessKey = requireEnv('MINIO_SECRET_KEY')
     this.bucket = requireEnv('MINIO_BUCKET')
@@ -47,22 +50,32 @@ export class MinioStorageProvider implements StorageProvider {
     return await import('@aws-sdk/s3-request-presigner') as unknown as PresignerModule
   }
 
+  private async buildClient(endpoint: string): Promise<S3ClientLike> {
+    const { S3Client } = await this.loadSdk()
+    return new S3Client({
+      endpoint,
+      region: this.region,
+      forcePathStyle: this.forcePathStyle,
+      credentials: {
+        accessKeyId: this.accessKeyId,
+        secretAccessKey: this.secretAccessKey,
+      },
+    })
+  }
+
   private async getClient(): Promise<S3ClientLike> {
     if (!this.clientPromise) {
-      this.clientPromise = (async () => {
-        const { S3Client } = await this.loadSdk()
-        return new S3Client({
-          endpoint: this.endpoint,
-          region: this.region,
-          forcePathStyle: this.forcePathStyle,
-          credentials: {
-            accessKeyId: this.accessKeyId,
-            secretAccessKey: this.secretAccessKey,
-          },
-        })
-      })()
+      this.clientPromise = this.buildClient(this.endpoint)
     }
     return await this.clientPromise
+  }
+
+  private async getPublicClient(): Promise<S3ClientLike> {
+    if (!this.publicEndpoint) return await this.getClient()
+    if (!this.publicClientPromise) {
+      this.publicClientPromise = this.buildClient(this.publicEndpoint)
+    }
+    return await this.publicClientPromise
   }
 
   async uploadObject(params: UploadObjectParams): Promise<UploadObjectResult> {
@@ -112,6 +125,24 @@ export class MinioStorageProvider implements StorageProvider {
     const sdk = await this.loadSdk()
     const presigner = await this.loadPresigner()
     const client = await this.getClient()
+
+    return await presigner.getSignedUrl(
+      client,
+      new sdk.GetObjectCommand({
+        Bucket: this.bucket,
+        Key: params.key,
+      }),
+      {
+        expiresIn: params.expiresInSeconds,
+      },
+    )
+  }
+
+  async getSignedPublicObjectUrl(params: SignedUrlParams): Promise<string> {
+    if (!this.publicEndpoint) return await this.getSignedObjectUrl(params)
+    const sdk = await this.loadSdk()
+    const presigner = await this.loadPresigner()
+    const client = await this.getPublicClient()
 
     return await presigner.getSignedUrl(
       client,

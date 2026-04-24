@@ -1,6 +1,8 @@
 import path from 'node:path'
 import { createScopedLogger } from '@/lib/logging/core'
 import { resolveStorageKeyFromMediaValue } from '@/lib/media/service'
+import { extractStorageKey, getSignedPublicObjectUrl } from '@/lib/storage'
+import { parseModelKeyStrict } from '@/lib/model-config-contract'
 
 type StorageHelpers = Pick<typeof import('@/lib/storage'), 'getSignedUrl' | 'toFetchableUrl'>
 
@@ -60,6 +62,11 @@ export type OutboundImageNormalizationIssue = {
 const logger = createScopedLogger({
   module: 'media.outbound-image',
 })
+
+export async function resolveAbsolutePublicUrl(keyOrUrl: string): Promise<string> {
+  const key = extractStorageKey(keyOrUrl)
+  return key ? await getSignedPublicObjectUrl(key, 3600) : keyOrUrl
+}
 
 const NEXT_IMAGE_PATH = '/_next/image'
 const MAX_NEXT_IMAGE_UNWRAP_DEPTH = 6
@@ -447,8 +454,11 @@ export async function normalizeReferenceImagesForGeneration(
   options: {
     onIssue?: (issue: OutboundImageNormalizationIssue) => void
     context?: Record<string, unknown>
+    modelKey?: string
   } = {},
 ): Promise<string[]> {
+  const parsed = options.modelKey ? parseModelKeyStrict(options.modelKey) : null
+  const isKieModel = parsed?.provider === 'kie'
   const seen = new Set<string>()
   const normalized: string[] = []
   let candidateCount = 0
@@ -462,7 +472,11 @@ export async function normalizeReferenceImagesForGeneration(
     candidateCount += 1
 
     try {
-      normalized.push(await normalizeToBase64ForGeneration(trimmed))
+      normalized.push(
+        isKieModel
+          ? await resolveAbsolutePublicUrl(trimmed)
+          : await normalizeToBase64ForGeneration(trimmed),
+      )
     } catch (error) {
       const issue = toNormalizationIssue(error, trimmed, index)
       options.onIssue?.(issue)

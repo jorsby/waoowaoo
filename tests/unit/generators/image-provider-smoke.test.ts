@@ -33,6 +33,10 @@ vi.mock('@/lib/image-cache', () => ({
 
 vi.mock('@/lib/ark-api', () => ({
   arkImageGeneration: arkImageGenerationMock,
+  arkCreateVideoTask: vi.fn(),
+  arkQueryVideoTask: vi.fn(),
+  ARK_BASE_URL_VOLCENGINE: 'https://ark.cn-beijing.volces.com/api/v3',
+  ARK_BASE_URL_BYTEPLUS: 'https://ark.ap-southeast.bytepluses.com/api/v3',
 }))
 
 vi.mock('@/lib/media/outbound-image', () => ({
@@ -129,6 +133,7 @@ describe('image provider smoke tests', () => {
       image: ['UkVG'],
     }, {
       apiKey: 'ark-key',
+      baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
       logPrefix: '[ARK Image]',
     })
   })
