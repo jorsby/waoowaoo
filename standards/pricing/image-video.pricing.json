@@ -346,6 +346,15 @@
   },
   {
     "apiType": "image",
+    "provider": "fal",
+    "modelId": "gpt-image-2",
+    "pricing": {
+      "mode": "flat",
+      "flatAmount": 0.4
+    }
+  },
+  {
+    "apiType": "image",
     "provider": "legacy",
     "modelId": "banana-2k",
     "pricing": {

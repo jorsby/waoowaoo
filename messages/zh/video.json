@@ -195,10 +195,13 @@
     "fps": "帧率",
     "resolution": "分辨率",
     "aspectRatio": "画幅比例",
+    "imageSize": "图片尺寸",
+    "quality": "质量",
     "reasoningEffort": "推理强度",
     "voice": "音色",
     "rate": "语速",
-    "mode": "模式"
+    "mode": "模式",
+    "nsfwChecker": "NSFW 过滤"
   },
   "unit": {
     "second": "秒",

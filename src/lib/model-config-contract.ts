@@ -31,6 +31,8 @@ export interface LLMCapabilities {
 
 export interface ImageCapabilities {
   resolutionOptions?: string[]
+  imageSizeOptions?: string[]
+  qualityOptions?: string[]
   fieldI18n?: CapabilityFieldI18nMap
 }
 
@@ -42,6 +44,9 @@ export interface VideoCapabilities {
   resolutionOptions?: string[]
   firstlastframe?: boolean
   supportGenerateAudio?: boolean
+  nsfwCheckerOptions?: boolean[]
+  supportReferenceImages?: boolean
+  referenceImageUrlsMax?: number
   fieldI18n?: CapabilityFieldI18nMap
 }
 
@@ -85,6 +90,8 @@ const LLM_ALLOWED_FIELDS = new Set<keyof LLMCapabilities>([
 
 const IMAGE_ALLOWED_FIELDS = new Set<keyof ImageCapabilities>([
   'resolutionOptions',
+  'imageSizeOptions',
+  'qualityOptions',
   'fieldI18n',
 ])
 
@@ -96,6 +103,9 @@ const VIDEO_ALLOWED_FIELDS = new Set<keyof VideoCapabilities>([
   'resolutionOptions',
   'firstlastframe',
   'supportGenerateAudio',
+  'nsfwCheckerOptions',
+  'supportReferenceImages',
+  'referenceImageUrlsMax',
   'fieldI18n',
 ])
 
@@ -288,8 +298,28 @@ function validateImageCapabilities(issues: CapabilityValidationIssue[], raw: unk
     })
   }
 
+  const imageSizeOptions = raw.imageSizeOptions
+  if (imageSizeOptions !== undefined && !isStringArray(imageSizeOptions)) {
+    issues.push({
+      code: 'CAPABILITY_FIELD_INVALID',
+      field: 'capabilities.image.imageSizeOptions',
+      message: 'imageSizeOptions must be a non-empty string array',
+    })
+  }
+
+  const qualityOptions = raw.qualityOptions
+  if (qualityOptions !== undefined && !isStringArray(qualityOptions)) {
+    issues.push({
+      code: 'CAPABILITY_FIELD_INVALID',
+      field: 'capabilities.image.qualityOptions',
+      message: 'qualityOptions must be a non-empty string array',
+    })
+  }
+
   validateFieldI18nMap(issues, 'image', raw.fieldI18n, {
     resolution: isStringArray(resolutionOptions) ? resolutionOptions : undefined,
+    imageSize: isStringArray(imageSizeOptions) ? imageSizeOptions : undefined,
+    quality: isStringArray(qualityOptions) ? qualityOptions : undefined,
   })
 }
 
@@ -357,12 +387,44 @@ function validateVideoCapabilities(issues: CapabilityValidationIssue[], raw: unk
     })
   }
 
+  const nsfwCheckerOptions = raw.nsfwCheckerOptions
+  if (nsfwCheckerOptions !== undefined && !isBooleanArray(nsfwCheckerOptions)) {
+    issues.push({
+      code: 'CAPABILITY_FIELD_INVALID',
+      field: 'capabilities.video.nsfwCheckerOptions',
+      message: 'nsfwCheckerOptions must be a boolean array',
+    })
+  }
+
+  if (raw.supportReferenceImages !== undefined && typeof raw.supportReferenceImages !== 'boolean') {
+    issues.push({
+      code: 'CAPABILITY_FIELD_INVALID',
+      field: 'capabilities.video.supportReferenceImages',
+      message: 'supportReferenceImages must be boolean',
+    })
+  }
+
+  if (
+    raw.referenceImageUrlsMax !== undefined &&
+    (typeof raw.referenceImageUrlsMax !== 'number' ||
+      !Number.isFinite(raw.referenceImageUrlsMax) ||
+      !Number.isInteger(raw.referenceImageUrlsMax) ||
+      raw.referenceImageUrlsMax < 1)
+  ) {
+    issues.push({
+      code: 'CAPABILITY_FIELD_INVALID',
+      field: 'capabilities.video.referenceImageUrlsMax',
+      message: 'referenceImageUrlsMax must be a positive integer',
+    })
+  }
+
   validateFieldI18nMap(issues, 'video', raw.fieldI18n, {
     generationMode: isStringArray(generationModeOptions) ? generationModeOptions : undefined,
     generateAudio: isBooleanArray(generateAudioOptions) ? generateAudioOptions : undefined,
     duration: isNumberArray(durationOptions) ? durationOptions : undefined,
     fps: isNumberArray(fpsOptions) ? fpsOptions : undefined,
     resolution: isStringArray(resolutionOptions) ? resolutionOptions : undefined,
+    nsfwChecker: isBooleanArray(nsfwCheckerOptions) ? nsfwCheckerOptions : undefined,
   })
 }
 

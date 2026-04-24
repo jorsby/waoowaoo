@@ -5,6 +5,7 @@ import { createScopedLogger, logError as _ulogError } from '@/lib/logging/core'
  * 图像模型：
  * - Banana Pro (2K/4K) - fal-ai/nano-banana-pro       (modelId: 'banana')
  * - Banana 2  (1K/2K/4K) - fal-ai/nano-banana-2       (modelId: 'banana-2')
+ * - GPT Image 2 - openai/gpt-image-2                  (modelId: 'gpt-image-2')
  * 
  * 视频模型：
  * - Wan 2.6 (fal-wan25) - wan/v2.6/image-to-video
@@ -34,6 +35,7 @@ import { buildFalQueueUrl } from '@/lib/providers/fal/base-url'
 const FAL_IMAGE_ENDPOINTS: Record<string, { base: string; edit: string }> = {
     'banana': { base: 'fal-ai/nano-banana-pro', edit: 'fal-ai/nano-banana-pro/edit' },
     'banana-2': { base: 'fal-ai/nano-banana-2', edit: 'fal-ai/nano-banana-2/edit' },
+    'gpt-image-2': { base: 'openai/gpt-image-2', edit: 'openai/gpt-image-2/edit' },
 }
 
 // ============================================================
@@ -61,11 +63,15 @@ export class FalImageGenerator extends BaseImageGenerator {
         const {
             aspectRatio,
             resolution,
+            imageSize,
+            quality,
             outputFormat = 'png',
             modelId: optModelId = 'banana'
         } = options as {
             aspectRatio?: string
             resolution?: string
+            imageSize?: string | { width: number; height: number }
+            quality?: string
             outputFormat?: string
             provider?: string
             modelId?: string
@@ -78,6 +84,8 @@ export class FalImageGenerator extends BaseImageGenerator {
             'modelKey',
             'aspectRatio',
             'resolution',
+            'imageSize',
+            'quality',
             'outputFormat',
         ])
         for (const [key, value] of Object.entries(options)) {
@@ -88,6 +96,16 @@ export class FalImageGenerator extends BaseImageGenerator {
         }
         if (resolution !== undefined && resolution !== '1K' && resolution !== '2K' && resolution !== '4K') {
             throw new Error(`FAL_IMAGE_OPTION_VALUE_UNSUPPORTED: resolution=${resolution}`)
+        }
+        if (
+            imageSize !== undefined &&
+            typeof imageSize === 'string' &&
+            !['square_hd', 'square', 'portrait_4_3', 'portrait_16_9', 'landscape_4_3', 'landscape_16_9'].includes(imageSize)
+        ) {
+            throw new Error(`FAL_IMAGE_OPTION_VALUE_UNSUPPORTED: imageSize=${imageSize}`)
+        }
+        if (quality !== undefined && !['low', 'medium', 'high'].includes(quality)) {
+            throw new Error(`FAL_IMAGE_OPTION_VALUE_UNSUPPORTED: quality=${quality}`)
         }
 
         // 根据 modelId 和是否有参考图片选择端点
@@ -117,11 +135,20 @@ export class FalImageGenerator extends BaseImageGenerator {
             num_images: 1,
             output_format: outputFormat
         }
-        if (aspectRatio) {
-            body.aspect_ratio = aspectRatio
-        }
-        if (resolution) {
-            body.resolution = resolution
+        if (optModelId === 'gpt-image-2') {
+            if (imageSize) {
+                body.image_size = imageSize
+            }
+            if (quality) {
+                body.quality = quality
+            }
+        } else {
+            if (aspectRatio) {
+                body.aspect_ratio = aspectRatio
+            }
+            if (resolution) {
+                body.resolution = resolution
+            }
         }
 
         if (hasReferenceImages) {

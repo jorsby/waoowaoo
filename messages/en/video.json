@@ -195,10 +195,13 @@
     "fps": "Frame rate",
     "resolution": "Resolution",
     "aspectRatio": "Aspect ratio",
+    "imageSize": "Image size",
+    "quality": "Quality",
     "reasoningEffort": "Reasoning effort",
     "voice": "Voice",
     "rate": "Rate",
-    "mode": "Mode"
+    "mode": "Mode",
+    "nsfwChecker": "NSFW filter"
   },
   "unit": {
     "second": "s",
