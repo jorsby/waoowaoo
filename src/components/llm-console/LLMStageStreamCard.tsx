@@ -451,7 +451,7 @@ export default function LLMStageStreamCard({
                           }}
                           className="glass-btn-base glass-btn-primary rounded-md px-2.5 py-1 text-[11px]"
                         >
-                          重试
+                          {t('stageCard.retry')}
                         </button>
                       </div>
                     )}
@@ -477,7 +477,7 @@ export default function LLMStageStreamCard({
                 {structuredOutput.showReasoning ? (
                   <div className="rounded-lg border border-[var(--glass-stroke-base)] bg-[var(--glass-bg-surface)]">
                     <div className="border-b border-[var(--glass-stroke-base)] px-3 py-2 text-xs font-semibold text-[var(--glass-text-primary)]">
-                      {REASONING_HEADER}
+                      {t('stageCard.reasoningHeader')}
                     </div>
                     <pre className="min-h-[110px] whitespace-pre-wrap break-words px-3 py-3 font-mono text-[14px] leading-7 text-[var(--glass-text-secondary)]">
                       {structuredOutput.reasoning || (structuredOutput.finalText ? t('stageCard.reasoningNotProvided') : t('stageCard.waitingModelOutput'))}
@@ -488,7 +488,7 @@ export default function LLMStageStreamCard({
                 {structuredOutput.showFinal ? (
                   <div className="rounded-lg border border-[var(--glass-stroke-base)] bg-[var(--glass-bg-surface)]">
                     <div className="border-b border-[var(--glass-stroke-base)] px-3 py-2 text-xs font-semibold text-[var(--glass-text-primary)]">
-                      {FINAL_HEADER}
+                      {t('stageCard.finalResultHeader')}
                     </div>
                     <pre className="min-h-[110px] whitespace-pre-wrap break-words px-3 py-3 font-mono text-[14px] leading-7 text-[var(--glass-text-secondary)]">
                       {structuredOutput.finalText || t('stageCard.waitingModelOutput')}

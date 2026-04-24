@@ -1,4 +1,7 @@
+'use client'
+
 import type { ReactNode } from 'react'
+import { useTranslations } from 'next-intl'
 import { AppIcon } from '@/components/ui/icons'
 
 export type UiTone = 'neutral' | 'info' | 'success' | 'warning' | 'danger'
@@ -16,6 +19,7 @@ function cx(...names: Array<string | false | null | undefined>) {
 }
 
 export default function GlassChip({ tone = 'neutral', icon, onRemove, children, className }: GlassChipProps) {
+  const tc = useTranslations('common')
   const toneClass =
     tone === 'info' ? 'glass-chip-info' :
       tone === 'success' ? 'glass-chip-success' :
@@ -32,7 +36,7 @@ export default function GlassChip({ tone = 'neutral', icon, onRemove, children, 
           type="button"
           onClick={onRemove}
           className="rounded-full p-0.5 transition-colors hover:bg-black/10"
-          aria-label="remove"
+          aria-label={tc('remove')}
         >
           <AppIcon name="close" className="h-3 w-3" />
         </button>

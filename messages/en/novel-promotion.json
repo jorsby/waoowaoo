@@ -135,6 +135,7 @@
     "creating": "AI Creating...",
     "ready": "✓ Configuration complete, ready for next step",
     "pleaseInput": "Please enter script content first",
+    "novelPlaceholder": "Paste your script or novel content here...\n\nAI will analyze your text automatically:\n• Detect scene transitions\n• Extract character dialogue and actions\n• Generate a shot-by-shot storyboard\n\nExample:\nMorning sunlight streamed through the curtains into the room. Xiaoming rubbed his sleepy eyes, sat up in bed, and glanced at his alarm clock — already eight o'clock! He leapt out of bed and fumbled into his clothes...",
     "longTextDetection": {
       "title": "🚀 Smart Episode Splitting Recommended",
       "description": "Detected ~{count} characters. Processing long text as a single episode may reduce output quality.",
@@ -155,6 +156,7 @@
     "batchVideoFailed": "Batch video generation failed",
     "updateFailed": "Update failed",
     "saveFailed": "Save failed",
+    "videoModelRequired": "Video model is required",
     "storyToScriptRunning": "Story→Script V2 running",
     "scriptToStoryboardRunning": "Script→Storyboard V2 running",
     "storyToScriptFailed": "Story to script failed",

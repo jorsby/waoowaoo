@@ -199,5 +199,8 @@
   "assistantCompletedTitle": "Template Saved",
   "assistantCompletedMessage": "Model {model} has been added to this provider.\nClick close to finish this chat.",
   "you": "You",
-  "thinking": "Thinking..."
+  "thinking": "Thinking...",
+  "assistantLabel": "AI",
+  "networkError": "Network error",
+  "batchSuffix": "{name} (Batch)"
 }

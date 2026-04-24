@@ -19,5 +19,6 @@
     "EXTERNAL_ERROR": "External service temporarily unavailable. Please retry later",
     "TASK_NOT_READY": "Task is still processing",
     "NO_RESULT": "Task has no result",
-    "CONFLICT": "Resource state conflict"
+    "CONFLICT": "Resource state conflict",
+    "projectLoadFailed": "Failed to load project"
 }

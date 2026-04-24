@@ -3,5 +3,7 @@
   "name": "Name",
   "add": "Add",
   "save": "Save",
-  "fillRequired": "Please fill in required fields"
+  "fillRequired": "Please fill in required fields",
+  "baseUrlPlaceholder": "Base URL",
+  "apiKeyPlaceholder": "API Key"
 }

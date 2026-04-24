@@ -17,7 +17,10 @@
     "currentStage": "Current Stage",
     "outputTitle": "Live AI Output · {stage}",
     "waitingModelOutput": "Waiting for model output...",
-    "reasoningNotProvided": "No reasoning was returned for this step"
+    "reasoningNotProvided": "No reasoning was returned for this step",
+    "reasoningHeader": "[Reasoning]",
+    "finalResultHeader": "[Final result]",
+    "retry": "Retry"
   },
   "runtime": {
     "waitingExecution": "Waiting to start",
@@ -125,7 +128,8 @@
     "storyToScriptSubtitle": "Story To Script V2",
     "scriptToStoryboardSubtitle": "Script To Storyboard V2",
     "stop": "Stop",
-    "minimize": "Minimize"
+    "minimize": "Minimize",
+    "retryModelPrompt": "Optional: enter a retry model (leave blank to use the current one)"
   },
   "streamStep": {
     "analyzeCharacters": "Analyze characters",

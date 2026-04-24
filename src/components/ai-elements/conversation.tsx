@@ -10,6 +10,7 @@ import {
   useState,
   type HTMLAttributes,
 } from "react";
+import { useTranslations } from "next-intl";
 
 const BOTTOM_THRESHOLD_PX = 24;
 
@@ -131,6 +132,7 @@ export const ConversationScrollButton = ({
   ...props
 }: ConversationScrollButtonProps) => {
   const { isAtBottom, scrollToBottom } = useConversationContext();
+  const tc = useTranslations("common");
   if (isAtBottom) return null;
   return (
     <button
@@ -147,7 +149,7 @@ export const ConversationScrollButton = ({
       }}
       {...props}
     >
-      {children ?? "跳到底部"}
+      {children ?? tc("scrollToBottom")}
     </button>
   );
 };

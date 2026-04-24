@@ -199,5 +199,8 @@
   "assistantCompletedTitle": "模型模板已保存",
   "assistantCompletedMessage": "模型 {model} 已自动加入当前服务商。\n请点击关闭结束本次对话。",
   "you": "你",
-  "thinking": "思考中..."
+  "thinking": "思考中...",
+  "assistantLabel": "AI",
+  "networkError": "网络错误",
+  "batchSuffix": "{name}（批量）"
 }

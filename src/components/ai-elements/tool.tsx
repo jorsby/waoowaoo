@@ -3,6 +3,7 @@
 import type { DynamicToolUIPart, ToolUIPart } from "ai";
 import type { HTMLAttributes } from "react";
 import { createContext, useContext, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 
 export type ToolPart = ToolUIPart | DynamicToolUIPart;
 
@@ -112,14 +113,17 @@ export type ToolInputProps = HTMLAttributes<HTMLDivElement> & {
   input: ToolPart["input"];
 };
 
-export const ToolInput = ({ className, input, ...props }: ToolInputProps) => (
-  <div className={joinClassName("space-y-1", className)} {...props}>
-    <div className="mb-1 text-xs text-[var(--glass-text-tertiary)]">Parameters</div>
-    <pre className="max-h-56 overflow-x-auto overflow-y-auto rounded-md bg-muted/50 p-3 text-xs leading-relaxed">
-      {formatJson(input)}
-    </pre>
-  </div>
-);
+export const ToolInput = ({ className, input, ...props }: ToolInputProps) => {
+  const tc = useTranslations("common");
+  return (
+    <div className={joinClassName("space-y-1", className)} {...props}>
+      <div className="mb-1 text-xs text-[var(--glass-text-tertiary)]">{tc("parameters")}</div>
+      <pre className="max-h-56 overflow-x-auto overflow-y-auto rounded-md bg-muted/50 p-3 text-xs leading-relaxed">
+        {formatJson(input)}
+      </pre>
+    </div>
+  );
+};
 
 export type ToolOutputProps = HTMLAttributes<HTMLDivElement> & {
   output: ToolPart["output"];

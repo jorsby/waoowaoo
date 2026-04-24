@@ -2,6 +2,7 @@
 
 import { useEffect, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { useTranslations } from 'next-intl'
 import { AppIcon } from '@/components/ui/icons'
 
 export interface GlassModalShellProps {
@@ -33,6 +34,7 @@ export default function GlassModalShell({
   closeOnEsc = true,
   showCloseButton = true
 }: GlassModalShellProps) {
+  const tc = useTranslations('common')
   useEffect(() => {
     if (!open || !closeOnEsc) return
     const onKeydown = (event: KeyboardEvent) => {
@@ -77,7 +79,7 @@ export default function GlassModalShell({
                 type="button"
                 onClick={onClose}
                 className="glass-btn-base glass-btn-ghost h-9 w-9"
-                aria-label="close"
+                aria-label={tc('close')}
               >
                 <AppIcon name="close" className="h-5 w-5" />
               </button>

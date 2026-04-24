@@ -1,5 +1,6 @@
 import { logError as _ulogError } from '@/lib/logging/core'
 import { useState, useCallback } from 'react'
+import { useTranslations } from 'next-intl'
 import { Project } from '@/types/project'
 import { apiFetch } from '@/lib/api-fetch'
 
@@ -35,6 +36,7 @@ export interface RefreshOptions {
  * - 消除刷新行为不一致问题
  */
 export function useProject(projectId: string) {
+  const tErrors = useTranslations('errors')
   const [project, setProject] = useState<Project | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -73,7 +75,7 @@ export function useProject(projectId: string) {
         const res = await apiFetch(`/api/projects/${projectId}/data`)
         if (!res.ok) {
           const errorData = await res.json()
-          throw new Error(errorData.error || 'Failed to load project')
+          throw new Error(errorData.error || tErrors('projectLoadFailed'))
         }
         const data = await res.json()
         setProject(data.project)
@@ -118,7 +120,7 @@ export function useProject(projectId: string) {
         setAssetsLoading(false)
       }
     }
-  }, [projectId])
+  }, [projectId, tErrors])
 
   /**
    * 更新项目数据（乐观更新）

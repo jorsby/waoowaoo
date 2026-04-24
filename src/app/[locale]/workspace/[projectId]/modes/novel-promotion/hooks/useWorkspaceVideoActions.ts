@@ -53,7 +53,7 @@ export function useWorkspaceVideoActions({
   ) => {
     const normalizedVideoModel = typeof videoModel === 'string' ? videoModel.trim() : ''
     if (!normalizedVideoModel) {
-      alert('Video model is required')
+      alert(t('execution.videoModelRequired'))
       return
     }
     try {
@@ -82,7 +82,7 @@ export function useWorkspaceVideoActions({
     }
     const normalizedVideoModel = typeof options?.videoModel === 'string' ? options.videoModel.trim() : ''
     if (!normalizedVideoModel) {
-      alert('Video model is required')
+      alert(t('execution.videoModelRequired'))
       return
     }
 

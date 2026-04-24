@@ -486,7 +486,7 @@ export function useProviderCardState({
         setKeyTestStatus('failed')
       }
     } catch {
-      setKeyTestSteps([{ name: 'models', status: 'fail', message: 'Network error' }])
+      setKeyTestSteps([{ name: 'models', status: 'fail', message: t('networkError') }])
       setKeyTestStatus('failed')
     }
   }, [defaultModels.analysisModel, doSaveKey, models, provider.baseUrl, providerKey, tempKey])
@@ -519,7 +519,7 @@ export function useProviderCardState({
       setKeyTestSteps(data.steps || [])
       setKeyTestStatus(data.success ? 'passed' : 'failed')
     } catch {
-      setKeyTestSteps([{ name: 'models', status: 'fail', message: 'Network error' }])
+      setKeyTestSteps([{ name: 'models', status: 'fail', message: t('networkError') }])
       setKeyTestStatus('failed')
     }
   }, [defaultModels.analysisModel, models, provider.apiKey, provider.baseUrl, providerKey])
@@ -654,7 +654,7 @@ export function useProviderCardState({
 
     const finalName =
       type === 'video' && batchMode && provider.id === 'ark'
-        ? `${newModel.name} (Batch)`
+        ? t('batchSuffix', { name: newModel.name })
         : newModel.name
 
     setIsModelSavePending(true)

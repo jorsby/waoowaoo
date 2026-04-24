@@ -99,14 +99,14 @@ export default function PanelCardV2({
           ) : selectedCandidate ? (
             <MediaImageWithLoading
               src={selectedCandidate}
-              alt="candidate"
+              alt={t('candidate.imageAlt')}
               containerClassName="h-full w-full"
               className="h-full w-full object-cover"
             />
           ) : imageUrl ? (
             <MediaImageWithLoading
               src={imageUrl}
-              alt="panel"
+              alt={t('panel.imageAlt')}
               containerClassName="h-full w-full"
               className="h-full w-full object-cover"
             />
@@ -157,7 +157,7 @@ export default function PanelCardV2({
                     type="button"
                     onClick={() => onSelectCandidateIndex(panel.id, index)}
                     className={`h-2.5 w-2.5 rounded-full ${index === candidateData.selectedIndex ? 'bg-[var(--glass-accent-from)]' : 'bg-[var(--glass-bg-surface)]/80 border border-[var(--glass-stroke-base)]'}`}
-                    aria-label={`candidate-${index + 1}`}
+                    aria-label={t('candidate.selectIndexedAria', { index: index + 1 })}
                   />
                 ))}
               </div>

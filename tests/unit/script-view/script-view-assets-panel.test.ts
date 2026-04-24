@@ -101,6 +101,8 @@ function renderPanel(propsCount: number) {
         if (key === 'segment.title') return `片段 ${String(values?.index ?? '')}`
         if (key === 'asset.activeCharacters') return '出场角色'
         if (key === 'asset.activeLocations') return '出场场景'
+        if (key === 'asset.activeProps') return '道具'
+        if (key === 'asset.noPropsSelected') return '当前片段未选择道具'
         if (key === 'screenplay.noCharacter') return '当前片段未选择角色'
         if (key === 'screenplay.noLocation') return '当前片段未选择场景'
         if (key === 'generate.startGenerate') return '开始生成'

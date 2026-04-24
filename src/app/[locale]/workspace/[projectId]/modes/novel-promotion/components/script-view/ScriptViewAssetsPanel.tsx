@@ -493,7 +493,7 @@ export default function ScriptViewAssetsPanel({
               <div className="mt-3 flex-1 min-h-0 space-y-4 overflow-y-auto pr-1 app-scrollbar">
                 {isAllClipsMode && (
                   <div className="rounded-lg border border-[var(--glass-stroke-base)] bg-[var(--glass-bg-muted)]/40 p-2 text-[11px] text-[var(--glass-text-tertiary)]">
-                    当前为“全部片段”视图，文案要求仅在单片段视图可编辑
+                    {tScript('asset.allClipsViewCharacterNote')}
                   </div>
                 )}
                 {characters.map((c) => {
@@ -649,7 +649,7 @@ export default function ScriptViewAssetsPanel({
               <div className="mt-3 flex-1 min-h-0 overflow-y-auto pr-1 app-scrollbar">
                 {isAllClipsMode && (
                   <div className="mb-3 rounded-lg border border-[var(--glass-stroke-base)] bg-[var(--glass-bg-muted)]/40 p-2 text-[11px] text-[var(--glass-text-tertiary)]">
-                    当前为“全部片段”视图，场景文案要求仅在单片段视图可编辑
+                    {tScript('asset.allClipsViewLocationNote')}
                   </div>
                 )}
                 <div className="grid grid-cols-2 gap-2">
@@ -758,7 +758,7 @@ export default function ScriptViewAssetsPanel({
           {hasProjectProps ? (
           <div className="relative">
             <div className="flex justify-between items-center mb-3">
-              <h3 className="text-sm font-bold text-[var(--glass-text-secondary)]">道具 ({activePropIds.length})</h3>
+              <h3 className="text-sm font-bold text-[var(--glass-text-secondary)]">{tScript('asset.activeProps')} ({activePropIds.length})</h3>
               <button
                 ref={propEditorTriggerRef}
                 onClick={() => {
@@ -774,7 +774,7 @@ export default function ScriptViewAssetsPanel({
 
           {showAddProp && mounted && createPortal(
             <div ref={propEditorPopoverRef} className="fixed right-4 bottom-4 z-[80] glass-surface-modal w-[min(24rem,calc(100vw-2rem))] h-[min(560px,calc(100vh-2rem))] p-3 animate-fadeIn flex flex-col shadow-2xl">
-              <div className="shrink-0 text-xs text-[var(--glass-text-tertiary)]">{tCommon('edit')} · 道具</div>
+              <div className="shrink-0 text-xs text-[var(--glass-text-tertiary)]">{tCommon('edit')} · {tScript('asset.activeProps')}</div>
               <div className="mt-3 flex-1 min-h-0 overflow-y-auto pr-1 app-scrollbar">
                 <div className="grid grid-cols-2 gap-2">
                   {props.map((prop) => {
@@ -840,7 +840,7 @@ export default function ScriptViewAssetsPanel({
           )}
 
             {activePropIds.length === 0 ? (
-              <div className="text-center text-[var(--glass-text-tertiary)] text-sm py-4">当前片段未选择道具</div>
+              <div className="text-center text-[var(--glass-text-tertiary)] text-sm py-4">{tScript('asset.noPropsSelected')}</div>
             ) : (
               <div className="grid grid-cols-2 gap-3 px-1 py-1">
                 {props.filter((prop) => activePropIds.includes(prop.id)).map((prop) => (

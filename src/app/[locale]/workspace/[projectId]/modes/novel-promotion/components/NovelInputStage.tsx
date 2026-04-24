@@ -179,7 +179,7 @@ export default function NovelInputStage({
           }}
           onCompositionStart={handleCompositionStart}
           onCompositionEnd={handleCompositionEnd}
-          placeholder={`请输入您的剧本或小说内容...\n\nAI 将根据您的文本智能分析：\n• 自动识别场景切换\n• 提取角色对话和动作\n• 生成分镜脚本\n\n例如：\n清晨，阳光透过窗帘洒进房间。小明揉着惺忪的睡眼从床上坐起，看了一眼床头的闹钟——已经八点了！他猛地跳下床，手忙脚乱地开始穿衣服...`}
+          placeholder={t('storyInput.novelPlaceholder')}
           minRows={PROJECT_STORY_INPUT_MIN_ROWS}
           maxHeightViewportRatio={0.5}
           disabled={isSubmittingTask || isSwitchingStage}

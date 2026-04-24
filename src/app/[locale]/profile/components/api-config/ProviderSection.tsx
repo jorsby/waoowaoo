@@ -91,7 +91,7 @@ export function ProviderSection({
                             type="text"
                             value={newProvider.baseUrl}
                             onChange={e => setNewProvider({ ...newProvider, baseUrl: e.target.value })}
-                            placeholder="Base URL"
+                            placeholder={t('baseUrlPlaceholder')}
                             className="glass-input-base flex-1 px-2 py-1.5 text-sm font-mono"
                         />
                     )}
@@ -99,7 +99,7 @@ export function ProviderSection({
                         type="password"
                         value={newProvider.apiKey}
                         onChange={e => setNewProvider({ ...newProvider, apiKey: e.target.value })}
-                        placeholder="API Key"
+                        placeholder={t('apiKeyPlaceholder')}
                         className="glass-input-base w-40 px-2 py-1.5 text-sm"
                     />
                     <button onClick={handleAdd} className="glass-btn-base glass-btn-primary rounded-lg px-3 py-1.5 text-sm">
@@ -160,7 +160,7 @@ export function ProviderSection({
                                     type={isVisible ? 'text' : 'password'}
                                     value={provider.apiKey || ''}
                                     onChange={e => onUpdateApiKey(provider.id, e.target.value)}
-                                    placeholder="API Key"
+                                    placeholder={t('apiKeyPlaceholder')}
                                     className="glass-input-base w-full px-3 py-1.5 pr-9 text-sm"
                                 />
                                 <button

@@ -3,5 +3,7 @@
   "name": "名称",
   "add": "添加",
   "save": "保存",
-  "fillRequired": "请填写必要信息"
+  "fillRequired": "请填写必要信息",
+  "baseUrlPlaceholder": "Base URL",
+  "apiKeyPlaceholder": "API Key"
 }

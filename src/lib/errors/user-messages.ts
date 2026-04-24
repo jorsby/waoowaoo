@@ -1,4 +1,5 @@
 import type { UnifiedErrorCode } from './codes'
+import type { Locale } from '@/i18n/routing'
 
 export const USER_ERROR_MESSAGES_ZH: Record<UnifiedErrorCode, string> = {
   UNAUTHORIZED: '请先登录后再试。',
@@ -27,6 +28,34 @@ export const USER_ERROR_MESSAGES_ZH: Record<UnifiedErrorCode, string> = {
   INTERNAL_ERROR: '系统内部错误，请稍后重试。',
 }
 
-export function getUserMessageByCode(code: UnifiedErrorCode) {
-  return USER_ERROR_MESSAGES_ZH[code]
+export const USER_ERROR_MESSAGES_EN: Record<UnifiedErrorCode, string> = {
+  UNAUTHORIZED: 'Please log in and try again.',
+  FORBIDDEN: 'You do not have permission to perform this action.',
+  NOT_FOUND: 'The requested resource was not found.',
+  INVALID_PARAMS: 'The request parameters are invalid. Please check and try again.',
+  MISSING_CONFIG: 'System configuration is incomplete. Please contact the administrator.',
+  CONFLICT: 'The current state is out of sync. Please refresh and try again.',
+  TASK_NOT_READY: 'The task is still processing. Please wait a moment.',
+  NO_RESULT: 'The task completed, but no result is available.',
+  RATE_LIMIT: 'Too many requests. Please try again later.',
+  MODEL_NOT_OPEN: 'Model access is not activated. Go to https://console.volcengine.com/ark/region:ark+cn-beijing/openManagement?LLM=%7B%7D&advancedActiveKey=model and click "Activate all models" in the top-right of the Model Management page.',
+  MODEL_NOT_REGISTERED: 'The model is not registered. Please finish model configuration first and retry.',
+  MODEL_NOT_CONFIGURED: 'No model is configured. Please add a model of the required type in Settings before retrying.',
+  QUOTA_EXCEEDED: 'Quota exceeded. Please try again later.',
+  EXTERNAL_ERROR: 'An external service is temporarily unavailable. Please try again later.',
+  NETWORK_ERROR: 'Network error. Please try again later.',
+  EMPTY_RESPONSE: 'The model returned an empty response (no meaningful content). Please retry.',
+  INSUFFICIENT_BALANCE: 'Insufficient balance. Please top up first.',
+  SENSITIVE_CONTENT: 'The content may contain sensitive material. Please modify and retry.',
+  GENERATION_TIMEOUT: 'Generation timed out. Please retry.',
+  VIDEO_API_FORMAT_UNSUPPORTED: 'The current video API format is not supported.',
+  GENERATION_FAILED: 'Generation failed. Please try again later.',
+  WATCHDOG_TIMEOUT: 'The task timed out and was terminated by the system.',
+  WORKER_EXECUTION_ERROR: 'The task failed to execute. Please try again later.',
+  INTERNAL_ERROR: 'Internal server error. Please try again later.',
+}
+
+export function getUserMessageByCode(code: UnifiedErrorCode, locale: Locale = 'zh') {
+  const table = locale === 'en' ? USER_ERROR_MESSAGES_EN : USER_ERROR_MESSAGES_ZH
+  return table[code]
 }

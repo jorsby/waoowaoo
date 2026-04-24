@@ -35,6 +35,7 @@
         "generating": "Generating...",
         "hasSynced": "✓ Generated",
         "failed": "Failed",
+        "failedWarning": "Warning: Generation Failed",
         "retry": "Retry",
         "regenerate": "Regenerate All",
         "generateAll": "Generate All",
@@ -70,6 +71,7 @@
         "concurrencyLimit": "Concurrency limit {count}"
     },
     "panel": {
+        "imageAlt": "Storyboard panel image",
         "shotType": "Shot Type:",
         "duration": "seconds",
         "location": "Location:",
@@ -154,6 +156,9 @@
         "title": "Select Candidate Image",
         "select": "Select",
         "cancel": "Cancel",
+        "cancelCandidate": "Cancel candidate",
+        "imageAlt": "Candidate image",
+        "selectIndexedAria": "Select candidate {index}",
         "noImages": "No candidate images",
         "original": "Original"
     },

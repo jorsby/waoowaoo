@@ -34,6 +34,7 @@
         "directGenerateDesc": "直接使用参考图生成角色设定图（图生图）",
         "extractPromptDesc": "先从图片提取角色描述，可编辑后再生成（文生图）",
         "maxReferenceImages": "最多上传 5 张参考图",
+        "referenceImageIndexed": "参考图 {index}",
         "selectedCount": "已选择 {count}/5 张参考图",
         "extractDescription": "提取角色描述",
         "extracting": "提取中...",

@@ -34,6 +34,7 @@
         "directGenerateDesc": "Directly generate character sheet from reference (img2img)",
         "extractPromptDesc": "Extract description from image first, then generate (txt2img)",
         "maxReferenceImages": "Up to 5 reference images",
+        "referenceImageIndexed": "Reference image {index}",
         "selectedCount": "Selected {count}/5 images",
         "extractDescription": "Extract Description",
         "extracting": "Extracting...",

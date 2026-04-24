@@ -81,6 +81,7 @@
         "pause": "暂停",
         "preview": "试听音色"
     },
+    "appearanceIndexedLabel": "形象 {index}",
     "modal": {
         "newCharacter": "新建角色",
         "confirm": "确定",
@@ -104,6 +105,7 @@
         "locationNamePlaceholder": "请输入场景名称",
         "locationSummaryLabel": "场景描述",
         "locationSummaryPlaceholder": "请描述场景的环境、氛围、特征等...",
+        "artStyleLabel": "画面风格",
         "referenceUpload": "上传参考图",
         "referenceUploadTip": "上传一张角色图片，AI 将自动转换为三视图设定图",
         "convertToCharacter": "转换三视图",

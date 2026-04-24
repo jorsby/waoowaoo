@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { MediaImage, type MediaImageProps } from './MediaImage'
 
 type MediaImageWithLoadingProps = MediaImageProps & {
@@ -28,6 +29,7 @@ export function MediaImageWithLoading({
   onError,
   ...restProps
 }: MediaImageWithLoadingProps) {
+  const tc = useTranslations('common')
   const [isLoaded, setIsLoaded] = useState(false)
   const [isError, setIsError] = useState(false)
 
@@ -75,7 +77,7 @@ export function MediaImageWithLoading({
           )}
         >
           <span className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--glass-stroke-strong)] border-t-[var(--glass-tone-info-fg)]" />
-          <span className="sr-only">Loading</span>
+          <span className="sr-only">{tc('loading')}</span>
         </div>
       )}
       <MediaImage

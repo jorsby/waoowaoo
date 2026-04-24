@@ -2,6 +2,7 @@ import { logInfo as _ulogInfo } from '@/lib/logging/core'
 import type { UnifiedErrorCode } from '@/lib/errors/codes'
 import { getUserMessageByCode } from '@/lib/errors/user-messages'
 import { normalizeAnyError } from '@/lib/errors/normalize'
+import type { Locale } from '@/i18n/routing'
 
 /**
  * 检查错误是否是由于页面卸载/刷新导致的 fetch 中止
@@ -39,7 +40,11 @@ export function isAbortError(error: unknown): boolean {
     return false
 }
 
-export function resolveClientError(error: unknown, fallbackCode: UnifiedErrorCode = 'INTERNAL_ERROR'): {
+export function resolveClientError(
+    error: unknown,
+    fallbackCode: UnifiedErrorCode = 'INTERNAL_ERROR',
+    locale: Locale = 'zh',
+): {
     code: UnifiedErrorCode
     message: string
     rawMessage: string
@@ -51,7 +56,7 @@ export function resolveClientError(error: unknown, fallbackCode: UnifiedErrorCod
 
     return {
         code: normalized.code,
-        message: getUserMessageByCode(normalized.code),
+        message: getUserMessageByCode(normalized.code, locale),
         rawMessage: normalized.message,
     }
 }

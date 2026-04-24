@@ -19,5 +19,6 @@
     "EXTERNAL_ERROR": "外部服务暂时不可用，请稍后重试",
     "TASK_NOT_READY": "任务正在处理中",
     "NO_RESULT": "任务无结果",
-    "CONFLICT": "资源状态冲突"
+    "CONFLICT": "资源状态冲突",
+    "projectLoadFailed": "加载项目失败"
 }

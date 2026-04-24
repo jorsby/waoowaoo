@@ -81,6 +81,7 @@
         "pause": "Pause",
         "preview": "Preview Voice"
     },
+    "appearanceIndexedLabel": "Appearance {index}",
     "modal": {
         "newCharacter": "New Character",
         "confirm": "Confirm",
@@ -104,6 +105,7 @@
         "locationNamePlaceholder": "Enter location name",
         "locationSummaryLabel": "Location Description",
         "locationSummaryPlaceholder": "Describe the environment, atmosphere, features, etc...",
+        "artStyleLabel": "Art Style",
         "referenceUpload": "Upload Reference",
         "referenceUploadTip": "Upload a character image, AI will convert it to a three-view design sheet",
         "convertToCharacter": "Convert to 3-View",

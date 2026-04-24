@@ -140,7 +140,7 @@ export default function StoryboardGroup({
       {failedError && (
         <StoryboardGroupFailedAlert
           failedError={failedError}
-          title={`警告 ${t('group.failed')}`}
+          title={t('group.failedWarning')}
           closeTitle={t('common.cancel')}
           onClose={onCloseError}
         />

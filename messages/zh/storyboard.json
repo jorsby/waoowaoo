@@ -35,6 +35,7 @@
         "generating": "生成中...",
         "hasSynced": "✓ 已生成",
         "failed": "失败",
+        "failedWarning": "警告 生成失败",
         "retry": "重试",
         "regenerate": "重新生成所有",
         "generateAll": "批量生成全部",
@@ -70,6 +71,7 @@
         "concurrencyLimit": "并发上限 {count}"
     },
     "panel": {
+        "imageAlt": "分镜画面",
         "shotType": "景别：",
         "duration": "秒",
         "location": "场景：",
@@ -154,6 +156,9 @@
         "title": "选择候选图",
         "select": "选择",
         "cancel": "取消",
+        "cancelCandidate": "取消候选",
+        "imageAlt": "候选图",
+        "selectIndexedAria": "选择候选 {index}",
         "noImages": "暂无候选图",
         "original": "原图"
     },

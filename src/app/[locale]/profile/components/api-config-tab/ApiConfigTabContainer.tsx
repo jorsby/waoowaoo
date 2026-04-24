@@ -209,7 +209,7 @@ export function ApiConfigTabContainer() {
         setTestStatus('failed')
       }
     } catch {
-      setTestSteps([{ name: 'models', status: 'fail', message: 'Network error' }])
+      setTestSteps([{ name: 'models', status: 'fail', message: t('networkError') }])
       setTestStatus('failed')
     }
   }, [newGeminiProvider, tp, doAddProvider])

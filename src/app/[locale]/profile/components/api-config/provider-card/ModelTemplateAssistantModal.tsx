@@ -24,7 +24,7 @@ export function ModelTemplateAssistantModal({ t, state }: ModelTemplateAssistant
       subtitle={t('assistantSubtitle')}
       closeLabel={t('close')}
       userLabel={t('you')}
-      assistantLabel="AI"
+      assistantLabel={t('assistantLabel')}
       reasoningTitle={t('assistantReasoningTitle')}
       reasoningExpandLabel={t('assistantReasoningExpand')}
       reasoningCollapseLabel={t('assistantReasoningCollapse')}

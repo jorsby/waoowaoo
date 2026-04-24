@@ -1,0 +1,52 @@
+# i18n-check allowlist — lines intentionally containing untranslated or hardcoded strings.
+# Format: <relative path>:<line number>     # optional comment
+# Blank lines and lines starting with # are ignored.
+# Keep this list small. Prefer translating over adding entries.
+
+# LanguageSwitcher shows each target language in its own script on purpose.
+src/components/LanguageSwitcher.tsx:11
+src/components/LanguageSwitcher.tsx:12
+src/components/LanguageSwitcher.tsx:17
+src/components/LanguageSwitcher.tsx:19
+src/components/LanguageSwitcher.tsx:20
+src/components/LanguageSwitcher.tsx:21
+src/components/LanguageSwitcher.tsx:22
+src/components/LanguageSwitcher.tsx:26
+src/components/LanguageSwitcher.tsx:28
+src/components/LanguageSwitcher.tsx:29
+src/components/LanguageSwitcher.tsx:30
+
+# Bilingual provider-name map. The zh branch of resolvePresetProviderName returns these.
+src/app/[locale]/profile/components/api-config/types.ts:222
+src/app/[locale]/profile/components/api-config/types.ts:223
+src/app/[locale]/profile/components/api-config/types.ts:224
+src/app/[locale]/profile/components/api-config/types.ts:225
+src/app/[locale]/profile/components/api-config/types.ts:226
+src/app/[locale]/profile/components/api-config/types.ts:227
+
+# LLM output parsers: these Chinese markers are part of prompt-engineered output format
+# (the prompt tells the model to emit them). They are used as parse tokens via startsWith().
+src/components/llm-console/LLMStageStreamCard.tsx:45
+src/components/llm-console/LLMStageStreamCard.tsx:46
+
+# Chinese text parsing regex — used to strip time/location suffixes from names.
+src/app/[locale]/workspace/[projectId]/modes/novel-promotion/components/script-view/clip-asset-utils.ts:22
+
+# Internal log label; this value only ever appears inside _ulogInfo template strings.
+src/app/[locale]/workspace/[projectId]/modes/novel-promotion/components/assets/hooks/useAssetsImageEdit.ts:120
+
+# Multi-line _ulogInfo call; the string on this line is the log argument.
+src/app/[locale]/workspace/[projectId]/modes/novel-promotion/hooks/useNovelPromotionWorkspaceController.ts:56
+
+# Fragile but intentional: strips the "（只读）" suffix from a zh-only translation.
+# If the translation is EN, the replace is a no-op. TODO: restructure key to avoid this.
+src/app/[locale]/workspace/[projectId]/modes/novel-promotion/components/storyboard/AIDataModalFormPane.tsx:211
+
+# Unused design-prototype components (not imported anywhere). Candidates for deletion
+# in a future cleanup pass; kept out of active i18n work.
+src/components/ui/model-dropdown-ios.tsx:92
+src/components/ui/model-dropdown-variants.tsx:382
+src/components/ui/model-dropdown-variants.tsx:405
+src/components/ui/select-variants.tsx:36
+src/components/ui/select-variants.tsx:188
+src/components/ui/select-variants.tsx:326

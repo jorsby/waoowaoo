@@ -473,7 +473,7 @@ export function CharacterCard({ character, onImageClick, onImageEdit, onVoiceDes
                     <div className="flex gap-1 mt-2 overflow-x-auto">
                         {character.appearances.map((app, index) => (
                             <button key={app.id} onClick={() => setActiveAppearance(index)} className={`glass-btn-base px-2 py-0.5 text-xs rounded-full whitespace-nowrap ${index === activeAppearance ? 'glass-btn-primary' : 'glass-btn-soft text-[var(--glass-text-secondary)]'}`}>
-                                {app.changeReason || `形象 ${app.appearanceIndex}`}
+                                {app.changeReason || t('appearanceIndexedLabel', { index: app.appearanceIndex })}
                             </button>
                         ))}
                     </div>
